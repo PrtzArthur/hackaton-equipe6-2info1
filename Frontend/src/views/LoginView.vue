@@ -1,4 +1,5 @@
 <script setup>
+import { RouterLink } from 'vue-router';
 
 </script>
 
@@ -8,25 +9,19 @@
       <header><h1>IFchat</h1></header>
       <div class="Div-Central">
         <form @submit.prevent="">
-
         <div class="Agrupacao">
           <label for="email">Email</label>
           <input type="email" placeholder="exemplo@email.com" id="email">
         </div>
-
         <div class="Agrupacao">
           <label for="senha">Senha</label>
           <input type="text" placeholder="Senha" id="senha">
-          <a href="#" class="LinkRecSenha">Esqueceu a senha?</a>
+          <RouterLink class="LinkRecSenha">Esqueceu a senha?</RouterLink>
         </div>
-
         <button type="submit" class="BotaoEntrar">Entrar</button>
-
         </form>
       </div>
-
     </div>
-
   </main>
 </template>
 
