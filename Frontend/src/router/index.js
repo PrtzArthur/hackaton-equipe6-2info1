@@ -4,6 +4,13 @@ import CadastroView from '@/views/CadastroView.vue'
 import TermosDeUsoView from '@/views/TermosDeUsoView.vue'
 import PoliticaDePrivacidadeView from '@/views/PoliticaDePrivacidadeView.vue'
 import HomeView from '@/views/HomeView.vue'
+import SalvarView from '@/views/SalvarView.vue'
+import ChatView from '@/views/ChatView.vue'
+import EventosView from '@/views/EventosView.vue'
+import ExplorarView from '@/views/ExplorarView.vue'
+import CriarView from '@/views/CriarView.vue'
+import UsuarioView from '@/views/UsuarioView.vue'
+import AvisosView from '@/views/AvisosView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -18,12 +25,49 @@ const router = createRouter({
       path: '/cadastro',
       name: 'Cadastro',
       component: CadastroView,
+      meta: { ocultarHeader: true }
     },
     {
       path: '/termos+de+uso',
       name: 'Termos de uso',
       component: TermosDeUsoView,
       meta: { ocultarHeader: true }
+    },
+    {
+      path: '/salvar',
+      name: 'Salvar',
+      component: SalvarView,
+    },
+    {
+      path: '/avisos',
+      name: 'Avisos',
+      component: AvisosView,
+    },
+    {
+      path: '/criar',
+      name: 'Criar',
+      component: CriarView,
+    },
+    {
+      path: '/usuario/:id',
+      name: 'Usuário',
+      component: UsuarioView,
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/chat',
+      name: 'Chat',
+      component: ChatView,
+    },
+    {
+      path: '/eventos',
+      name: 'Eventos',
+      component: EventosView,
+    },
+    {
+      path: '/explorar',
+      name: 'Explorar',
+      component: ExplorarView,
     },
     {
       path: '/politica+de+privacidade',

@@ -32,7 +32,12 @@ router.post('/cadastro', async (req, res) => {
 
     const token = jwt.sign({ id: id_usuario }, process.env.JWT_SECRET, { expiresIn: '7d' });
 
-    res.status(201).json({ sucesso: true, token, mensagem: 'Conta criada com sucesso!' });
+    return res.status(201).json({ 
+  sucesso: true, 
+  token, 
+  id_usuario: id_usuario,
+  mensagem: 'Conta criada com sucesso!' 
+});
 
   } catch (error) {
     console.error('Erro no cadastro do MySQL:', error);
@@ -64,7 +69,12 @@ router.post('/login', async (req, res) => {
 
     const token = jwt.sign({ id: usuario.id_usuario }, process.env.JWT_SECRET, { expiresIn: '7d' });
 
-    return res.json({ sucesso: true, token, mensagem: 'Login realizado com sucesso!' });
+    return res.json({ 
+  sucesso: true, 
+  token, 
+  id_usuario: usuario.id_usuario,
+  mensagem: 'Autenticação bem sucedida!' 
+})
 
   } catch (error) {
     console.error('Erro no login do MySQL:', error);
