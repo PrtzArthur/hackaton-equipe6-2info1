@@ -35,8 +35,9 @@ const realizarCadastro = async () => {
     const dados = await resposta.json();
 
     if (resposta.ok) {
-      localStorage.setItem('ifchat_token', dados.token);
 
+      localStorage.setItem('ifchat_token', dados.token);
+      localStorage.setItem('ifchat_user_id', dados.id_usuario);
       alert('Sua conta foi criada com sucesso!');
 
       router.push('/home');
@@ -71,11 +72,11 @@ const realizarCadastro = async () => {
           </div>
           <div class="Agrupacao">
             <label for="senha" class="labels">Senha</label>
-            <input v-model="senha" type="text" placeholder="Senha" id="senha" required>
+            <input v-model="senha" type="password" placeholder="Senha" id="senha" required>
           </div>
           <div class="Agrupacao">
             <label for="senha" class="labels">Confirmar senha</label>
-            <input v-model="confirmarSenha" type="text" placeholder="Senha" id="senha" required>
+            <input v-model="confirmarSenha" type="password" placeholder="Senha" id="senha" required>
           </div>
           <div class="termos">
             <input v-model="aceitouTermos" type="checkbox" class="checkbox" id="checkBox" required>
@@ -107,6 +108,8 @@ main {
   align-items: center;
   background-color: rgba(85, 255, 51, 0.14);
   padding: 1vw;
+  width: 100%;
+  height: 100%;
   min-height: 100vh;
 }
 main button.BotaoCriar {
@@ -126,7 +129,6 @@ main div.Card-Principal {
   border-radius: 1.2vw;
   overflow: hidden;
   box-shadow: 0 0.2vw 0.2vw rgba(0, 0, 0, 0.3);
-  font-family: sans-serif;
 }
 main div.Agrupacao {
   display: flex;
@@ -147,7 +149,6 @@ main header h1 {
   color: #ffffff;
   margin: 0;
   font-size: 2vw;
-  font-family: sans-serif;
   font-weight: bold;
   padding-left: 0.5vw;
 }

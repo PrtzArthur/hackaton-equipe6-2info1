@@ -6,14 +6,25 @@ const route = useRoute();
 </script>
 
 <template>
-  <AppHeader v-if="!route.meta.ocultarHeader"/>
-  <RouterView />
+  <div class="containerSimples">
+    <AppHeader v-if="!route.meta.ocultarHeader"/>
+    <RouterView />
+  </div>
 </template>
 
 <style>
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: Arial, Helvetica, sans-serif;
+}
 body {
   margin: 0 !important;
   padding: 0 !important;
-  box-sizing: border-box;
+}
+.containerSimples {
+  width: 100%;
+  min-height: 100vh;
 }
 </style>

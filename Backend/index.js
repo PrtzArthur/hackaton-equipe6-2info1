@@ -3,6 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import pool from './database.js';
 import authRoutes from './routes/auth.js';
+import usuarioRoutes from './routes/usuario.js';
 
 dotenv.config();
 
@@ -13,6 +14,7 @@ app.use(cors());
 app.use(express.json());
 
 app.use('/api/auth', authRoutes);
+app.use('/api/usuario', usuarioRoutes);
 
 app.get('/', (req, res) => {
   res.send('Servidor do IFchat está rodando e operacional!');
