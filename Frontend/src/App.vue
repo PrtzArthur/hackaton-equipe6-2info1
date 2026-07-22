@@ -10,5 +10,10 @@ const route = useRoute();
   <RouterView />
 </template>
 
-<style scoped>
+<style>
+body {
+  margin: 0 !important;
+  padding: 0 !important;
+  box-sizing: border-box;
+}
 </style>
