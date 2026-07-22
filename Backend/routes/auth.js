@@ -40,4 +40,36 @@ router.post('/cadastro', async (req, res) => {
   }
 });
 
+router.post('/login', async (req, res) => {
+  const { emailOuHandle, senha } = req.body;
+
+  try {
+    const [usuarios] = await pool.query(
+      'SELECT * FROM Usuario WHERE email = ? OR username = ?',
+      [emailOuHandle, emailOuHandle.replace('@', '').trim()]
+    );
+
+    if (usuarios.length === 0) {
+      return res.status(401).json({ erro: 'Usuário ou senha incorretos.' });
+    }
+
+    const usuario = usuarios[0];
+
+    const senhaValida = await bcrypt.compare(senha, usuario.senha);
+    if (!senhaValida) {
+      return res.status(401).json({ erro: 'Usuário ou senha incorretos.' });
+    }
+
+    await pool.query('UPDATE Usuario SET status_online = TRUE WHERE id_usuario = ?', [usuario.id_usuario]);
+
+    const token = jwt.sign({ id: usuario.id_usuario }, process.env.JWT_SECRET, { expiresIn: '7d' });
+
+    return res.json({ sucesso: true, token, mensagem: 'Login realizado com sucesso!' });
+
+  } catch (error) {
+    console.error('Erro no login do MySQL:', error);
+    return res.status(500).json({ erro: 'Erro interno no servidor ao validar credenciais.' });
+  }
+});
+
 export default router;
