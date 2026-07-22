@@ -145,8 +145,8 @@ header h1 {
   color: #333;
 }
 .imgIcon {
-  width: 1.8vw;
-  height: 1.8vw;
+  width: 2.1vw;
+  height: 2.1vw;
   object-fit: contain;
 }
 .imgIcon.linha {
