@@ -124,9 +124,10 @@ header h1 {
   margin-top: 0;
   padding: 2vw 0 2vw 0;
   margin-bottom: 3vw;
+  font-size: 2vw;
 }
 .divLink {
-  padding: 1.2vw 0 1.2vw 0;
+  padding: 1vw 0 1vw 0;
   border-left: 0.45vw solid transparent;
 }
 .divLink:hover {
@@ -141,7 +142,7 @@ header h1 {
   height: 100%;
   padding-left: 1.2vw;
   font-weight: bold;
-  font-size: 1.1vw;
+  font-size: 1.4vw;
   color: #333;
 }
 .imgIcon {
@@ -158,6 +159,7 @@ header h1 {
 .divLink.ativo {
   background-color: rgba(85, 255, 51, 0.14);
   border-left: 0.45vw solid #3CBC00;
+  box-shadow: 0px 4px 2px rgba(0, 0, 0, 0.25);
 }
 .divLink.ativo span {
   color: #000;

@@ -2,6 +2,7 @@ import express from 'express';
 import pool from '../database.js';
 
 const router = express.Router();
+
 router.get('/perfil/:id', async (req, res) => {
   const { id } = req.params;
   try {
