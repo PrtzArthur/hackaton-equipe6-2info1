@@ -24,7 +24,7 @@ try {
 
       localStorage.setItem('ifchat_token', dados.token);
       localStorage.setItem('ifchat_user_id', dados.id_usuario);
-      
+
       alert('Login efetuado com sucesso!');
       router.push('/home');
     } else {
