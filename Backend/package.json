@@ -11,11 +11,13 @@
   "license": "ISC",
   "type": "module",
   "dependencies": {
+    "@google-cloud/vision": "^5.3.7",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
+    "multer": "^2.2.0",
     "mysql2": "^3.23.1"
   }
 }
