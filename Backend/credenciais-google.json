@@ -1,0 +1,13 @@
+{
+  "type": "service_account",
+  "project_id": "zinc-iterator-504120-v1",
+  "private_key_id": "9ff4e00c0e1c8bed3ccc7c2782b00de0e8dd87f5",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDg95gw8SQP30FZ\ni0uPF0G5B4RRXpyEMdaglxQnJd2aQmEgd/vtcR8ss0sxqMqy/onJclP+ImTld7b/\nD1b254zfemuPE5ARVXxZS9HWvkYGQPXp0X9Uj3mPpJR9p35qKWQcxsUoAO5VZI9Y\nKRDSIwlug1eO1Q3uOZQMT2K2Xzs0Hf9KF7xSk/kSB1d712NM8bXJtIhqS06TeQDS\nVtLA7Pr0c0xZ2OJfLlHV6CWz2ZYSOPQ1+pLP8LeqIUq3uy6s+lfB1L8nnOnqHJwc\nsrTidun5hol18pXDAkwTrdAMjrz7l+59rXMO8YQeLjhDOJji5pUNfnpl7NQwZQ10\nin3h53V9AgMBAAECggEABRZsWyYipVLRGf0iR33keVu21s0/oK+RbIxhjC/QEkId\n+PuKPAZ3bUSvv9OApAVJRDbTgfKw9jtk0arGLXR8ULPvp0YmKa2exot9Fx6N9zUr\nPNPXlt64xmAXx3L6ye55oTsdHdGXSRgF6t3OmNOzYBUd0dWRtjBO8hAuQKJfWSKp\niPl3wjOL27fYsX0Lx16LEliODFOk2ze0yUhVPgnWVPq7A+QHA0T30McyYJUwAOvj\nz5p8bL867NUJEPKYgT2FxMabwxy5nkM58deL3gPwX2fi12hEwLwrO5Vw0EJYP+vI\nSs9uh5T3uU/SIlDI0t5lzxl9BvDQWVHnc0wUnk5VAQKBgQDycHjzeN8ZTdRGs1Aj\ntZ4dWsOlFXgiaSUvgk5aWYJcOxOi73wBPPkG4p+FTjXFudopRWv7QwI835S5UPWa\nINqb8HRDjTXr54QoIU/Fk3tgZwI37izWLmKAMNJ/MaInaFIVpjfSND3VEOsrN9Un\n5oqRW1lV6BPwaIQSnyQiYe2afQKBgQDtjO9jq8a9tLFU/VqSIEfN/3X3w7HfWB7A\ns7HLR5cR/UmtUWJRiKnOowmaizvd2TMre6AAb49IkofZDiWuI6gIQn9QcFO0qKZr\npGuBETEtF2qeoIJKDsShPy4hrB5fDwUi4eIUSHCGyfodLVS/cfw+XKMTYRKMkUjC\ntj3vdD03AQKBgQDpqTUpk8mSXczGB3SpthWaPSxrI3IR2D0auQBDXBmkQtv+Icrm\ndpmc5TbSCDsTQrjdJieYl1DE0shIg5ry3c9UlD+6C5N4tj5NXy2/QxGaLC2bMlbM\nZxBQdL2sEW4zhPv4GaebVPZzMEc39CvgtPXAesZzYaY2AsWoHPF6od+bEQKBgQC+\nDJM5WqSWAYoeRNPBNLI9zLPElXwpA4cXBKypxYzHh6z6TLIsKPoxp553Vg1/X9Xg\nY/eOYbJwjUrCDN94gm5crVbONA/D6Wm7lL+tcuO0/5b9cczLEyWdG778kYd65blm\nPvFw6MOeEtlXnny+7aKxAcw2JOOCMnnTzZmfiY+wAQKBgCEVg4QmupGjo9WPEguY\naUd7Lx6TcQH466Iyx4jp6s2LhDGa9gWpnAApOvP+qPcxPvIcfiMtBXuA2P9g5qq3\nNLi/ovqPSYEEnf/62+4oBNlVDyu+YsTxzRilua+ioZ6KAFH+AiM5RyAxhK3FyBjB\n5Chn8cjJjMGThwykaGm/QNR5\n-----END PRIVATE KEY-----\n",
+  "client_email": "validador-imagens@zinc-iterator-504120-v1.iam.gserviceaccount.com",
+  "client_id": "117988707851347061620",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/validador-imagens%40zinc-iterator-504120-v1.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}
