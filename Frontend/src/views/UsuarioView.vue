@@ -13,30 +13,89 @@ import setinha from '@/icons/setinha.svg'
 
 const route = useRoute();
 
-//const editarPerfil = ref(false);
+const editarPerfil = ref(false);
 
 const nomeUsuario = ref('Carregando...');
 const statusOnline = ref(false);
 const biografia = ref('');
 const localizacao = ref('');
 const postagens = ref([]);
-
 const perfisFavoritos = ref([]);
 const bannerUrl = ref('');
 const seguidoresUsuario = ref(0);
 const usiarioSeguindo = ref(0);
 const fotoPerfil = ref('');
-const dataDeCriacao = ref('00/00/0000');
+const dataDeCriacao = ref('');
 const tagsDoUsuario = ref([]);
 const comentariosMural = ref([]);
-
 const adicionarTag = ref(false)
 const listaTagsTotais = ref(tagsTotais);
+const arquivoFoto = ref(null);
+const arquivoBanner = ref(null);
+
+function capturarFoto(event) {
+  arquivoFoto.value = event.target.files[0];
+}
+
+function capturarBanner(event) {
+  arquivoBanner.value = event.target.files[0];
+}
+
+const biografiaEdit = ref('');
+const localizacaoEdit = ref('');
+const nomeEdit = ref('');
 
 function adicionarNovasTags() {
  adicionarTag.value = !adicionarTag.value;
 }
 
+const edicaoDosDados = async () => {
+  try {
+    const resposta = await fetch(`http://localhost:3000/api/usuario/perfil/${idUsuarioDaURL}`, {
+      method: 'PUT',
+      headers: {
+        'content-Type' : 'application/json'
+      },
+      body: JSON.stringify({
+        nome: nomeEdit.value,
+        biografia: biografiaEdit.value,
+        localizacao: localizacaoEdit.value
+      })
+    });
+
+    const dados = await resposta.json();
+
+    if (!resposta.ok) {
+      alert(dados.erro || "Erro ao atualizar dados.");
+      return;
+    }
+    if (arquivoFoto.value || arquivoBanner.value) {
+      const dadosMidia = new FormData();
+
+      if (arquivoFoto.value) dadosMidia.append('foto', arquivoFoto.value);
+      if (arquivoBanner.value) dadosMidia.append('banner', arquivoBanner.value);
+
+      const respostaMidia = await fetch(`http://localhost:3000/api/usuario/perfil/${idUsuarioDaURL}/midias`, {
+        method: 'PUT',
+        body: dadosMidia
+      });
+      const resultadoMidia = await respostaMidia.json();
+
+      if (respostaMidia.ok) {
+        fotoPerfil.value = resultadoMidia.foto_profile;
+        bannerUrl.value = resultadoMidia.banner_fundo;
+      } else {
+        alert(resultadoMidia.erro || "Erro ao processar imagens.");
+      }
+    }
+    nomeUsuario.value = nomeEdit.value;
+    biografia.value = biografiaEdit.value;
+    localizacao.value = localizacaoEdit.value;
+    editarPerfil.value = false;
+  } catch(erro) {
+    console.error('Não foi possível adicionar os dados', erro);
+  }
+};
 function moverTagParaListaUsuario(tagUniversal) {
   if (!tagsDoUsuario.value.includes(tagUniversal)) {
     tagsDoUsuario.value.push(tagUniversal);
@@ -44,10 +103,14 @@ function moverTagParaListaUsuario(tagUniversal) {
     console.log('Esta tag já existe.')
   }
 }
+function mostrarJanelaEditor() {
+  editarPerfil.value = !editarPerfil.value;
+  biografiaEdit.value = biografia.value;
+  nomeEdit.value = nomeUsuario.value;
+}
 
 function deletarTag(index) {
   tagsDoUsuario.value.splice(index, 1)
-
 }
 
 const idUsuarioDaURL = route.params.id;
@@ -62,8 +125,13 @@ const carregarDadosDoPerfil = async () => {
       statusOnline.value = dadosPerfil.status_online;
       biografia.value = dadosPerfil.biografia;
       localizacao.value = dadosPerfil.localizacao;
+      dataDeCriacao.value = dadosPerfil.data_criacao;
+      fotoPerfil.value = dadosPerfil.foto_profile || '';
+      bannerUrl.value = dadosPerfil.banner_fundo || '';
 
-
+      if (dadosPerfil.data_criacao) {
+    dataDeCriacao.value = new Date(dadosPerfil.data_criacao).toLocaleDateString('pt-BR');
+  };
     }
 
     const respostaPosts = await fetch(`http://localhost:3000/api/usuario/postagens/${idUsuarioDaURL}`);
@@ -89,7 +157,7 @@ onMounted(() => {
           <div class="fotoDePerfil">
             <div class="molduraPerfil">
               <img v-if="fotoPerfil !== ''" :src="fotoPerfil" alt="Foto-de-perfil" class="fotoPerfil">
-              <img v-else :src="userBlackFull" alt="Default-foto-perfil" class="fotoPerfil">
+              <img v-else :src="userBlackFull" alt="Default-foto-perfil" class="fotoPerfilDefault">
             </div>
           </div>
           <div class="dadosCabecalho">
@@ -112,7 +180,7 @@ onMounted(() => {
             <img :src="gear" alt="">
             <span>Configurações</span>
           </button>
-          <button class="btnPerfil">
+          <button @click="mostrarJanelaEditor" class="btnPerfil">
             <img :src="canetaEdicao" alt="">
             <span>Editar Perfil</span>
           </button>
@@ -205,6 +273,35 @@ onMounted(() => {
         </div>
       </div>
     </section>
+    <div v-if="editarPerfil" class="overlay">
+        <form @submit.prevent="edicaoDosDados" class="form">
+          <h2 class="overlayFormTitulo">Editar Perfil</h2>
+          <div class="divFormEditPerfil">
+            <label for="novo-nome">Novo nome</label>
+            <input type="text" v-model="nomeEdit" id="novo-nome">
+          </div>
+          <div class="divFormEditPerfil">
+            <label for="nova-local">Nova localização</label>
+            <input type="text" v-model="localizacaoEdit" id="nova-local">
+          </div>
+          <div class="divFormEditPerfil">
+            <label for="biografiaEdit">Nova biografia</label>
+            <textarea v-model="biografiaEdit" id="biografiaEdit" rows="3" maxlength="500"></textarea>
+          </div>
+          <div>
+      <label>Alterar Foto de Perfil:</label>
+      <input type="file" accept="image/*" @change="capturarFoto" class="imageInput">
+    </div>
+    <div>
+      <label>Alterar Imagem de Banner:</label>
+      <input type="file" accept="image/*" @change="capturarBanner" class="imageInput">
+    </div>
+          <div class="botoesDoFormEditPerfil">
+            <button type="submit">Salvar</button>
+            <button type="button" @click="editarPerfil = false">Cancelar</button>
+          </div>
+        </form>
+      </div>
   </main>
 </template>
 
@@ -250,6 +347,43 @@ main {
   background-color: #ff0000;
   color: #fff;
   font-weight: bold;
+}
+.overlayFormTitulo {
+  width: 100%;
+  background-color: #3CBC00;
+  color: #fff;
+  height: 100%;
+}
+.form {
+  background-color: #fff;
+  padding: 1vw;
+  width: 30vw;
+  border: 0.8px solid #000;
+  display: flex;
+  flex-direction: column;
+  border-radius: 10px;
+  gap: 0.5vw;
+}
+.divFormEditPerfil {
+  display: flex;
+  flex-direction: column;
+}
+.botoesDoFormEditPerfil {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100vh;
+  z-index: 1000;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .btnTagsFechar:hover {
   transition: 0.2s;
@@ -364,8 +498,7 @@ section.telaDeExibicao {
 }
 .bannerPerfil {
   height: 11vw;
-  background-color: #55FF33;
-  opacity: 0.5;
+  background-color: #55ff3389;
   margin: 0.5vw 0.5vw;
   border-radius: 5px;
   overflow: hidden;
@@ -375,8 +508,9 @@ section.telaDeExibicao {
 }
 .molduraPerfil {
   overflow: hidden;
-  height: 8vw;
-  width: 8vw;
+  height: 6vw;
+  width: 6vw;
+  border-radius: 100px;
 }
 .fotoDePerfil {
   background-color: #fff;
@@ -391,6 +525,12 @@ section.telaDeExibicao {
   display: flex;
   align-items: center;
   justify-content: center;
+
+}
+.fotoPerfilDefault {
+  object-fit: cover;
+  width: 100%;
+  height: 100%;
 }
 .fotoPerfil {
   object-fit: cover;
@@ -401,6 +541,7 @@ section.telaDeExibicao {
   object-fit: cover;
   width: 100%;
   height: 100%;
+  opacity: 1 !important;
 }
 .spanSeguidores {
   color: #8b8b8b;
