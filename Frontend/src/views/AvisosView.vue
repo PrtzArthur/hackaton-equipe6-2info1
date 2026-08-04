@@ -5,11 +5,11 @@ const notificacoes = ref([]) // É um array bem temporario em improvisado pra ar
 
 <template>
   <main>
-    <div class="notifications-card">
+    <section class="notifications-card">
       <header class="notifications-header">
         <h2>Notificações</h2>
       </header>
-      
+
       <div class="notifications-body">
         <p v-if="notificacoes.length === 0" class="empty-text">
           Nenhuma notificação por enquanto.
@@ -21,7 +21,7 @@ const notificacoes = ref([]) // É um array bem temporario em improvisado pra ar
           </li>
         </ul>
       </div>
-    </div>
+    </section>
   </main>
 </template>
 

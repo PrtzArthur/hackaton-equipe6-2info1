@@ -80,7 +80,6 @@ const edicaoDosDados = async () => {
         body: dadosMidia
       });
       const resultadoMidia = await respostaMidia.json();
-
       if (respostaMidia.ok) {
         fotoPerfil.value = resultadoMidia.foto_profile;
         bannerUrl.value = resultadoMidia.banner_fundo;
@@ -96,6 +95,7 @@ const edicaoDosDados = async () => {
     console.error('Não foi possível adicionar os dados', erro);
   }
 };
+
 function moverTagParaListaUsuario(tagUniversal) {
   if (!tagsDoUsuario.value.includes(tagUniversal)) {
     tagsDoUsuario.value.push(tagUniversal);
@@ -108,7 +108,6 @@ function mostrarJanelaEditor() {
   biografiaEdit.value = biografia.value;
   nomeEdit.value = nomeUsuario.value;
 }
-
 function deletarTag(index) {
   tagsDoUsuario.value.splice(index, 1)
 }
@@ -274,19 +273,20 @@ onMounted(() => {
       </div>
     </section>
     <div v-if="editarPerfil" class="overlay">
-        <form @submit.prevent="edicaoDosDados" class="form">
+        <div class="form">
           <h2 class="overlayFormTitulo">Editar Perfil</h2>
+          <form @submit.prevent="edicaoDosDados" class="formularioDeEdicao">
           <div class="divFormEditPerfil">
             <label for="novo-nome">Novo nome</label>
-            <input type="text" v-model="nomeEdit" id="novo-nome">
+            <input type="text" v-model="nomeEdit" id="novo-nome" placeholder="Insira o seu nome">
           </div>
           <div class="divFormEditPerfil">
             <label for="nova-local">Nova localização</label>
-            <input type="text" v-model="localizacaoEdit" id="nova-local">
+            <input type="text" v-model="localizacaoEdit" id="nova-local" placeholder="Insira sua localização">
           </div>
           <div class="divFormEditPerfil">
             <label for="biografiaEdit">Nova biografia</label>
-            <textarea v-model="biografiaEdit" id="biografiaEdit" rows="3" maxlength="500"></textarea>
+            <textarea v-model="biografiaEdit" id="biografiaEdit" rows="3" maxlength="500" placeholder="Insira sua biografia"></textarea>
           </div>
           <div>
       <label>Alterar Foto de Perfil:</label>
@@ -297,10 +297,11 @@ onMounted(() => {
       <input type="file" accept="image/*" @change="capturarBanner" class="imageInput">
     </div>
           <div class="botoesDoFormEditPerfil">
-            <button type="submit">Salvar</button>
-            <button type="button" @click="editarPerfil = false">Cancelar</button>
+            <button type="submit" class="salvarAlteracoes">Salvar</button>
+            <button type="button" @click="editarPerfil = false" class="cancelarAlteracoes">Cancelar</button>
           </div>
         </form>
+        </div>
       </div>
   </main>
 </template>
@@ -353,25 +354,54 @@ main {
   background-color: #3CBC00;
   color: #fff;
   height: 100%;
+  padding: 1vw;
+}
+.salvarAlteracoes {
+  padding: 0.5vw;
+  width: 5vw;
+  border-radius: 10px;
+  font-size: 1vw;
+  border: none;
+  background-color: #3CBC00;
+  font-weight: bold;
+  color: #fff;
+}
+.salvarAlteracoes:hover {
+background-color: #37ad00;
+cursor: pointer;
+}
+.cancelarAlteracoes {
+  padding: 0.5vw;
+  width: 5vw;
+  border-radius: 10px;
+  font-size: 1vw;
+  border: 1px solid #000;
+  background-color: #fff;
+}
+.formularioDeEdicao {
+  padding: 0 1vw 0 1vw;
 }
 .form {
   background-color: #fff;
-  padding: 1vw;
   width: 30vw;
   border: 0.8px solid #000;
   display: flex;
   flex-direction: column;
   border-radius: 10px;
   gap: 0.5vw;
+  overflow: hidden;
 }
 .divFormEditPerfil {
   display: flex;
   flex-direction: column;
+  gap: 0.5vw;
 }
 .botoesDoFormEditPerfil {
   display: flex;
   justify-content: center;
   width: 100%;
+  gap: 0.5vw;
+  margin: 0.5vw;
 }
 .overlay {
   position: fixed;
