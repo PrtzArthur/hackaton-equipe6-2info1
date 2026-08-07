@@ -11,6 +11,7 @@ import ExplorarView from '@/views/ExplorarView.vue'
 import CriarView from '@/views/CriarView.vue'
 import UsuarioView from '@/views/UsuarioView.vue'
 import AvisosView from '@/views/AvisosView.vue'
+import RecSenhaView from '@/views/RecSenhaView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -28,7 +29,13 @@ const router = createRouter({
       meta: { ocultarHeader: true }
     },
     {
-      path: '/termos+de+uso',
+      path: '/recuperar-senha',
+      name: 'Recuperar Senha',
+      component: RecSenhaView,
+      meta: { ocultarHeader: true }
+    },
+    {
+      path: '/termos-de-uso',
       name: 'Termos de uso',
       component: TermosDeUsoView,
       meta: { ocultarHeader: true }
@@ -37,16 +44,19 @@ const router = createRouter({
       path: '/salvar',
       name: 'Salvar',
       component: SalvarView,
+      meta: { requiresAuth: true }
     },
     {
       path: '/avisos',
       name: 'Avisos',
       component: AvisosView,
+      meta: { requiresAuth: true }
     },
     {
-      path: '/criar',
+      path: '/criar/:id',
       name: 'Criar',
       component: CriarView,
+      meta: { requiresAuth: true }
     },
     {
       path: '/usuario/:id',
@@ -58,19 +68,22 @@ const router = createRouter({
       path: '/chat',
       name: 'Chat',
       component: ChatView,
+      meta: { requiresAuth: true }
     },
     {
       path: '/eventos',
       name: 'Eventos',
       component: EventosView,
+      meta: { requiresAuth: true }
     },
     {
       path: '/explorar',
       name: 'Explorar',
       component: ExplorarView,
+      meta: { requiresAuth: true }
     },
     {
-      path: '/politica+de+privacidade',
+      path: '/politica-de-privacidade',
       name: 'política de privacidade',
       component: PoliticaDePrivacidadeView,
       meta: { ocultarHeader: true }
@@ -84,18 +97,16 @@ const router = createRouter({
   ],
 })
 
-router.beforeEach((to, _from, next) => {
+router.beforeEach((to) => {
   const usuarioLogado = localStorage.getItem('ifchat_token')
 
   if (to.meta.requiresAuth && !usuarioLogado) {
     alert('Acesso negado. Por favor, faça login primeiro!')
-    next('/')
+    return '/'
   }
-  else if ((to.path === '/' || to.path === '/cadastro') && usuarioLogado) {
-    next('/home')
-  }
-  else {
-    next()
+
+  if ((to.path === '/' || to.path === '/cadastro') && usuarioLogado) {
+    return '/home'
   }
 });
 
