@@ -13,7 +13,7 @@ const clienteVision = new vision.ImageAnnotatorClient({
 
 async function verificarConteudoImagem(caminhoDaImagem) {
   const timeoutGoogle = new Promise((_, reject) => 
-    setTimeout(() => reject(new Error('Tempo limite do Google expirou')), 10500)
+    setTimeout(() => reject(new Error('Tempo limite do Google expirou')), 2500)
   );
   try {
     const [resultado] = await Promise.race([

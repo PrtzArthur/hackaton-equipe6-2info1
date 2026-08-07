@@ -10,6 +10,7 @@ import interrogacao from '@/icons/interrogacao.svg'
 import tagsTotais from '@/data/tags';
 import plus from '@/icons/plus.svg'
 import setinha from '@/icons/setinha.svg'
+import voltar from '@/icons/voltar.png'
 
 const route = useRoute();
 
@@ -28,11 +29,18 @@ const fotoPerfil = ref('');
 const dataDeCriacao = ref('');
 const tagsDoUsuario = ref([]);
 const comentariosMural = ref([]);
-const adicionarTag = ref(false)
+const adicionarTag = ref(false);
 const listaTagsTotais = ref(tagsTotais);
 const arquivoFoto = ref(null);
 const arquivoBanner = ref(null);
 
+const telaExibicao = ref(true);
+const telaConfig = ref(false);
+
+function mostrarTelaConfiguracao() {
+  telaConfig.value = !telaConfig.value;
+  telaExibicao.value = !telaExibicao.value;
+}
 function capturarFoto(event) {
   arquivoFoto.value = event.target.files[0];
 }
@@ -45,11 +53,17 @@ const biografiaEdit = ref('');
 const localizacaoEdit = ref('');
 const nomeEdit = ref('');
 
+const showWarningNome = ref(false);
+
 function adicionarNovasTags() {
  adicionarTag.value = !adicionarTag.value;
 }
 
 const edicaoDosDados = async () => {
+  if (nomeEdit.value === '') {
+    showWarningNome.value = !showWarningNome.value;
+  } else {
+    showWarningNome.value = false;
   try {
     const resposta = await fetch(`http://localhost:3000/api/usuario/perfil/${idUsuarioDaURL}`, {
       method: 'PUT',
@@ -86,7 +100,7 @@ const edicaoDosDados = async () => {
       } else {
         alert(resultadoMidia.erro || "Erro ao processar imagens.");
       }
-    }
+    };
     nomeUsuario.value = nomeEdit.value;
     biografia.value = biografiaEdit.value;
     localizacao.value = localizacaoEdit.value;
@@ -94,7 +108,7 @@ const edicaoDosDados = async () => {
   } catch(erro) {
     console.error('Não foi possível adicionar os dados', erro);
   }
-};
+}};
 
 function moverTagParaListaUsuario(tagUniversal) {
   if (!tagsDoUsuario.value.includes(tagUniversal)) {
@@ -102,16 +116,15 @@ function moverTagParaListaUsuario(tagUniversal) {
   } else {
     console.log('Esta tag já existe.')
   }
-}
+};
 function mostrarJanelaEditor() {
   editarPerfil.value = !editarPerfil.value;
   biografiaEdit.value = biografia.value;
   nomeEdit.value = nomeUsuario.value;
-}
+};
 function deletarTag(index) {
   tagsDoUsuario.value.splice(index, 1)
-}
-
+};
 const idUsuarioDaURL = route.params.id;
 
 const carregarDadosDoPerfil = async () => {
@@ -132,10 +145,8 @@ const carregarDadosDoPerfil = async () => {
     dataDeCriacao.value = new Date(dadosPerfil.data_criacao).toLocaleDateString('pt-BR');
   };
     }
-
     const respostaPosts = await fetch(`http://localhost:3000/api/usuario/postagens/${idUsuarioDaURL}`);
     postagens.value = await respostaPosts.json();
-
   } catch (erro) {
     console.error("Erro ao buscar dados do perfil:", erro);
   }
@@ -147,21 +158,21 @@ onMounted(() => {
 
 <template>
   <main>
-    <section class="telaDeExibicao">
+    <section v-if="telaExibicao" class="telaDeExibicao">
       <div class="divDoUsuario">
         <div class="bannerPerfil">
-          <img v-if="bannerUrl !== ''" :src="bannerUrl" alt="Banner" class="banner">
+          <img v-if="bannerUrl && bannerUrl !== ''" :src="bannerUrl" alt="Banner" class="banner">
         </div>
         <div class="cabecalho-perfil">
           <div class="fotoDePerfil">
             <div class="molduraPerfil">
-              <img v-if="fotoPerfil !== ''" :src="fotoPerfil" alt="Foto-de-perfil" class="fotoPerfil">
+              <img v-if="fotoPerfil && fotoPerfil !== ''" :src="fotoPerfil" alt="Foto-de-perfil" class="fotoPerfil">
               <img v-else :src="userBlackFull" alt="Default-foto-perfil" class="fotoPerfilDefault">
             </div>
           </div>
           <div class="dadosCabecalho">
-            <h2>{{ nomeUsuario }}</h2>
-            <div v-if="statusOnline === true" class="statusUsuarioOnline">
+            <h2 class="nomeDeUsuario">{{ nomeUsuario }}</h2>
+            <div v-if="statusOnline" class="statusUsuarioOnline">
               <div class="IndicadorOnline"></div>
               <span class="OnlineTexto">Online</span>
             </div>
@@ -175,7 +186,7 @@ onMounted(() => {
           </div>
         </div>
         <div class="botoes">
-          <button class="btnPerfil">
+          <button @click="mostrarTelaConfiguracao" class="btnPerfil">
             <img :src="gear" alt="">
             <span>Configurações</span>
           </button>
@@ -233,13 +244,22 @@ onMounted(() => {
         </div>
         <div class="postagens">
           <h3>Postagens</h3>
-          <div v-if="postagens.length === 0" class="caixa-postagens-vazia">
-            <img :src="interrogacao" alt="Sem postagens">
-            <span class="textoDeAviso">Ainda não há nenhuma postagem</span>
-          </div>
-          <div v-else v-for="postagem in postagens" :key="postagem">
-          </div>
-        </div>
+            <div v-if="postagens.length === 0" class="caixa-postagens-vazia">
+              <img :src="interrogacao" alt="Sem postagens">
+              <span class="textoDeAviso">Ainda não há nenhuma postagem</span>
+            </div>
+        <div v-else class="lista-de-posts-real">
+      <div
+      v-for="postagem in postagens"
+      :key="postagem.id_postagem"
+      class="cartao-postagem-usuario">
+        <p class="texto-do-post">{{ postagem.conteudo }}</p>
+        <span class="data-do-post">
+          Publicado em: {{ new Date(postagem.data_envio).toLocaleDateString('pt-BR') }}
+        </span>
+      </div>
+      </div>
+    </div>
         <div class="mural">
           <h3>Mural</h3>
           <div v-if="comentariosMural.length === 0" class="caixa-mural-vazia">
@@ -278,21 +298,22 @@ onMounted(() => {
           <form @submit.prevent="edicaoDosDados" class="formularioDeEdicao">
           <div class="divFormEditPerfil">
             <label for="novo-nome">Novo nome</label>
-            <input type="text" v-model="nomeEdit" id="novo-nome" placeholder="Insira o seu nome">
+            <input type="text" v-model="nomeEdit" minlength="1" maxlength="50" id="novo-nome" placeholder="Insira o seu nome" class="inputFormEdit">
+            <p v-if="showWarningNome" class="paragrafoVermelho">Por favor, coloque pelo menos um caractere.</p>
           </div>
           <div class="divFormEditPerfil">
             <label for="nova-local">Nova localização</label>
-            <input type="text" v-model="localizacaoEdit" id="nova-local" placeholder="Insira sua localização">
+            <input type="text" v-model="localizacaoEdit" id="nova-local" placeholder="Insira sua localização" class="inputFormEdit">
           </div>
           <div class="divFormEditPerfil">
             <label for="biografiaEdit">Nova biografia</label>
-            <textarea v-model="biografiaEdit" id="biografiaEdit" rows="3" maxlength="500" placeholder="Insira sua biografia"></textarea>
+            <textarea v-model="biografiaEdit" id="biografiaEdit" rows="3" maxlength="500" placeholder="Insira sua biografia" class="textarea"></textarea>
           </div>
-          <div>
+          <div class="divEditImage">
       <label>Alterar Foto de Perfil:</label>
       <input type="file" accept="image/*" @change="capturarFoto" class="imageInput">
     </div>
-    <div>
+    <div class="divEditImage">
       <label>Alterar Imagem de Banner:</label>
       <input type="file" accept="image/*" @change="capturarBanner" class="imageInput">
     </div>
@@ -303,6 +324,13 @@ onMounted(() => {
         </form>
         </div>
       </div>
+      <button v-if="telaConfig"  @click="mostrarTelaConfiguracao" class="botaoVoltar">
+          <img :src="voltar" alt="" class="setaVoltar">
+      </button>
+      <section v-if="telaConfig" class="configuracoes">
+        <div>
+        </div>
+      </section>
   </main>
 </template>
 
@@ -349,6 +377,72 @@ main {
   color: #fff;
   font-weight: bold;
 }
+.lista-de-posts-real {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #000;
+  margin-top: 0.5vw;
+  border-radius: 6px;
+  padding: 1vw;
+  box-sizing: border-box;
+  min-height: 10vw;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5vw;
+}
+.dadosCabecalho {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2vw;
+  max-width: 25vw;
+  min-width: 0;
+  overflow: hidden;
+}
+.cartao-postagem-usuario {
+  border: 1px solid #000;
+  padding: 1vw;
+  min-width: 100%;
+  border-radius: 6px;
+}
+.inputFormEdit {
+  padding: 0.4vw;
+}
+section.configuracoes {
+  background-color: #fff;
+  position: fixed;
+  width: 40%;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  transform: translate(-50%);
+  margin-top: 4vw;
+  margin-bottom: 3vw;
+  border-radius: 9px;
+  border: 1px solid #000;
+  scrollbar-color: #ccc transparent;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  padding: 2px;
+}
+.nomeDeUsuario{
+  font-size: 1.8vw;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  width: 100%;
+  text-overflow: ellipsis;
+  display: block;
+}
+.textarea {
+  max-width: 27.87vw;
+  min-width: 10vw;
+  min-height: 3vw;
+  max-height: 12vw;
+  padding: 0.5vw;
+}
+.divEditImage {
+  margin-top: 0.5vw;
+}
 .overlayFormTitulo {
   width: 100%;
   background-color: #3CBC00;
@@ -358,7 +452,7 @@ main {
 }
 .salvarAlteracoes {
   padding: 0.5vw;
-  width: 5vw;
+  width: 7.2vw;
   border-radius: 10px;
   font-size: 1vw;
   border: none;
@@ -372,14 +466,21 @@ cursor: pointer;
 }
 .cancelarAlteracoes {
   padding: 0.5vw;
-  width: 5vw;
+  width: 7.2vw;
   border-radius: 10px;
   font-size: 1vw;
   border: 1px solid #000;
   background-color: #fff;
 }
+.cancelarAlteracoes:hover {
+  background-color: #e7e7e7;
+  cursor: pointer;
+}
 .formularioDeEdicao {
   padding: 0 1vw 0 1vw;
+}
+.paragrafoVermelho {
+  color: #cf0000;
 }
 .form {
   background-color: #fff;
@@ -395,6 +496,7 @@ cursor: pointer;
   display: flex;
   flex-direction: column;
   gap: 0.5vw;
+  margin-bottom: 0.4vw;
 }
 .botoesDoFormEditPerfil {
   display: flex;
@@ -449,26 +551,26 @@ cursor: pointer;
 }
 .biografiaFieldset {
   display: flex;
-  flex-direction: column;
   border: 1px dashed #000;
   margin-top: 0.5vw;
   border-radius: 6px;
-  padding: 1.5vw;
+  padding: 0.7vw;
   box-sizing: border-box;
   min-height: 10vw;
   position: relative;
-  align-items: center;
   justify-content: center;
+  overflow-wrap: break-word;
 }
 .biografiaFieldset p {
   width: 100%;
+  max-width: 100%;
   font-size: 1vw;
   color: #333;
   margin: 0;
   line-height: 1.4;
   text-align: left;
-  align-self: flex-start;
   padding-bottom: 0.8vw;
+  top: 0;
 }
 .textoDeAviso {
   color: #8b8b8b;
@@ -526,6 +628,25 @@ section.telaDeExibicao {
   scrollbar-width: thin;
   padding: 2px;
 }
+.botaoVoltar {
+  width: 3vw;
+  height: 3vw;
+  background-color: #fff;
+  border: 1px solid #000;
+  border-radius: 5px;
+  position: absolute;
+  top: 0;
+  margin-top: 4vw;
+  margin-left: 13vw;
+}
+.botaoVoltar:hover {
+  background-color: #e7e7e7;
+  cursor: pointer;
+}
+.setaVoltar {
+  width: 2vw;
+  height: 2vw;
+}
 .bannerPerfil {
   height: 11vw;
   background-color: #55ff3389;
@@ -541,6 +662,9 @@ section.telaDeExibicao {
   height: 6vw;
   width: 6vw;
   border-radius: 100px;
+  align-items: center;
+  display: flex;
+  justify-content: center;
 }
 .fotoDePerfil {
   background-color: #fff;
@@ -559,8 +683,8 @@ section.telaDeExibicao {
 }
 .fotoPerfilDefault {
   object-fit: cover;
-  width: 100%;
-  height: 100%;
+  width: 8vw;
+  height: 8vw;
 }
 .fotoPerfil {
   object-fit: cover;
@@ -606,7 +730,11 @@ section::-webkit-scrollbar-thumb:hover {
   gap: 0.1vw;
   align-items: center;
 }
-
+.statusUsuarioOnline {
+  display: flex;
+  gap: 0.1vw;
+  align-items: center;
+}
 .gradeFavoritos {
   display: flex;
   flex-wrap: wrap;

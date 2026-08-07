@@ -69,14 +69,14 @@ onMounted(() => {
       </div>
     </nav>
     <nav class="navInferior">
-      <div class="divLink" :class="{ 'ativo': route.path === '/criar' }">
-        <RouterLink to="/criar">
+      <div  v-if="meuId" class="divLink" :class="{ 'ativo': route.path.startsWith('/criar') }">
+        <RouterLink :to="`/criar/${meuId}`">
           <img :src="criar" alt="" class="imgIcon linha">
           <img :src="criarPreenchido" alt="" class="imgIcon preenchido">
           <span>Criar</span>
         </RouterLink>
       </div>
-      <div class="divLink" :class="{ 'ativo': route.path.startsWith('/usuario') }">
+      <div  v-if="meuId" class="divLink" :class="{ 'ativo': route.path.startsWith('/usuario') }">
         <RouterLink :to="`/usuario/${meuId}`">
           <img :src="user" alt="" class="imgIcon linha">
           <img :src="userPreenchido" alt="" class="imgIcon preenchido">

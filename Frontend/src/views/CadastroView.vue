@@ -29,7 +29,7 @@ const realizarCadastro = async () => {
         nome: nome.value.trim(),
         username: handle.value.replace('@', '').trim(),
         email: email.value.trim(),
-        senha: senha.value
+        senha: senha.value.trim()
       })
     });
     const dados = await resposta.json();
@@ -60,7 +60,7 @@ const realizarCadastro = async () => {
         <form @submit.prevent="realizarCadastro" autocomplete="off">
           <div class="Agrupacao">
             <label for="nome" class="labels">Nome</label>
-            <input v-model="nome" type="text" placeholder="Nome" id="nome" required>
+            <input v-model="nome" type="text" maxlength="50" placeholder="Nome" id="nome" required>
           </div>
           <div class="Agrupacao">
             <label for="handle" class="labels">Handle</label>
@@ -72,15 +72,15 @@ const realizarCadastro = async () => {
           </div>
           <div class="Agrupacao">
             <label for="senha" class="labels">Senha</label>
-            <input v-model="senha" type="password" placeholder="Senha" id="senha" required>
+            <input v-model="senha" minlength="8" maxlength="50" type="password" placeholder="Senha" id="senha" required>
           </div>
           <div class="Agrupacao">
             <label for="senha" class="labels">Confirmar senha</label>
-            <input v-model="confirmarSenha" type="password" placeholder="Senha" id="senha" required>
+            <input v-model="confirmarSenha" minlength="8" maxlength="50" type="password" placeholder="Senha" id="senha" required>
           </div>
           <div class="termos">
             <input v-model="aceitouTermos" type="checkbox" class="checkbox" id="checkBox" required>
-            <label for="checkBox" class="labelTermos">Estou de acordo com os <RouterLink to="/termos+de+uso">Termos de Uso</RouterLink> e <RouterLink to="/politica+de+privacidade">Política de Privacidade</RouterLink></label>
+            <label for="checkBox" class="labelTermos">Estou de acordo com os <RouterLink to="/termos-de-uso">Termos de Uso</RouterLink> e <RouterLink to="/politica-de-privacidade">Política de Privacidade</RouterLink></label>
           </div>
           <button type="submit" class="BotaoCriar">Criar</button>
           <p class="direcionarParaLogin">Já tem uma conta? <RouterLink to="/">Fazer login</RouterLink></p>
