@@ -50,7 +50,7 @@ try {
           <div class="Agrupacao">
             <label for="senha" class="labels">Senha</label>
             <input v-model="senha" type="password" placeholder="Senha" id="senha" required>
-            <RouterLink class="LinkRecSenha">Esqueceu a senha?</RouterLink>
+            <RouterLink to="/recuperar-senha" class="LinkRecSenha">Esqueceu a senha?</RouterLink>
           </div>
           <button type="submit" class="BotaoEntrar">Entrar</button>
           <p class="direcionarParaCadastro">Não tem uma conta? <RouterLink to="/cadastro">Crie uma</RouterLink></p>
