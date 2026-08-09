@@ -1,3 +1,3 @@
-const tagsTotais = ['#SouIFC','#Vôlei','#Informática','#Química','#Agropecuária','#IFchat', '#Xadrez', '#Python', '#AgroNegócio', '#Veteninária', '#JavaScript','#SINUCA','#JIFC','#C++'];
+const tagsTotais = ['#souifc','#volei','#informatica','#quimica','#agropecuaria','#ifchat','#xadrez','#python','#agronegocio','#veteninaria','#javascript','#sinuca','#jifc','#c++'];
 
 export default tagsTotais;

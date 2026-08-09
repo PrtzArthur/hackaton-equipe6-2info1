@@ -1,16 +1,28 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import userBlackFull from '@/icons/userBlackFull.svg';
 import canetaEdicao from '@/icons/canetaEdicao.svg';
-import gear from '@/icons/gear.svg'
-import dataCriacao from '@/icons/dataCriacao.svg'
-import local from '@/icons/local.svg'
-import interrogacao from '@/icons/interrogacao.svg'
+import gear from '@/icons/gear.svg';
+import dataCriacao from '@/icons/dataCriacao.svg';
+import local from '@/icons/local.svg';
+import interrogacao from '@/icons/interrogacao.svg';
 import tagsTotais from '@/data/tags';
-import plus from '@/icons/plus.svg'
-import setinha from '@/icons/setinha.svg'
-import voltar from '@/icons/voltar.png'
+import plus from '@/icons/plus.svg';
+import setinha from '@/icons/setinha.svg';
+import voltar from '@/icons/voltar.png';
+import notificacoesAtivo from '@/icons/notificacoesAtivo.svg';
+import favoritarInline from '@/icons/favoritarInline.svg';
+import logoutRED from '@/icons/logoutRED.svg'
+import { useRouter } from 'vue-router';
+import lixeira from '@/icons/lixeira.svg'
+const router = useRouter();
+
+const logout = () => {
+  localStorage.removeItem('ifchat_token')
+  alert('Você saiu da conta!')
+  router.push('/')
+}
 
 const route = useRoute();
 
@@ -59,77 +71,116 @@ function adicionarNovasTags() {
  adicionarTag.value = !adicionarTag.value;
 }
 
-const edicaoDosDados = async () => {
-  if (nomeEdit.value === '') {
-    showWarningNome.value = !showWarningNome.value;
-  } else {
-    showWarningNome.value = false;
+const deletarPostagemDoBanco = async (idPostagem) => {
+  const confirmou = confirm("Você tem certeza absoluta que deseja excluir de forma permanente esta postagem?");
+
+  if (!confirmou) return;
+
   try {
-    const resposta = await fetch(`http://localhost:3000/api/usuario/perfil/${idUsuarioDaURL}`, {
-      method: 'PUT',
-      headers: {
-        'content-Type' : 'application/json'
-      },
+    const resposta = await fetch(`http://localhost:3000/api/usuario/postagens/${idPostagem}`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        nome: nomeEdit.value,
-        biografia: biografiaEdit.value,
-        localizacao: localizacaoEdit.value
+        idUsuario: meuIdLogado.value
       })
     });
 
     const dados = await resposta.json();
 
-    if (!resposta.ok) {
-      alert(dados.erro || "Erro ao atualizar dados.");
-      return;
+    if (resposta.ok) {
+      alert("Postagem excluída com sucesso!");
+      postagens.value = postagens.value.filter(post => post.id_postagem !== idPostagem);
+    } else {
+      alert(dados.erro || "Não foi possível deletar a postagem.");
     }
-    if (arquivoFoto.value || arquivoBanner.value) {
-      const dadosMidia = new FormData();
 
-      if (arquivoFoto.value) dadosMidia.append('foto', arquivoFoto.value);
-      if (arquivoBanner.value) dadosMidia.append('banner', arquivoBanner.value);
-
-      const respostaMidia = await fetch(`http://localhost:3000/api/usuario/perfil/${idUsuarioDaURL}/midias`, {
-        method: 'PUT',
-        body: dadosMidia
-      });
-      const resultadoMidia = await respostaMidia.json();
-      if (respostaMidia.ok) {
-        fotoPerfil.value = resultadoMidia.foto_profile;
-        bannerUrl.value = resultadoMidia.banner_fundo;
-      } else {
-        alert(resultadoMidia.erro || "Erro ao processar imagens.");
-      }
-    };
-    nomeUsuario.value = nomeEdit.value;
-    biografia.value = biografiaEdit.value;
-    localizacao.value = localizacaoEdit.value;
-    editarPerfil.value = false;
-  } catch(erro) {
-    console.error('Não foi possível adicionar os dados', erro);
+  } catch (erro) {
+    console.error("Erro de conexão ao deletar post:", erro);
+    alert("Erro de comunicação com o servidor.");
   }
-}};
+};
+
+const edicaoDosDados = async () => {
+  const idAtualDaBarra = route.params.id;
+
+  if (nomeEdit.value === '') {
+    showWarningNome.value = !showWarningNome.value;
+  } else {
+    showWarningNome.value = false;
+    try {
+      const listaDeTagsPuras = [...tagsDoUsuario.value];
+
+      const resposta = await fetch(`http://localhost:3000/api/usuario/perfil/${idAtualDaBarra}`, {
+        method: 'PUT',
+        headers: {
+          'content-Type' : 'application/json'
+        },
+        body: JSON.stringify({
+          nome: nomeEdit.value,
+          biografia: biografiaEdit.value,
+          localizacao: localizacaoEdit.value,
+          tags: listaDeTagsPuras
+        })
+      });
+
+      const dados = await resposta.json();
+
+      if (!resposta.ok) {
+        alert(dados.erro || "Erro ao atualizar dados.");
+        return;
+      }
+      if (arquivoFoto.value || arquivoBanner.value) {
+        const dadosMidia = new FormData();
+
+        if (arquivoFoto.value) dadosMidia.append('foto', arquivoFoto.value);
+        if (arquivoBanner.value) dadosMidia.append('banner', arquivoBanner.value);
+
+        const respostaMidia = await fetch(`http://localhost:3000/api/usuario/perfil/${idAtualDaBarra}/midias`, {
+          method: 'PUT',
+          body: dadosMidia
+        });
+        const resultadoMidia = await respostaMidia.json();
+        if (respostaMidia.ok) {
+          fotoPerfil.value = resultadoMidia.foto_profile;
+          bannerUrl.value = resultadoMidia.banner_fundo;
+        } else {
+          alert(resultadoMidia.erro || "Erro ao processar imagens.");
+        }
+      }
+      nomeUsuario.value = nomeEdit.value;
+      biografia.value = biografiaEdit.value;
+      localizacao.value = localizacaoEdit.value;
+      editarPerfil.value = false;
+    } catch(erro) {
+      console.error('Não foi possível adicionar os dados', erro);
+    }
+  }
+};
 
 function moverTagParaListaUsuario(tagUniversal) {
   if (!tagsDoUsuario.value.includes(tagUniversal)) {
     tagsDoUsuario.value.push(tagUniversal);
   } else {
-    console.log('Esta tag já existe.')
+    alert('Você já adicionou esta tag ao seu perfil!');
   }
-};
+}
 function mostrarJanelaEditor() {
   editarPerfil.value = !editarPerfil.value;
   biografiaEdit.value = biografia.value;
   nomeEdit.value = nomeUsuario.value;
-};
+}
 function deletarTag(index) {
-  tagsDoUsuario.value.splice(index, 1)
-};
+  tagsDoUsuario.value.splice(index, 1);
+}
+
 const idUsuarioDaURL = route.params.id;
+const meuIdLogado = ref('');
 
 const carregarDadosDoPerfil = async () => {
   try {
-    const respostaPerfil = await fetch(`http://localhost:3000/api/usuario/perfil/${idUsuarioDaURL}`);
+    const idAtualDaBarra = route.params.id;
+
+    const respostaPerfil = await fetch(`http://localhost:3000/api/usuario/perfil/${idAtualDaBarra}`);
     const dadosPerfil = await respostaPerfil.json();
 
     if (respostaPerfil.ok) {
@@ -137,23 +188,33 @@ const carregarDadosDoPerfil = async () => {
       statusOnline.value = dadosPerfil.status_online;
       biografia.value = dadosPerfil.biografia;
       localizacao.value = dadosPerfil.localizacao;
-      dataDeCriacao.value = dadosPerfil.data_criacao;
       fotoPerfil.value = dadosPerfil.foto_profile || '';
       bannerUrl.value = dadosPerfil.banner_fundo || '';
-
+      tagsDoUsuario.value = dadosPerfil.tags || [];
       if (dadosPerfil.data_criacao) {
-    dataDeCriacao.value = new Date(dadosPerfil.data_criacao).toLocaleDateString('pt-BR');
-  };
+        dataDeCriacao.value = new Date(dadosPerfil.data_criacao).toLocaleDateString('pt-BR');
+      }
     }
-    const respostaPosts = await fetch(`http://localhost:3000/api/usuario/postagens/${idUsuarioDaURL}`);
+    const respostaPosts = await fetch(`http://localhost:3000/api/usuario/postagens/${idAtualDaBarra}`);
     postagens.value = await respostaPosts.json();
   } catch (erro) {
     console.error("Erro ao buscar dados do perfil:", erro);
   }
 };
+
 onMounted(() => {
+  meuIdLogado.value = localStorage.getItem('ifchat_user_id') || '';
   carregarDadosDoPerfil();
 });
+
+watch(
+  () => route.params.id,
+  (novoId) => {
+    if (novoId) {
+      carregarDadosDoPerfil();
+    }
+  }
+);
 </script>
 
 <template>
@@ -185,7 +246,7 @@ onMounted(() => {
             </div>
           </div>
         </div>
-        <div class="botoes">
+        <div v-if="idUsuarioDaURL === meuIdLogado" class="botoes">
           <button @click="mostrarTelaConfiguracao" class="btnPerfil">
             <img :src="gear" alt="">
             <span>Configurações</span>
@@ -194,6 +255,17 @@ onMounted(() => {
             <img :src="canetaEdicao" alt="">
             <span>Editar Perfil</span>
           </button>
+        </div>
+        <div v-else class="botoesU">
+          <div class="btnParaUsuariosEstrangeiros">
+            <div>
+              <button class="btnSeguir">Seguir</button>
+              <button class="btnSeguindo">Seguindo</button>
+            </div>
+            <button class="btn-notificacoes"><img :src="notificacoesAtivo" alt="" class="sininhoNotificacao"></button>
+            <button class="btnChat">Chat</button>
+          </div>
+          <img :src="favoritarInline" alt="" class="favoritarPerfilDeUsuario">
         </div>
         <div class="spanInfo">
           <img :src="dataCriacao" alt="Data-de-Criacao">
@@ -221,11 +293,11 @@ onMounted(() => {
           <h3 class="tituloTags">Tags</h3>
           <div class="divDasTagsDoUsuario">
             <div v-for="(tag, index) in tagsDoUsuario" :key="index">
-            <button  class="tag" @click="deletarTag">
+            <button class="tag" @click="deletarTag(index)">
               {{ tag }}
             </button>
           </div>
-          <div>
+          <div v-if="idUsuarioDaURL === meuIdLogado">
             <button @click="adicionarNovasTags" class="tag">
               <img :src="plus" alt="adicionar-tag">
             </button>
@@ -233,7 +305,10 @@ onMounted(() => {
           </div>
           <div v-show="adicionarTag === true" class="listaParaAdicionarTags">
             <div v-for="(tagUniversal, index) in listaTagsTotais" :key="index">
-              <button @click="moverTagParaListaUsuario(tagUniversal)" class="tag">
+              <button v-if="idUsuarioDaURL === meuIdLogado" @click="moverTagParaListaUsuario(tagUniversal)" class="tag">
+                {{ tagUniversal }}
+              </button>
+              <button v-else class="tag">
                 {{ tagUniversal }}
               </button>
             </div>
@@ -243,20 +318,39 @@ onMounted(() => {
           </div>
         </div>
         <div class="postagens">
-          <h3>Postagens</h3>
-            <div v-if="postagens.length === 0" class="caixa-postagens-vazia">
-              <img :src="interrogacao" alt="Sem postagens">
-              <span class="textoDeAviso">Ainda não há nenhuma postagem</span>
-            </div>
-        <div v-else class="lista-de-posts-real">
-      <div
+  <h3>Postagens</h3>
+  <div v-if="postagens.length === 0" class="caixa-postagens-vazia">
+    <img :src="interrogacao" alt="Sem postagens">
+    <span class="textoDeAviso">Ainda não há nenhuma postagem</span>
+  </div>
+  <div v-else class="lista-de-posts-real">
+    <div
       v-for="postagem in postagens"
       :key="postagem.id_postagem"
-      class="cartao-postagem-usuario">
-        <p class="texto-do-post">{{ postagem.conteudo }}</p>
-        <span class="data-do-post">
+      class="cartao-postagem-usuario"
+      >
+      <p v-if="postagem.conteudo" class="texto-do-post">{{ postagem.conteudo }}</p>
+      <div v-if="postagem.imagem" class="container-imagem-post">
+        <img :src="postagem.imagem" alt="Imagem da postagem" class="imagem-revelada-post">
+      </div>
+      <div v-if="postagem.tipo === 'postagemComEnquete' && postagem.opcoes && postagem.opcoes.length > 0" class="render-enquete-post">
+        <p class="titulo-mini-enquete">Enquete:</p>
+        <div class="lista-opcoes-voto">
+          <div v-for="opcao in postagem.opcoes" :key="opcao.id_opcao" class="opcao-voto-card">
+            <p class="btn-votar-enquete">
+              {{ opcao.texto_opcao }}
+             </p>
+           </div>
+         </div>
+       </div>
+        <div class="divDeleteEPublicacao">
+          <span class="data-do-post">
           Publicado em: {{ new Date(postagem.data_envio).toLocaleDateString('pt-BR') }}
         </span>
+        <button v-if="idUsuarioDaURL === meuIdLogado" @click="deletarPostagemDoBanco(postagem.id_postagem)" class="btnLixeira">
+          <img :src="lixeira" alt="deletar post" class="imgDelete">
+        </button>
+        </div>
       </div>
       </div>
     </div>
@@ -298,7 +392,7 @@ onMounted(() => {
           <form @submit.prevent="edicaoDosDados" class="formularioDeEdicao">
           <div class="divFormEditPerfil">
             <label for="novo-nome">Novo nome</label>
-            <input type="text" v-model="nomeEdit" minlength="1" maxlength="50" id="novo-nome" placeholder="Insira o seu nome" class="inputFormEdit">
+            <input type="text" v-model="nomeEdit" minlength="1" maxlength="50" id="novo-nome" placeholder="Insira o seu nome" class="inputFormEdit" autofocus>
             <p v-if="showWarningNome" class="paragrafoVermelho">Por favor, coloque pelo menos um caractere.</p>
           </div>
           <div class="divFormEditPerfil">
@@ -310,11 +404,11 @@ onMounted(() => {
             <textarea v-model="biografiaEdit" id="biografiaEdit" rows="3" maxlength="500" placeholder="Insira sua biografia" class="textarea"></textarea>
           </div>
           <div class="divEditImage">
-      <label>Alterar Foto de Perfil:</label>
+      <label class="labelMidiPerfil">Alterar Foto de Perfil:</label>
       <input type="file" accept="image/*" @change="capturarFoto" class="imageInput">
     </div>
     <div class="divEditImage">
-      <label>Alterar Imagem de Banner:</label>
+      <label class="labelMidiPerfil">Alterar Imagem de Banner:</label>
       <input type="file" accept="image/*" @change="capturarBanner" class="imageInput">
     </div>
           <div class="botoesDoFormEditPerfil">
@@ -329,6 +423,90 @@ onMounted(() => {
       </button>
       <section v-if="telaConfig" class="configuracoes">
         <div>
+          <h2 class="tituloPrincipal">Configurações</h2>
+          <div class="containerConfig">
+            <div class="ContaSeguranca">
+            <h3>Conta e Segurança</h3>
+            <button>
+              Alterar Senha
+            </button>
+            <button>
+              Alterar E-mail
+            </button>
+          </div>
+          <div class="Privacidade">
+            <h3>Privacidade</h3>
+            <div class="pricavidadeSelectVP">
+              <span>Visibilidade do perfil</span>
+              <select class="selectVP">
+                <option value="1">Público</option>
+                <option value="2">Privado</option>
+              </select>
+            </div>
+            <div class="pricavidadeSelectVP">
+              <span>Quem pode falar comigo</span>
+              <select class="selectVP">
+                <option value="1">Todos</option>
+                <option value="2">Apenas amigos</option>
+                <option value="3">Ninguém</option>
+              </select>
+            </div>
+          </div>
+          <div class="notificacoes">
+            <h3>Notificações</h3>
+            <span class="subtitulo-config">Notificações Push</span>
+            <div class="lista-notificacoes-push">
+              <label class="linha-checkbox-custom">
+                <input type="checkbox" v-model="notifChat" class="inputCirculo">
+                <span class="texto-checkbox">Novas mensagens no Chat</span>
+              </label>
+              <label class="linha-checkbox-custom">
+                <input type="checkbox" v-model="notifComentarios" class="inputCirculo">
+                <span class="texto-checkbox">Novos comentários</span>
+              </label>
+              <label class="linha-checkbox-custom">
+                <input type="checkbox" v-model="notifEventos" class="inputCirculo">
+                <span class="texto-checkbox">Novos eventos</span>
+              </label>
+            </div>
+          </div>
+          <div class="Aparencia">
+            <h3>Aparência e Acessibilidade</h3>
+            <div class="pricavidadeSelectVP">
+              <label for="checkBoxToggle" class="labelME">
+                <span>Modo Escuro</span>
+              <div class="switch-container">
+                <input type="checkbox" class="chekbox-Oculto" id="checkBoxToggle">
+                <span class="trilha">
+                  <span class="circulo"></span>
+                </span>
+              </div>
+              </label>
+            </div>
+            <div class="pricavidadeSelectVP">
+              <span>Tamanho da fonte</span>
+              <select class="selectVP">
+                <option value="1">Normal</option>
+                <option value="2">Grande</option>
+                <option value="3">Pequena</option>
+              </select>
+            </div>
+          </div>
+          <div class="PrivacidadeSeguranca">
+            <h3>Sobre e Suporte</h3>
+            <button>
+              Termos de Uso
+            </button>
+            <button>
+              Relatar um problema
+            </button>
+            <div class="divLogoutEDeleteAccount">
+              <button @click="logout" class="buttonLogout"><span>Sair da conta</span><img :src="logoutRED" alt="Logout" class="imgLogout"></button>
+              <span class="spanLogout">|</span>
+              <button>Excluir conta</button>
+            </div>
+          </div>
+          </div>
         </div>
       </section>
   </main>
@@ -366,6 +544,77 @@ main {
   border-top: 0.8px solid #000;
   padding-top: 0.5vw;
 }
+.btnLixeira {
+  background-color: #fff;
+  border: none;
+  cursor: pointer;
+}
+.spanLogout {
+  color: #cf0000;
+}
+.buttonLogout {
+  align-items: center !important;
+}
+.divDeleteEPublicacao {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.checkBoxToggle {
+  display: flex !important;
+  flex-direction: row !important;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.6vw 0;
+  border-bottom: 1px solid #ccc;
+  cursor: pointer;
+  width: 100%;
+}
+.labelME {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between;
+}
+.chekbox-Oculto {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.trilha {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-color: #ccc;
+  border: 1px solid #999;
+  border-radius: 30px;
+  transition: 0.3s;
+}
+.imgDelete {
+  height: 1vw;
+}
+.switch-container {
+  position: relative;
+  width: 3.2vw;
+  height: 1.6vw;
+}
+.chekbox-Oculto:checked + .trilha {
+  background-color: #3CBC00;
+  border-color: #319e00;
+}
+.chekbox-Oculto:checked + .trilha .circulo {
+  transform: translateX(1.4vw);
+}
+.circulo {
+  position: absolute;
+  content: "";
+  height: 1.2vw;
+  width: 1.2vw;
+  left: 0.2vw;
+  bottom: 0.12vw;
+  background-color: white;
+  border: 1px solid #888;
+  border-radius: 50%;
+  transition: 0.3s;
+}
 .btnTagsFechar {
   display: flex;
   align-items: center;
@@ -376,6 +625,12 @@ main {
   background-color: #ff0000;
   color: #fff;
   font-weight: bold;
+}
+.tituloPrincipal {
+  border-bottom: 1px solid #000;
+  margin: -2px;
+  padding: 1vw;
+  font-size: 1.7vw;
 }
 .lista-de-posts-real {
   display: flex;
@@ -400,12 +655,113 @@ main {
 }
 .cartao-postagem-usuario {
   border: 1px solid #000;
+  display: flex;
+  flex-direction: column;
   padding: 1vw;
   min-width: 100%;
   border-radius: 6px;
+  gap: 1.5vw;
 }
 .inputFormEdit {
   padding: 0.4vw;
+}
+.divLogoutEDeleteAccount {
+  display: flex !important;
+  flex-direction: row !important;
+  border-bottom: 1px solid #000;
+  padding: 0.5vw 0;
+  align-items: center;
+  gap: 0.2vw;
+}
+.divLogoutEDeleteAccount button {
+  border: none !important;
+  padding: 0 !important;
+  color: #cf0000;
+  align-items: center !important;
+  text-align: left;
+  height: 100%;
+  gap: 0.2vw;
+}
+.divLogoutEDeleteAccount button:hover {
+  cursor: pointer;
+  color: #ff0000;
+}
+.btnSeguir {
+  background-color: #3CBC00;
+  color: #fff;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.9vw;
+  font-weight: bolder;
+  width: 6vw;
+  border-radius: 20px;
+}
+.btnSeguir:hover {
+  cursor: pointer;
+  background-color: #37ad00;
+}
+.containerConfig div {
+  display: flex;
+  flex-direction: column;
+}
+.containerConfig div h3 {
+  padding: 0.6vw 0;
+  border-bottom: 1px solid #000;
+  font-weight: bolder;
+}
+.imgLogout {
+  width: 0.65vw;
+  margin-left: 0.2vw;
+  height: 100%;
+}
+.pricavidadeSelectVP {
+  display: flex !important;
+  flex-direction: row !important;
+  justify-content: space-between;
+  border-bottom: 1px solid #000;
+  padding: 0.5vw 0;
+  font-weight: bold;
+  font-size: 0.9vw;
+}
+.containerConfig div button {
+  background-color: #fff;
+  border: none;
+  border-bottom: 1px solid #000;
+  padding: 0.5vw 0;
+  text-align: left;
+  font-weight: bold;
+  font-size: 0.9vw;
+}
+.containerConfig {
+  padding: 0.25vw;
+  font-size: 1vw;
+}
+.btnSeguindo {
+  background-color: #e7e7e7;
+  color: #fff;
+  border: none;
+  display: flex;
+  font-weight: bolder;
+  border-radius: 20px;
+
+  display: none;
+
+  align-items: center;
+  justify-content: center;
+  padding: 0.9vw;
+  width: 6vw;
+}
+.selectVP {
+  width: 9vw;
+}
+.btnParaUsuariosEstrangeiros {
+  display: flex;
+  gap: 0.4vw;
+}
+.btnParaUsuariosEstrangeiros button {
+  font-size: 1vw;
 }
 section.configuracoes {
   background-color: #fff;
@@ -423,6 +779,32 @@ section.configuracoes {
   overflow-y: auto;
   scrollbar-width: thin;
   padding: 2px;
+}
+.container-imagem-post {
+  overflow: hidden;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  height: auto;
+  position: relative;
+  border-radius: 10px;
+  border: 1px solid #000;
+  margin: 0.3vw 0;
+}
+.imagem-revelada-post {
+  object-fit: cover;
+  width: 100%;
+  height: 100%;
+}
+.btn-votar-enquete {
+  background-color: #fff;
+  width: 100%;
+  border: 1px solid #000;
+  text-align: left;
+  font-size: 1.1vw;
+  padding: 0.6vw;
+  margin: 0.15vw 0;
+  border-radius: 5px;
 }
 .nomeDeUsuario{
   font-size: 1.8vw;
@@ -442,6 +824,38 @@ section.configuracoes {
 }
 .divEditImage {
   margin-top: 0.5vw;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4vw;
+  margin-bottom: 0.8vw;
+  width: 100%;
+}
+.imageInput::-webkit-file-upload-button:hover {
+  background-color: #e2e2e2;
+  border-color: #b5b5b5;
+}
+.imageInput {
+  font-size: 0.9vw;
+  color: #333;
+  font-family: inherit;
+  cursor: pointer;
+}
+.labelMidiPerfil {
+  font-weight: bold;
+  font-size: 1vw;
+  color: #000;
+  text-align: left;
+}
+.imageInput::-webkit-file-upload-button {
+  background-color: #f1f1f1;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  padding: 0.4vw 0.8vw;
+  font-size: 0.9vw;
+  font-weight: 500;
+  cursor: pointer;
+  transition: 0.2s;
+  margin-right: 0.5vw;
 }
 .overlayFormTitulo {
   width: 100%;
@@ -527,6 +941,13 @@ cursor: pointer;
 }
 .tags {
   margin: 1vw 1vw;
+  text-transform: capitalize;
+}
+.favoritarPerfilDeUsuario {
+  height: 2vw;
+}
+.favoritarPerfilDeUsuario:hover {
+  cursor: pointer;
 }
 .tag {
   border: 0.8px solid #000;
@@ -587,6 +1008,43 @@ cursor: pointer;
   margin-top: 1vw;
   gap: 0.5vw;
   margin-bottom: 1vw;
+}
+.sininhoNotificacao {
+  display: block;
+  width: 1.45vw;
+}
+.btnChat {
+  background-color: #3CBC00;
+  color: #fff;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.9vw;
+  font-weight: bolder;
+  width: 6vw;
+  border-radius: 20px;
+}
+.btnChat:hover {
+  cursor: pointer;
+  background-color: #37ad00;
+}
+.btn-notificacoes {
+  width: 4vw;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #fff;
+  border: 1px solid #000;
+  border-radius: 20px;
+}
+.botoesU {
+  display: flex;
+  margin-left: 1vw;
+  margin-top: 1vw;
+  margin-bottom: 1vw;
+  width: 100%;
+  gap: 9vw;
 }
 .btnPerfil {
   background-color: #fff;
