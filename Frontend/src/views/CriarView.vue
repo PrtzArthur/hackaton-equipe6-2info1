@@ -75,41 +75,39 @@ const enviarPost = async () => {
     .map(o => o.texto.trim())
     .filter(texto => texto !== '');
 
-    const tipoPostagem = opcoesValidas.length ? 'postagemComEnquete'  : 'postagemComum' ;
+  const tipoPostagem = opcoesValidas.length >= 2 ? 'postagemComEnquete' : 'postagemComum';
+
   try {
+    const formDataCompleto = new FormData();
+
+    formDataCompleto.append('descricao', descricaoDaPostagem.value.trim());
+    formDataCompleto.append('tipo', tipoPostagem);
+
+    formDataCompleto.append('opcoes', JSON.stringify(opcoesValidas));
+    formDataCompleto.append('tags', JSON.stringify(tagsDaPostagem.value));
+
+    if (arquivoImagemPost.value && arquivoImagemPost.value.length > 0) {
+      formDataCompleto.append('imagem_post', arquivoImagemPost.value[0]);
+    }
+
     const resposta = await fetch(`http://localhost:3000/api/criar/postagens/${idUsuarioDaURL}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        descricao: descricaoDaPostagem.value.trim(),
-        tipo: tipoPostagem,
-        opcoes: tipoPostagem === 'postagemComEnquete' ? opcoesValidas : []
-      })
+      body: formDataCompleto
     });
 
     const dados = await resposta.json();
 
-    if (!resposta.ok) {
-      alert(dados.erro || "Erro ao atualizar dados.");
-      return;
+    if (resposta.ok) {
+      alert('Postagem completa criada com sucesso!');
+      router.push('/home');
+    } else {
+      alert(dados.erro || "Erro ao fazer postagem.");
     }
-
-    if (arquivoImagemPost.value && arquivoImagemPost.value.length > 0) {
-      const dadosMidia = new FormData();
-
-      dadosMidia.append('imagem_post', arquivoImagemPost.value[0]);
-
-      // await fetch(`http://localhost:3000/api/criar/postagens/${dados.id_postagem}/midia`, { method: 'POST', body: dadosMidia });
-    }
-
-    alert('Postagem criada com sucesso!');
-    router.push('/home');
 
   } catch(erro) {
     console.error('Não foi possível fazer a postagem.', erro);
   }
-}
-
+};
 </script>
 
 <template>
@@ -150,7 +148,7 @@ const enviarPost = async () => {
           <h3 class="tituloTags">Tags</h3>
           <div class="divDasTagsDoUsuario">
             <div v-for="(tag, index) in tagsDaPostagem" :key="index">
-            <button type="button" class="tag" @click="deletarTag">
+            <button type="button" class="tag" @click="deletarTag(index)">
               {{ tag }}
             </button>
           </div>
