@@ -62,6 +62,28 @@ const apagarArquivoLocalAntigo = (urlPublica) => {
     console.error('Erro ao limpar arquivo antigo:', err.message);
   }
 };
+
+router.post('/favoritos/detalhes', async (req, res) => {
+  const { ids } = req.body;
+
+  if (!ids || ids.length === 0) {
+    return res.json([]);
+  }
+
+  try {
+    const [usuarios] = await pool.query(
+      'SELECT id_usuario, nome, foto_profile, status_online FROM Usuario WHERE id_usuario IN (?)',
+      [ids]
+    );
+
+    return res.json(usuarios); 
+
+  } catch (error) {
+    console.error('Erro ao traduzir dados de favoritos no MySQL:', error);
+    return res.status(500).json({ erro: 'Erro interno ao carregar detalhes dos favoritos.' });
+  }
+});
+
 router.put('/perfil/:id/midias', upload.fields([{ name: 'foto', maxCount: 1 }, { name: 'banner', maxCount: 1 }]), async (req, res) => {
   const { id } = req.params;
   
@@ -120,32 +142,50 @@ router.put('/perfil/:id/midias', upload.fields([{ name: 'foto', maxCount: 1 }, {
 });
 router.get('/perfil/:id', async (req, res) => {
   const { id } = req.params;
+  const meuIdLogado = req.query.meuId;
+
   try {
     const [resultados] = await pool.query(
       `SELECT nome, username, biografia, localizacao, status_online, foto_profile, banner_fundo, data_criacao 
        FROM Usuario WHERE id_usuario = ?`,
       [id]
     );
+    
     if (resultados.length === 0) {
       return res.status(404).json({ erro: 'Usuário não encontrado.' });
     }
+
+    const [[{ totalSeguidores }]] = await pool.query('SELECT COUNT(*) as totalSeguidores FROM seguidores WHERE id_seguido = ?', [id]);
+    const [[{ totalSeguindo }]] = await pool.query('SELECT COUNT(*) as totalSeguindo FROM seguidores WHERE id_seguidor = ?', [id]);
+
+    let jaSegueEstePerfil = false;
+    if (meuIdLogado) {
+      const [checagem] = await pool.query('SELECT * FROM seguidores WHERE id_seguidor = ? AND id_seguido = ?', [meuIdLogado, id]);
+      jaSegueEstePerfil = checagem.length > 0;
+    }
+
     const [tagsBanco] = await pool.query(
-      `SELECT t.nome_tag FROM Usuario_Tag ut 
-       JOIN Tag t ON ut.id_tag = t.id_tag 
-       WHERE ut.id_usuario = ?`,
+      `SELECT t.nome_tag FROM Usuario_Tag ut JOIN Tag t ON ut.id_tag = t.id_tag WHERE ut.id_usuario = ?`, 
       [id]
     );
     const listaDeTagsDeTexto = tagsBanco.map(t => `#${t.nome_tag}`);
-    const dadosUsuario = resultados[0];
+
+    const dadosUsuarioPlano = resultados[0];
+
     return res.json({
-      ...dadosUsuario,
-      tags: listaDeTagsDeTexto
+      ...dadosUsuarioPlano,
+      tags: listaDeTagsDeTexto,
+      seguidores: totalSeguidores,
+      seguindo: totalSeguindo,
+      jaSeguindo: jaSegueEstePerfil
     });
+
   } catch (error) {
-    console.error('Erro ao buscar perfil no MySQL:', error);
+    console.error('Erro ao carregar dados do perfil:', error);
     return res.status(500).json({ erro: 'Erro interno no servidor.' });
   }
 });
+
 router.get('/postagens/:id', async (req, res) => {
   const { id } = req.params;
   let conexao = null;
@@ -190,7 +230,62 @@ router.get('/postagens/:id', async (req, res) => {
     if (conexao) conexao.release();
   }
 });
+router.post('/seguir', async (req, res) => {
+  const { idSeguidor, idSeguido } = req.body;
+  if (idSeguidor === idSeguido) {
+    return res.status(400).json({ erro: "Você não pode seguir a si mesmo!" });
+  }
 
+  let conexao = null;
+  try {
+    conexao = await pool.getConnection();
+    await conexao.beginTransaction();
+
+    const [jaSegue] = await conexao.query(
+      'SELECT * FROM seguidores WHERE id_seguidor = ? AND id_seguido = ?',
+      [idSeguidor, idSeguido]
+    );
+    let acaoTomada = '';
+
+    if (jaSegue.length > 0) {
+      await conexao.query(
+        'DELETE FROM seguidores WHERE id_seguidor = ? AND id_seguido = ?',
+        [idSeguidor, idSeguido]
+      );
+      acaoTomada = 'parou_de_seguir';
+    } else {
+      await conexao.query(
+        'INSERT INTO seguidores (id_seguidor, id_seguido) VALUES (?, ?)',
+        [idSeguidor, idSeguido]
+      );
+      acaoTomada = 'seguiu';
+    }
+    const [[{ seguidores }]] = await conexao.query(
+      'SELECT COUNT(*) as seguidores FROM seguidores WHERE id_seguido = ?',
+      [idSeguido]
+    );
+    const [[{ seguindo }]] = await conexao.query(
+      'SELECT COUNT(*) as seguindo FROM seguidores WHERE id_seguidor = ?',
+      [idSeguidor]
+    );
+
+    await conexao.commit();
+
+    return res.json({
+      mensagem: 'Ação processada com sucesso!',
+      status: acaoTomada,
+      contadorSeguidoresDoPerfil: seguidores,
+      contadorSeguindoDoLogado: seguindo     
+    });
+
+  } catch (error) {
+    if (conexao) await conexao.rollback();
+    console.error('Erro ao processar ação de seguir:', error);
+    return res.status(500).json({ erro: 'Erro interno no servidor.' });
+  } finally {
+    if (conexao) conexao.release();
+  }
+});
 router.put('/perfil/:id', async (req, res) => {
   const { id } = req.params;
   let conexao = null;
@@ -224,9 +319,7 @@ router.put('/perfil/:id', async (req, res) => {
         const [resultadoTag] = await conexao.query('SELECT id_tag FROM Tag WHERE nome_tag = ?', [tagLimpa]);
         
         if (resultadoTag && resultadoTag.length > 0) {
-          
           const idTagReal = resultadoTag[0].id_tag;
-          
           await conexao.query(
             'INSERT INTO Usuario_Tag (id_usuario, id_tag) VALUES (?, ?)',
             [id, idTagReal]
@@ -239,11 +332,9 @@ router.put('/perfil/:id', async (req, res) => {
 
     await conexao.commit();
     return res.json({ message: 'Perfil e tags atualizados com sucesso no MySQL!' });
-
-  } catch(error) {
-    if (conexao) await conexao.rollback();
-    console.error('Erro ao mudar os dados ao banco', error);
-    return res.status(500).json({ erro: error.message});
+  } catch (error) {
+    console.error('Erro ao buscar postagens completas no MySQL:', error);
+    return res.status(500).json({ erro: 'Erro interno ao carregar a lista de postagens.' });
   } finally {
     if (conexao) conexao.release();
   }
@@ -257,7 +348,6 @@ router.delete('/postagens/:idPostagem', async (req, res) => {
   try {
     conexao = await pool.getConnection();
     await conexao.beginTransaction();
-
     const [post] = await conexao.query(
       'SELECT id_usuario FROM Postagem WHERE id_postagem = ?',
       [idPostagem]
@@ -300,4 +390,3 @@ router.delete('/postagens/:idPostagem', async (req, res) => {
   }
 });
 export default router;
-

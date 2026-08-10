@@ -13,6 +13,7 @@ import setinha from '@/icons/setinha.svg';
 import voltar from '@/icons/voltar.png';
 import notificacoesAtivo from '@/icons/notificacoesAtivo.svg';
 import favoritarInline from '@/icons/favoritarInline.svg';
+import favoritarPreenchido from '@/icons/favoritarPreenchido.svg';
 import logoutRED from '@/icons/logoutRED.svg'
 import { useRouter } from 'vue-router';
 import lixeira from '@/icons/lixeira.svg'
@@ -71,6 +72,76 @@ function adicionarNovasTags() {
  adicionarTag.value = !adicionarTag.value;
 }
 
+const jaEFavorito = ref(false);
+
+function obterChaveFavoritos() {
+  return `ifchat_favoritos_${meuIdLogado.value}`;
+}
+
+function verificarStatusFavorito() {
+  const idAtualDaBarra = route.params.id;
+
+  const favoritosSalvos = JSON.parse(localStorage.getItem(obterChaveFavoritos()) || '[]');
+  jaEFavorito.value = favoritosSalvos.includes(idAtualDaBarra);
+}
+
+function alternarFavorito() {
+  const idAtualDaBarra = route.params.id;
+  const chaveConta = obterChaveFavoritos();
+  let favoritosSalvos = JSON.parse(localStorage.getItem(chaveConta) || '[]');
+
+  if (jaEFavorito.value) {
+    favoritosSalvos = favoritosSalvos.filter(id => id !== idAtualDaBarra);
+    jaEFavorito.value = false;
+  } else {
+    favoritosSalvos.push(idAtualDaBarra);
+    jaEFavorito.value = true;
+  }
+
+  localStorage.setItem(chaveConta, JSON.stringify(favoritosSalvos));
+  carregarGradeDeFavoritosVisuais();
+}
+
+async function carregarGradeDeFavoritosVisuais() {
+  const idAtualDaBarra = route.params.id;
+  const donoDoPerfilExibido = idAtualDaBarra;
+
+  const chaveFavoritosDonoDaTela = `ifchat_favoritos_${donoDoPerfilExibido}`;
+  const favoritosIds = JSON.parse(localStorage.getItem(chaveFavoritosDonoDaTela) || '[]');
+
+  if (favoritosIds.length === 0) {
+    perfisFavoritos.value = [];
+    return;
+  }
+
+  try {
+    const resposta = await fetch('http://localhost:3000/api/usuario/favoritos/detalhes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids: favoritosIds })
+    });
+
+    if (resposta.ok) {
+      perfisFavoritos.value = await resposta.json();
+    }
+  } catch (erro) {
+    console.error("Erro ao traduzir favoritos:", erro);
+  }
+}
+
+onMounted(() => {
+  meuIdLogado.value = localStorage.getItem('ifchat_user_id') || '';
+  carregarDadosDoPerfil();
+  verificarStatusFavorito();
+  carregarGradeDeFavoritosVisuais();
+});
+watch(
+  () => route.params.id,
+  () => {
+    verificarStatusFavorito();
+    carregarGradeDeFavoritosVisuais();
+  }
+);
 const deletarPostagemDoBanco = async (idPostagem) => {
   const confirmou = confirm("Você tem certeza absoluta que deseja excluir de forma permanente esta postagem?");
 
@@ -175,12 +246,12 @@ function deletarTag(index) {
 
 const idUsuarioDaURL = route.params.id;
 const meuIdLogado = ref('');
+const jaEstouSeguindo = ref(false);
 
 const carregarDadosDoPerfil = async () => {
   try {
     const idAtualDaBarra = route.params.id;
-
-    const respostaPerfil = await fetch(`http://localhost:3000/api/usuario/perfil/${idAtualDaBarra}`);
+    const respostaPerfil = await fetch(`http://localhost:3000/api/usuario/perfil/${idAtualDaBarra}?meuId=${meuIdLogado.value}`);
     const dadosPerfil = await respostaPerfil.json();
 
     if (respostaPerfil.ok) {
@@ -191,6 +262,10 @@ const carregarDadosDoPerfil = async () => {
       fotoPerfil.value = dadosPerfil.foto_profile || '';
       bannerUrl.value = dadosPerfil.banner_fundo || '';
       tagsDoUsuario.value = dadosPerfil.tags || [];
+      seguidoresUsuario.value = dadosPerfil.seguidores || 0;
+      usiarioSeguindo.value = dadosPerfil.seguindo || 0;
+      jaEstouSeguindo.value = dadosPerfil.jaSeguindo || false;
+
       if (dadosPerfil.data_criacao) {
         dataDeCriacao.value = new Date(dadosPerfil.data_criacao).toLocaleDateString('pt-BR');
       }
@@ -201,6 +276,33 @@ const carregarDadosDoPerfil = async () => {
     console.error("Erro ao buscar dados do perfil:", erro);
   }
 };
+
+async function alternarSeguirUsuario() {
+  const idAtualDaBarra = route.params.id;
+
+  try {
+    const resposta = await fetch('http://localhost:3000/api/usuario/seguir', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        idSeguidor: meuIdLogado.value,
+        idSeguido: idAtualDaBarra
+      })
+    });
+
+    const dados = await resposta.json();
+
+    if (resposta.ok) {
+      jaEstouSeguindo.value = (dados.status === 'seguiu');
+      seguidoresUsuario.value = dados.contadorSeguidoresDoPerfil;
+    } else {
+      alert(dados.erro || "Erro ao processar ação.");
+    }
+  } catch (erro) {
+    console.error("Erro de conexão ao seguir:", erro);
+  }
+}
+
 
 onMounted(() => {
   meuIdLogado.value = localStorage.getItem('ifchat_user_id') || '';
@@ -258,14 +360,32 @@ watch(
         </div>
         <div v-else class="botoesU">
           <div class="btnParaUsuariosEstrangeiros">
-            <div>
-              <button class="btnSeguir">Seguir</button>
-              <button class="btnSeguindo">Seguindo</button>
-            </div>
+            <button
+            type="button"
+            @click="alternarSeguirUsuario"
+            :class="jaEstouSeguindo ? 'btnSeguindo' : 'btnSeguir' "
+          >
+            <span>{{ jaEstouSeguindo ? 'Seguindo' : 'Seguir' }}</span>
+          </button>
             <button class="btn-notificacoes"><img :src="notificacoesAtivo" alt="" class="sininhoNotificacao"></button>
             <button class="btnChat">Chat</button>
           </div>
-          <img :src="favoritarInline" alt="" class="favoritarPerfilDeUsuario">
+          <button
+            v-if="jaEFavorito"
+            type="button"
+            @click="alternarFavorito"
+            class="btnPerfilFavorito"
+          >
+            <img :src="favoritarPreenchido" alt="" class="favoritarPerfilDeUsuario">
+          </button>
+          <button
+            v-else
+            type="button"
+            @click="alternarFavorito"
+            class="btnPerfilFavorito"
+          >
+            <img :src="favoritarInline" alt="" class="favoritarPerfilDeUsuario">
+          </button>
         </div>
         <div class="spanInfo">
           <img :src="dataCriacao" alt="Data-de-Criacao">
@@ -367,15 +487,18 @@ watch(
         </div>
         <div class="favoritos">
           <h3>Perfis favoritos</h3>
-         <div v-if="perfisFavoritos.length === 0" class="textoDeAviso info-vazio">
+          <div v-if="perfisFavoritos.length === 0" class="textoDeAviso info-vazio">
             Você ainda não favoritou nenhum perfil.
           </div>
           <div v-else class="gradeFavoritos">
-            <div v-for="(perfil, index) in perfisFavoritos" :key="index" class="card-favorito">
-              <div class="avatar-favorito">
-                <img :src="userBlackFull" alt="Avatar">
+            <div v-for="perfil in perfisFavoritos" :key="perfil.id_usuario" class="card-favorito">
+              <div class="avatar-favorito-container">
+                <img v-if="perfil.foto_profile" :src="perfil.foto_profile" alt="Avatar" class="fotoPerfil-favorito">
+                <img v-else :src="userBlackFull" alt="Avatar Padrão" class="fotoPerfilDefault-favorito">
+                <div v-if="perfil.status_online" class="bolinha-status-favorito online"></div>
+                <div v-else class="bolinha-status-favorito offline"></div>
               </div>
-              <span class="nome-favorito">{{ perfil }}</span>
+              <span class="nome-favorito">{{ perfil.nome }}</span>
             </div>
           </div>
         </div>
@@ -570,6 +693,11 @@ main {
   cursor: pointer;
   width: 100%;
 }
+.btnPerfilFavorito {
+  background-color: #fff;
+  border-radius: 50%;
+  border: none;
+}
 .labelME {
   display: flex !important;
   align-items: center !important;
@@ -631,6 +759,36 @@ main {
   margin: -2px;
   padding: 1vw;
   font-size: 1.7vw;
+}
+.avatar-favorito-container {
+  position: relative;
+  width: 3.5vw;
+  height: 3.5vw;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.fotoPerfil-favorito, .fotoPerfilDefault-favorito {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+.bolinha-status-favorito {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 0.8vw;
+  height: 0.8vw;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  box-sizing: border-box;
+}
+.bolinha-status-favorito.online {
+  background-color: #3CBC00;
+}
+.bolinha-status-favorito.offline {
+  background-color: #9e9e9e;
 }
 .lista-de-posts-real {
   display: flex;
@@ -745,9 +903,6 @@ main {
   display: flex;
   font-weight: bolder;
   border-radius: 20px;
-
-  display: none;
-
   align-items: center;
   justify-content: center;
   padding: 0.9vw;
@@ -944,7 +1099,7 @@ cursor: pointer;
   text-transform: capitalize;
 }
 .favoritarPerfilDeUsuario {
-  height: 2vw;
+  height: 3vw;
 }
 .favoritarPerfilDeUsuario:hover {
   cursor: pointer;
@@ -1043,8 +1198,9 @@ cursor: pointer;
   margin-left: 1vw;
   margin-top: 1vw;
   margin-bottom: 1vw;
-  width: 100%;
-  gap: 9vw;
+  width: 37vw;
+  align-items: center;
+  justify-content: space-between;
 }
 .btnPerfil {
   background-color: #fff;

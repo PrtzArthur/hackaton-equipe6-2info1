@@ -16,6 +16,64 @@ const storage = multer.diskStorage({
   }
 });
 const upload = multer({ storage: storage });
+router.get('/feed/global', async (req, res) => {
+  let conexao = null;
+  
+  const pagina = parseInt(req.query.page) || 1;
+  const limite = 6;
+  const deslocamento = (pagina - 1) * limite;
+
+  try {
+    conexao = await pool.getConnection();
+    const [postagens] = await conexao.query(
+      `SELECT 
+        p.id_postagem, p.tipo, p.conteudo, p.data_envio, p.id_usuario,
+        u.nome, u.username, u.foto_profile
+       FROM Postagem p
+       JOIN Usuario u ON p.id_usuario = u.id_usuario
+       ORDER BY p.data_envio DESC
+       LIMIT ? OFFSET ?`,
+      [limite, deslocamento]
+    );
+
+    const feedCompleto = [];
+
+    for (const post of postagens) {
+      const [midias] = await conexao.query(
+        'SELECT imagem_anexada FROM Midia_Postagem WHERE id_postagem = ?',
+        [post.id_postagem]
+      );
+
+      const [opcoesEnquete] = await conexao.query(
+        'SELECT id_opcao, texto_opcao FROM Opcao_enquete WHERE id_postagem = ?',
+        [post.id_postagem]
+      );
+
+      feedCompleto.push({
+        id_postagem: post.id_postagem,
+        tipo: post.tipo,
+        conteudo: post.conteudo,
+        data_envio: post.data_envio,
+        autor: {
+          id: post.id_usuario,
+          nome: post.nome,
+          username: post.username,
+          foto: post.foto_profile
+        },
+        imagem: (midias && midias.length > 0) ? midias[0].imagem_anexada : null,
+        opcoes: opcoesEnquete || []
+      });
+    }
+
+    return res.json(feedCompleto);
+
+  } catch (error) {
+    console.error('Erro ao processar o feed global:', error);
+    return res.status(500).json({ erro: 'Erro interno ao carregar a timeline.' });
+  } finally {
+    if (conexao) conexao.release();
+  }
+});
 
 router.post('/postagens/:id', upload.single('imagem_post'), async (req, res) => {
   const { id } = req.params;
@@ -36,7 +94,6 @@ router.post('/postagens/:id', upload.single('imagem_post'), async (req, res) => 
       `INSERT INTO Postagem (id_postagem, tipo, conteudo, id_usuario) VALUES (?, ?, ?, ?)`,
       [idPostagem, tipo, descricao, id]
     );
-
     if (req.file) {
       const idMidia = crypto.randomUUID();
       const urlImagemPost = `http://localhost:3000/imagens/${req.file.filename}`;
@@ -61,28 +118,23 @@ router.post('/postagens/:id', upload.single('imagem_post'), async (req, res) => 
         if (linhasBanco && linhasBanco.length > 0) {
           const idTagReal = linhasBanco[0].id_tag; 
           
-          await conexao.query(
-            'INSERT INTO Postagem_Tag (id_postagem, id_tag) VALUES (?, ?)',
-            [idPostagem, idTagReal]
-          );
+          console.log(`Tag "${nomeTag}" detectada para o post. ID numérico correspondente: ${idTagReal}`);
         }
       }
     }
+
     await conexao.commit();
-    return res.status(201).json({ mensagem: 'Postagem completa publicada!' });
+    return res.status(201).json({ mensagem: 'Postagem completa publicada com sucesso no IFchat!' });
 
   } catch (error) { 
-    if (conexao) {
-      await conexao.rollback();
-    }
+    if (conexao) await conexao.rollback();
     console.error('Erro ao processar postagem complexa:', error);
     return res.status(500).json({ erro: 'Erro interno ao salvar dados da postagem.' });
   } finally {
-    if (conexao) {
-      conexao.release();
-    }
+    if (conexao) conexao.release();
   }
 });
 
 export default router;
+
 
