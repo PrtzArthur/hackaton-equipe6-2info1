@@ -185,14 +185,13 @@ router.get('/perfil/:id', async (req, res) => {
     return res.status(500).json({ erro: 'Erro interno no servidor.' });
   }
 });
-
 router.get('/postagens/:id', async (req, res) => {
   const { id } = req.params;
+  const meuIdLogado = req.query.meuId;
   let conexao = null;
 
   try {
     conexao = await pool.getConnection();
-
     const [postagens] = await conexao.query(
       'SELECT id_postagem, tipo, conteudo, data_envio FROM Postagem WHERE id_usuario = ? ORDER BY data_envio DESC',
       [id]
@@ -201,15 +200,42 @@ router.get('/postagens/:id', async (req, res) => {
     const postagensCompletas = [];
 
     for (const post of postagens) {
-      const [midias] = await conexao.query(
-        'SELECT imagem_anexada FROM Midia_Postagem WHERE id_postagem = ?',
-        [post.id_postagem]
-      );
+      const [midias] = await conexao.query('SELECT imagem_anexada FROM Midia_Postagem WHERE id_postagem = ?', [post.id_postagem]);
+      const [opcoesEnquete] = await conexao.query('SELECT id_opcao, texto_opcao FROM Opcao_enquete WHERE id_postagem = ?', [post.id_postagem]);
 
-      const [opcoesEnquete] = await conexao.query(
-        'SELECT id_opcao, texto_opcao FROM Opcao_enquete WHERE id_postagem = ?',
+      const [resultadoTotalPost] = await conexao.query(
+        `SELECT COUNT(*) as total FROM Voto v JOIN Opcao_enquete o ON v.id_opcao = o.id_opcao WHERE o.id_postagem = ?`, 
         [post.id_postagem]
       );
+      const totalVotosPost = resultadoTotalPost[0]?.total || 0;
+
+      const opcoesComVotos = [];
+      let usuarioJaVotouNestePost = false;
+
+      for (const o of opcoesEnquete) {
+        const [resultadoTotalOpcao] = await conexao.query('SELECT COUNT(*) as total FROM Voto WHERE id_opcao = ?', [o.id_opcao]);
+        const totalVotosOpcao = resultadoTotalOpcao[0]?.total || 0;
+
+        let votoDoLogado = false;
+        if (meuIdLogado) {
+          const [checaVoto] = await conexao.query('SELECT * FROM Voto WHERE id_usuario = ? AND id_opcao = ?', [meuIdLogado, o.id_opcao]);
+          if (checaVoto.length > 0) { votoDoLogado = true; usuarioJaVotouNestePost = true; }
+        }
+
+        opcoesComVotos.push({
+          id_opcao: o.id_opcao,
+          texto_opcao: o.texto_opcao,
+          votos: totalVotosOpcao,
+          porcentagem: totalVotosPost > 0 ? Math.round((totalVotosOpcao / totalVotosPost) * 100) : 0,
+          votadoPorMim: votoDoLogado
+        });
+      }
+
+      const [tagsBanco] = await conexao.query(
+        `SELECT t.nome_tag FROM Postagem_Tag pt JOIN Tag t ON pt.id_tag = t.id_tag WHERE pt.id_postagem = ?`,
+        [post.id_postagem]
+      );
+      const listaDeTagsDoPost = tagsBanco.map(t => `#${t.nome_tag}`);
 
       postagensCompletas.push({
         id_postagem: post.id_postagem,
@@ -217,12 +243,13 @@ router.get('/postagens/:id', async (req, res) => {
         conteudo: post.conteudo,
         data_envio: post.data_envio,
         imagem: (midias && midias.length > 0) ? midias[0].imagem_anexada : null, 
-        opcoes: opcoesEnquete || []
+        opcoes: opcoesComVotos,               
+        jaVotado: usuarioJaVotouNestePost,  
+        totalVotosGeral: totalVotosPost,
+        tags: listaDeTagsDoPost
       });
     }
-
     return res.json(postagensCompletas);
-
   } catch (error) {
     console.error('Erro ao buscar postagens completas no MySQL:', error);
     return res.status(500).json({ erro: 'Erro interno ao carregar a lista de postagens.' });

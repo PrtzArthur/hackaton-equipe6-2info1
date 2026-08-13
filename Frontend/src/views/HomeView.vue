@@ -11,13 +11,14 @@ const carregandoMais = ref(false);
 
 const paginaAtual = ref(1);
 const fimDoFeed = ref(false);
+const meuIdLogado = ref('');
 
 async function carregarTimelineGlobal(novaPagina = 1) {
   if (novaPagina === 1) carregandoFeed.value = true;
   else carregandoMais.value = true;
 
   try {
-    const resposta = await fetch(`http://localhost:3000/api/criar/feed/global?page=${novaPagina}`);
+    const resposta = await fetch(`http://localhost:3000/api/criar/feed/global?page=${novaPagina}&meuId=${meuIdLogado.value}`);
 
     if (resposta.ok) {
       const novosPosts = await resposta.json();
@@ -40,6 +41,60 @@ async function carregarTimelineGlobal(novaPagina = 1) {
     carregandoMais.value = false;
   }
 }
+
+async function votarNaEnquete(idOpcao, idPostagem) {
+  try {
+    const resposta = await fetch('http://localhost:3000/api/criar/enquetes/votar/opcao', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        idUsuario: meuIdLogado.value,
+        idOpcao: idOpcao,
+        idPostagem: idPostagem
+      })
+    });
+
+    const dados = await resposta.json();
+
+    if (resposta.ok) {
+      const postAlvo = postagensFeedGlobal.value.find(p => p.id_postagem === idPostagem);
+
+      if (postAlvo) {
+        const opcaoAlvo = postAlvo.opcoes.find(o => o.id_opcao === idOpcao);
+
+        if (dados.status === 'votado') {
+          postAlvo.opcoes.forEach(o => {
+            if (o.votadoPorMim) {
+              o.votadoPorMim = false;
+              o.votos = Math.max(0, o.votos - 1);
+            }
+          });
+
+          opcaoAlvo.votadoPorMim = true;
+          opcaoAlvo.votos += 1;
+          postAlvo.jaVotado = true;
+        }
+        else if (dados.status === 'desmarcado') {
+          opcaoAlvo.votadoPorMim = false;
+          opcaoAlvo.votos = Math.max(0, opcaoAlvo.votos - 1);
+          postAlvo.jaVotado = postAlvo.opcoes.some(o => o.votadoPorMim);
+        }
+
+        const totalVotosPost = postAlvo.opcoes.reduce((acc, o) => acc + o.votos, 0);
+        postAlvo.totalVotosGeral = totalVotosPost;
+
+        postAlvo.opcoes.forEach(o => {
+          o.porcentagem = totalVotosPost > 0 ? Math.round((o.votos / totalVotosPost) * 100) : 0;
+        });
+      }
+    } else {
+      alert(dados.erro || 'Erro com o voto');
+    }
+  } catch (erro) {
+    console.error('Erro ao votar', erro);
+  }
+}
+
 function irParaPerfilDoAutor(idAutor) {
   router.push(`/usuario/${idAutor}`);
 }
@@ -51,25 +106,22 @@ function carregarProximoLote() {
 }
 
 onMounted(() => {
+  meuIdLogado.value = localStorage.getItem('ifchat_user_id') || '';
   carregarTimelineGlobal();
 });
 </script>
 
-
 <template>
   <main>
     <section class="coluna-central-feed">
-      <div class="cabecalho-feed">
-        <h2>Página Inicial</h2>
-      </div>
       <div v-if="carregandoFeed" class="aviso-carregando-home">
         <span>Buscando publicações do IFC...</span>
       </div>
       <div v-else-if="postagensFeedGlobal.length === 0" class="aviso-carregando-home">
         <span>Nenhuma publicação ativa encontrada no momento.</span>
       </div>
-      <div v-else class="lista-postagens-globais">
-        <div v-for="post in postagensFeedGlobal" :key="post.id_postagem" class="cartao-postagem-usuario">
+      <div v-else class="containerPai">
+        <div v-for="post in postagensFeedGlobal" :key="post.id_postagem" class="lista-postagens-globais">
           <div class="autor-post-cabecalho" @click="irParaPerfilDoAutor(post.autor.id)">
             <div class="avatar-autor-post">
               <img v-if="post.autor.foto" :src="post.autor.foto" alt="Avatar" class="img-autor-home">
@@ -80,18 +132,41 @@ onMounted(() => {
               <span class="handle-autor">@{{ post.autor.username }}</span>
             </div>
           </div>
+
           <p v-if="post.conteudo" class="texto-do-post">{{ post.conteudo }}</p>
+
           <div v-if="post.imagem" class="container-imagem-post">
             <img :src="post.imagem" alt="Post Imagem" class="imagem-revelada-post">
           </div>
+
           <div v-if="post.tipo === 'postagemComEnquete' && post.opcoes.length > 0" class="render-enquete-post">
             <div class="lista-opcoes-voto">
-              <div v-for="opcao in post.opcoes" :key="opcao.id_opcao" class="opcao-voto-card">
-                <button type="button" class="btn-votar-enquete">
-                  {{ opcao.texto_opcao }}
+              <div v-for="opcao in post.opcoes" :key="opcao.id_opcao" class="card-opcao-container">
+
+                <button
+                  type="button"
+                  @click="votarNaEnquete(opcao.id_opcao, post.id_postagem)"
+                  class="btn-enquete-dinamico"
+                  :class="{ 'opcao-selecionada-local': opcao.votadoPorMim }"
+                >
+                  <div v-if="post.jaVotado" class="fundo-progresso-verde" :style="{ width: opcao.porcentagem + '%' }"></div>
+
+                  <div class="conteudo-resultado-linha">
+                    <span class="texto-opcao-voto">
+                      {{ opcao.texto_opcao }}
+                      <strong v-if="opcao.votadoPorMim">!</strong>
+                    </span>
+                    <span v-if="post.jaVotado" class="porcentagem-texto-voto">{{ opcao.porcentagem }}%</span>
+                  </div>
                 </button>
               </div>
             </div>
+            <span class="total-votos-legenda">{{ post.totalVotosGeral || 0 }} votos no total</span>
+          </div>
+          <div v-if="post.tags && post.tags.length > 0" class="container-tags-postagem">
+            <span v-for="(tag, index) in post.tags" :key="index" class="pilula-tag-post">
+              {{ tag }}
+            </span>
           </div>
           <span class="data-do-post">
             Publicado em: {{ new Date(post.data_envio).toLocaleDateString('pt-BR') }}
@@ -105,7 +180,7 @@ onMounted(() => {
             :disabled="carregandoMais"
             class="btn-carregar-mais"
           >
-            {{ caravansMais ? 'Buscando mais posts...' : 'Carregar mais publicações' }}
+            {{ carregandoMais ? 'Buscando mais posts...' : 'Carregar mais publicações' }}
           </button>
           <span v-else class="texto-fim-feed">✨ Você chegou ao fim da timeline do IFchat!</span>
         </div>
@@ -113,7 +188,6 @@ onMounted(() => {
     </section>
   </main>
 </template>
-
 
 <style scoped>
 main {
@@ -147,6 +221,29 @@ section {
   overflow-y: auto;
   scrollbar-width: thin;
   padding: 2px;
+}
+.imagem-revelada-post {
+  width: 100%;
+  height: auto;
+  display: block;
+  object-fit: contain;
+}
+.container-imagem-post {
+  overflow: hidden;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  height: auto;
+  position: relative;
+  border-radius: 10px;
+  border: 1px solid #eee;
+  margin: 0.3vw 0;
+}
+.containerPai {
+  display: flex;
+  flex-direction: column;
+  gap: 1vw;
+  padding: 2vw 2vw;
 }
 .autor-post-cabecalho {
   display: flex;
@@ -213,5 +310,98 @@ section {
   color: #7a7a7a;
   font-style: italic;
 }
+.lista-postagens-globais {
+  border: 1px solid #000;
+  display: flex;
+  flex-direction: column;
+  padding: 1vw;
+  min-width: 100%;
+  border-radius: 6px;
+  gap: 1vw;
+}
+.texto-do-post {
+  font-size: 1vw;
+  color: #111;
+  margin: 0;
+}
+.data-do-post {
+  font-size: 0.8vw;
+  color: #7a7a7a;
+}
+.render-enquete-post {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5vw;
+  margin: 0.5vw 0;
+  width: 100%;
+}
+.titulo-mini-enquete {
+  font-size: 0.95vw;
+  font-weight: bold;
+  color: #000;
+  margin: 0;
+}
+.lista-opcoes-voto {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4vw;
+  width: 100%;
+}
+.card-opcao-container {
+  width: 100%;
+  position: relative;
+}
+.btn-enquete-dinamico {
+  position: relative;
+  width: 100%;
+  height: 2.3vw;
+  background-color: #ffffff;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  overflow: hidden;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+  padding: 0;
+  transition: border-color 0.2s, background-color 0.2s;
+}
+.btn-enquete-dinamico:hover {
+  border-color: #3CBC00;
+  background-color: rgba(60, 188, 0, 0.02);
+}
+.opcao-selecionada-local {
+  border: 1.5px solid #3CBC00 !important;
+}
+.fundo-progresso-verde {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  background-color: rgba(60, 188, 0, 0.22);
+  transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 1;
+}
+.conteudo-resultado-linha {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 1vw;
+  z-index: 2;
+  font-family: inherit;
+  font-size: 0.95vw;
+  color: #000;
+  font-weight: 500;
+  pointer-events: none;
+}
+.total-votos-legenda {
+  font-size: 0.8vw;
+  color: #7a7a7a;
+  margin-top: 0.1vw;
+  font-style: italic;
+}
 </style>
+
 

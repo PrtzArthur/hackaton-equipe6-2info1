@@ -251,6 +251,7 @@ const jaEstouSeguindo = ref(false);
 const carregarDadosDoPerfil = async () => {
   try {
     const idAtualDaBarra = route.params.id;
+
     const respostaPerfil = await fetch(`http://localhost:3000/api/usuario/perfil/${idAtualDaBarra}?meuId=${meuIdLogado.value}`);
     const dadosPerfil = await respostaPerfil.json();
 
@@ -270,13 +271,38 @@ const carregarDadosDoPerfil = async () => {
         dataDeCriacao.value = new Date(dadosPerfil.data_criacao).toLocaleDateString('pt-BR');
       }
     }
-    const respostaPosts = await fetch(`http://localhost:3000/api/usuario/postagens/${idAtualDaBarra}`);
+    const respostaPosts = await fetch(`http://localhost:3000/api/usuario/postagens/${idAtualDaBarra}?meuId=${meuIdLogado.value}`);
+
     postagens.value = await respostaPosts.json();
+
   } catch (erro) {
     console.error("Erro ao buscar dados do perfil:", erro);
   }
 };
 
+async function votarNaEnquete(idOpcao, idPostagem) {
+  try {
+    const resposta = await fetch('http://localhost:3000/api/criar/enquetes/votar/opcao', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        idUsuario: meuIdLogado.value,
+        idOpcao: idOpcao,
+        idPostagem: idPostagem
+      })
+    });
+
+    const dados = await resposta.json();
+
+    if (resposta.ok) {
+      if (typeof carregarDadosDoPerfil === 'function') carregarDadosDoPerfil();
+    } else {
+      alert(dados.erro || 'Erro com o voto');
+    }
+  } catch (erro) {
+    console.error('Erro ao votar', erro);
+  }
+};
 async function alternarSeguirUsuario() {
   const idAtualDaBarra = route.params.id;
 
@@ -301,14 +327,35 @@ async function alternarSeguirUsuario() {
   } catch (erro) {
     console.error("Erro de conexão ao seguir:", erro);
   }
-}
-
-
+};
+const eMeuPerfil = ref(false);
 onMounted(() => {
   meuIdLogado.value = localStorage.getItem('ifchat_user_id') || '';
   carregarDadosDoPerfil();
 });
-
+function gerenciarPermissoesDeVisualizacao() {
+  const idAtualDaBarra = route.params.id;
+  meuIdLogado.value = localStorage.getItem('ifchat_user_id') || '';
+  if (idAtualDaBarra === meuIdLogado.value) {
+    eMeuPerfil.value = true;
+  } else {
+    eMeuPerfil.value = false;
+  }
+}
+watch(
+  () => route.params.id,
+  (novoId) => {
+    if (novoId) {
+      gerenciarPermissoesDeVisualizacao();
+      carregarDadosDoPerfil();
+      carregarGradeDeFavoritosVisuais();
+    }
+  }
+);
+onMounted(() => {
+  gerenciarPermissoesDeVisualizacao();
+  carregarDadosDoPerfil();
+});
 watch(
   () => route.params.id,
   (novoId) => {
@@ -456,21 +503,40 @@ watch(
       <div v-if="postagem.tipo === 'postagemComEnquete' && postagem.opcoes && postagem.opcoes.length > 0" class="render-enquete-post">
         <p class="titulo-mini-enquete">Enquete:</p>
         <div class="lista-opcoes-voto">
-          <div v-for="opcao in postagem.opcoes" :key="opcao.id_opcao" class="opcao-voto-card">
-            <p class="btn-votar-enquete">
-              {{ opcao.texto_opcao }}
-             </p>
-           </div>
-         </div>
-       </div>
-        <div class="divDeleteEPublicacao">
-          <span class="data-do-post">
+          <div v-for="opcao in postagem.opcoes" :key="opcao.id_opcao" class="card-opcao-container">
+            <button
+              type="button"
+              :disabled="meuIdLogado === idUsuarioDaURL"
+              @click="votarNaEnquete(opcao.id_opcao, postagem.id_postagem)"
+              class="btn-enquete-dinamico"
+              :class="{ 'opcao-selecionada-local': opcao.votadoPorMim }"
+            >
+              <div v-if="postagem.jaVotado" class="fundo-progresso-verde" :style="{ width: opcao.porcentagem + '%' }"></div>
+              <div class="conteudo-resultado-linha">
+                <span class="texto-opcao-voto">
+                  {{ opcao.texto_opcao }}
+                  <strong v-if="opcao.votadoPorMim" class="opcao-escolhida">!</strong>
+                </span>
+                <span v-if="postagem.jaVotado" class="porcentagem-texto-voto">{{ opcao.porcentagem }}%</span>
+              </div>
+            </button>
+          </div>
+        </div>
+        <span class="total-votos-legenda">{{ postagem.totalVotosGeral || 0 }} votos no total</span>
+      </div>
+        <div v-if="postagem.tags && postagem.tags.length > 0" class="container-tags-postagem">
+        <span v-for="(tag, index) in postagem.tags" :key="index" class="pilula-tag-post">
+          {{ tag }}
+        </span>
+      </div>
+      <div class="divDeleteEPublicacao">
+        <span class="data-do-post">
           Publicado em: {{ new Date(postagem.data_envio).toLocaleDateString('pt-BR') }}
         </span>
-        <button v-if="idUsuarioDaURL === meuIdLogado" @click="deletarPostagemDoBanco(postagem.id_postagem)" class="btnLixeira">
+        <button v-if="route.params.id === meuIdLogado" @click="deletarPostagemDoBanco(postagem.id_postagem)" class="btnLixeira">
           <img :src="lixeira" alt="deletar post" class="imgDelete">
         </button>
-        </div>
+      </div>
       </div>
       </div>
     </div>
@@ -951,15 +1017,93 @@ section.configuracoes {
   width: 100%;
   height: 100%;
 }
-.btn-votar-enquete {
-  background-color: #fff;
+.render-enquete-post {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5vw;
+  margin: 0.6vw 0;
   width: 100%;
-  border: 1px solid #000;
-  text-align: left;
-  font-size: 1.1vw;
-  padding: 0.6vw;
-  margin: 0.15vw 0;
-  border-radius: 5px;
+  box-sizing: border-box;
+}
+.opcao-escolhida {
+  color: #319e00;
+  font-weight: normal;
+}
+.titulo-mini-enquete {
+  font-size: 0.95vw;
+  font-weight: bold;
+  color: #000;
+  margin: 0 0 0.2vw 0;
+}
+.lista-opcoes-voto {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4vw;
+  width: 100%;
+}
+.card-opcao-container {
+  width: 100%;
+  position: relative;
+}
+.btn-enquete-dinamico {
+  position: relative;
+  width: 100%;
+  height: 2.3vw;
+  background-color: #ffffff;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  overflow: hidden;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+  padding: 0;
+  transition: border-color 0.2s, background-color 0.2s;
+}
+.btn-enquete-dinamico:hover {
+  border-color: #3CBC00;
+  background-color: rgba(60, 188, 0, 0.02);
+}
+.opcao-selecionada-local {
+  border: 1.5px solid #3CBC00 !important;
+}
+.fundo-progresso-verde {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  background-color: rgba(60, 188, 0, 0.22);
+  transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 1;
+}
+.conteudo-resultado-linha {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 1vw;
+  z-index: 2;
+  font-family: inherit;
+  font-size: 0.95vw;
+  color: #000;
+  font-weight: 500;
+  pointer-events: none;
+}
+.texto-opcao-voto {
+  display: flex;
+  align-items: center;
+  gap: 0.3vw;
+}
+.porcentagem-texto-voto {
+  font-weight: bold;
+  color: #3CBC00;
+}
+.total-votos-legenda {
+  font-size: 0.8vw;
+  color: #7a7a7a;
+  margin-top: 0.2vw;
+  font-style: italic;
 }
 .nomeDeUsuario{
   font-size: 1.8vw;
