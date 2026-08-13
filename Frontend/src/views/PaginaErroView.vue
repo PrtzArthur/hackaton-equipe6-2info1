@@ -19,7 +19,7 @@ export default {
   align-items: center;
   justify-content: center;
   height: 100vh;
-  background: linear-gradient(135deg, #ff6b6b, #f8e9a1);
+  background: linear-gradient(135deg, #f8e9a1, #f8e9a1);
   color: #333;
   font-family: 'Arial', sans-serif;
 }
