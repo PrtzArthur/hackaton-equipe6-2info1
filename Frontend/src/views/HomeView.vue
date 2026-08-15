@@ -116,10 +116,10 @@ onMounted(() => {
     <input  type="text" placeholder="Procurar por..." class="barra-de-pesquisa">
     <section class="coluna-central-feed">
       <div v-if="carregandoFeed" class="aviso-carregando-home">
-        <span>Buscando publicações do IFC...</span>
+        <span class="texto-aviso">Buscando publicações do IFC...</span>
       </div>
       <div v-else-if="postagensFeedGlobal.length === 0" class="aviso-carregando-home">
-        <span>Nenhuma publicação ativa encontrada no momento.</span>
+        <span class="texto-aviso">Nenhuma publicação ativa encontrada no momento.</span>
       </div>
       <div v-else class="containerPai">
         <div v-for="post in postagensFeedGlobal" :key="post.id_postagem" class="lista-postagens-globais">
@@ -184,7 +184,7 @@ onMounted(() => {
           >
             {{ carregandoMais ? 'Buscando mais posts...' : 'Carregar mais publicações' }}
           </button>
-          <span v-else class="texto-fim-feed">✨ Você chegou ao fim da timeline do IFchat!</span>
+          <span v-else class="texto-fim-feed">✨ Você chegou ao fim da timeline do IFchat! ✨</span>
         </div>
       </div>
     </section>
@@ -224,6 +224,15 @@ section {
   scrollbar-width: thin;
   padding: 2px;
 }
+.aviso-carregando-home {
+  margin-top: 2vw;
+  width: 100%;
+  text-align: center;
+}
+.texto-aviso {
+  font-weight: bolder;
+  color: #3CBC00;
+}
 .imagem-revelada-post {
   width: 100%;
   height: auto;
@@ -246,6 +255,12 @@ section {
   flex-direction: column;
   gap: 1vw;
   padding: 2vw 2vw;
+}
+.container-tags-postagem {
+  display: flex;
+  gap: 0.3vw;
+  font-size: 0.81vw;
+  color: blue;
 }
 .autor-post-cabecalho {
   display: flex;

@@ -184,15 +184,17 @@ router.post('/postagens/:id', upload.single('imagem_post'), async (req, res) => 
     }
     if (tags && tags.length > 0) {
       for (const nomeTag of tags) {
-        const [linhasBanco] = await conexao.query('SELECT id_tag FROM Tag WHERE nome_tag = ?', [nomeTag]);
         
+        const tagLimpa = nomeTag.replace('#','').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+
+        const [linhasBanco] = await conexao.query(`SELECT id_tag FROM Tag WHERE nome_tag = ?`, [tagLimpa]);
+
         if (linhasBanco && linhasBanco.length > 0) {
-          const idTagReal = linhasBanco[0].id_tag; 
-            await conexao.query(
-            'INSERT INTO Postagem_Tag (id_postagem, id_tag) VALUES (?, ?)', 
-            [idPostagem, idTagReal]
-          );
-        } else {
+            
+            const idTagReal = linhasBanco[0].id_tag;
+
+            await conexao.query(`INSERT INTO Postagem_Tag (id_postagem, id_tag) VALUES (?, ?)`, [idPostagem, idTagReal]);
+        }else {
           console.warn(`Aviso: A tag "${tagLimpa}" não foi encontrada na tabela global Tag.`);
         }
       }
