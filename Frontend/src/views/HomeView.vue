@@ -113,6 +113,7 @@ onMounted(() => {
 
 <template>
   <main>
+    <input  type="text" placeholder="Procurar por..." class="barra-de-pesquisa">
     <section class="coluna-central-feed">
       <div v-if="carregandoFeed" class="aviso-carregando-home">
         <span>Buscando publicações do IFC...</span>
@@ -148,6 +149,7 @@ onMounted(() => {
                   @click="votarNaEnquete(opcao.id_opcao, post.id_postagem)"
                   class="btn-enquete-dinamico"
                   :class="{ 'opcao-selecionada-local': opcao.votadoPorMim }"
+                  :disabled="post.autor.id === meuIdLogado"
                 >
                   <div v-if="post.jaVotado" class="fundo-progresso-verde" :style="{ width: opcao.porcentagem + '%' }"></div>
 
@@ -266,6 +268,18 @@ section {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+.barra-de-pesquisa {
+  position: fixed;
+  top: 0;
+  left: 50%;
+  transform: translate(-50%);
+  border: 0.5px solid #000;
+  background-color: #fff;
+  padding: 0.5vw;
+  margin: 1vw 0;
+  border-radius: 20px;
+  width: 40vw;
 }
 .nomes-autor-post {
   display: flex;
