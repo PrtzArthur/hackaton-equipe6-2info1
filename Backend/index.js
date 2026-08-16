@@ -47,5 +47,5 @@ app.get('/', (req, res) => {
 });
 
 httpServer.listen(3000, () => {
-  console.log('Servidor Full Stack do IFchat rodando na porta 3000');
+  console.log('Servidor do IFchat rodando na porta 3000');
 });

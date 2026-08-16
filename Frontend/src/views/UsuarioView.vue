@@ -165,20 +165,6 @@ async function carregarGradeDeFavoritosVisuais() {
     console.error("Erro ao traduzir favoritos:", erro);
   }
 }
-
-onMounted(() => {
-  meuIdLogado.value = localStorage.getItem('ifchat_user_id') || '';
-  carregarDadosDoPerfil();
-  verificarStatusFavorito();
-  carregarGradeDeFavoritosVisuais();
-});
-watch(
-  () => route.params.id,
-  () => {
-    verificarStatusFavorito();
-    carregarGradeDeFavoritosVisuais();
-  }
-);
 const deletarPostagemDoBanco = async (idPostagem) => {
   const confirmou = confirm("Você tem certeza absoluta que deseja excluir de forma permanente esta postagem?");
 
@@ -281,7 +267,7 @@ function deletarTag(index) {
   tagsDoUsuario.value.splice(index, 1);
 }
 
-const idUsuarioDaURL = route.params.id;
+const idUsuarioDaURL = ref('');
 const meuIdLogado = ref('');
 const jaEstouSeguindo = ref(false);
 
@@ -379,6 +365,7 @@ watch(
   () => route.params.id,
   (novoId) => {
     if (novoId) {
+      idUsuarioDaURL.value = novoId;
       gerenciarPermissoesDeVisualizacao();
       carregarDadosDoPerfil();
       verificarStatusFavorito();
@@ -388,6 +375,7 @@ watch(
 );
 onMounted(() => {
   meuIdLogado.value = localStorage.getItem('ifchat_user_id') || '';
+  idUsuarioDaURL.value = route.params.id;
   gerenciarPermissoesDeVisualizacao();
   carregarDadosDoPerfil();
   verificarStatusFavorito();
@@ -1012,7 +1000,7 @@ main {
   font-size: 1vw;
 }
 .btnSeguindo {
-  background-color: #e7e7e7;
+  background-color: #b5b5b5;
   color: #fff;
   border: none;
   display: flex;
@@ -1022,6 +1010,10 @@ main {
   justify-content: center;
   padding: 0.9vw;
   width: 6vw;
+}
+.btnSeguindo:hover {
+  cursor: pointer;
+  background-color: #7a7a7a;
 }
 .selectVP {
   width: 9vw;

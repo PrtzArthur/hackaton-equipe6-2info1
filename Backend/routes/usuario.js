@@ -173,8 +173,6 @@ router.get('/perfil/:id', async (req, res) => {
   let conexao = null;
   try {
     conexao = await pool.getConnection();
-
-    // 1. Busca os dados textuais do dono da página
     const [usuarios] = await conexao.query(
       `SELECT id_usuario, nome, username, biografia, localizacao, 
               foto_profile, banner_fundo, status_online, data_criacao 
@@ -186,6 +184,14 @@ router.get('/perfil/:id', async (req, res) => {
       return res.status(404).json({ erro: 'Usuário não encontrado.' });
     }
     const usuarioTarget = usuarios[0]; 
+    const [tagsBanco] = await conexao.query(
+      `SELECT t.nome_tag FROM Usuario_Tag ut
+       JOIN Tag t ON ut.id_tag = t.id_tag
+       WHERE ut.id_usuario = ?`,
+      [idPerfilVisitado]
+    );
+    const listaDeTagsDoUsuario = tagsBanco.map(t => t.nome_tag);
+
     const [resultadoSeguidores] = await conexao.query(
       'SELECT COUNT(*) as total FROM seguidores WHERE id_seguido = ?', 
       [idPerfilVisitado]
@@ -218,7 +224,8 @@ router.get('/perfil/:id', async (req, res) => {
       data_criacao: usuarioTarget.data_criacao,
       seguidores: totalVotosSeguidores,
       seguindo: totalVotosSeguindo,
-      jaSeguindo: jaSegue
+      jaSeguindo: jaSegue,
+      tags: listaDeTagsDoUsuario
     });
 
   } catch (error) {
@@ -366,9 +373,7 @@ router.put('/perfil/:id', async (req, res) => {
     conexao = await pool.getConnection();
     await conexao.beginTransaction();
     const [resultado] = await conexao.query(
-      `UPDATE Usuario
-       SET nome = ?, biografia = ?, localizacao = ?
-       WHERE id_usuario = ?`,
+      `UPDATE Usuario SET nome = ?, biografia = ?, localizacao = ? WHERE id_usuario = ?`,
       [nome, biografia, localizacao, id]
     );
 
@@ -377,6 +382,7 @@ router.put('/perfil/:id', async (req, res) => {
       return res.status(404).json({ erro: 'Usuário não encontrado.' });
     }
     await conexao.query('DELETE FROM Usuario_Tag WHERE id_usuario = ?', [id]);
+
     if (tags && tags.length > 0) {
       for (const nomeTag of tags) {
         const tagLimpa = nomeTag
@@ -389,13 +395,14 @@ router.put('/perfil/:id', async (req, res) => {
         const [resultadoTag] = await conexao.query('SELECT id_tag FROM Tag WHERE nome_tag = ?', [tagLimpa]);
         
         if (resultadoTag && resultadoTag.length > 0) {
-          const idTagReal = resultadoTag[0].id_tag;
+          const idTagReal = resultadoTag[0].id_tag; 
+          
           await conexao.query(
             'INSERT INTO Usuario_Tag (id_usuario, id_tag) VALUES (?, ?)',
             [id, idTagReal]
           );
         } else {
-          console.warn(`Aviso: A tag processada "${tagLimpa}" (original: ${nomeTag}) não foi achada no MySQL.`);
+          console.warn(`aviso: A tag "${tagLimpa}" não existe cadastrada na tabela global Tag.`);
         }
       }
     }
@@ -403,8 +410,9 @@ router.put('/perfil/:id', async (req, res) => {
     await conexao.commit();
     return res.json({ message: 'Perfil e tags atualizados com sucesso no MySQL!' });
   } catch (error) {
-    console.error('Erro ao buscar postagens completas no MySQL:', error);
-    return res.status(500).json({ erro: 'Erro interno ao carregar a lista de postagens.' });
+    if (conexao) await conexao.rollback();
+    console.error('Erro ao atualizar perfil e tags no MySQL:', error);
+    return res.status(500).json({ erro: 'Erro interno ao salvar os dados das tags.' });
   } finally {
     if (conexao) conexao.release();
   }
