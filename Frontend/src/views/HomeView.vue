@@ -261,6 +261,7 @@ section {
   gap: 0.3vw;
   font-size: 0.81vw;
   color: blue;
+  flex-wrap: wrap;
 }
 .autor-post-cabecalho {
   display: flex;

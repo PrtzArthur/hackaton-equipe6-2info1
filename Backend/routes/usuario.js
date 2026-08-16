@@ -62,28 +62,54 @@ const apagarArquivoLocalAntigo = (urlPublica) => {
     console.error('Erro ao limpar arquivo antigo:', err.message);
   }
 };
+router.post('/logout', async (req, res) => {
+  const { idUsuario } = req.body;
+  if (!idUsuario) {
+    return res.status(400).json({ erro: 'ID do usuário não fornecido.' });
+  }
+  let conexao = null;
+  try {
+    conexao = await pool.getConnection();
+    await conexao.query(
+      "UPDATE Usuario SET status_online = 0 WHERE id_usuario = ?",
+      [idUsuario]
+    );
 
+    const io = req.app.get('io');
+    io.emit('usuario_status_mudou', { id_usuario: idUsuario, status_online: 0 });
+
+    return res.json({ mensagem: 'Status alterado para offline com sucesso!' });
+
+  } catch (error) {
+    console.error('Erro ao processar logout no MySQL:', error);
+    return res.status(500).json({ erro: 'Erro interno ao desconectar.' });
+  } finally {
+    if (conexao) conexao.release();
+  }
+});
 router.post('/favoritos/detalhes', async (req, res) => {
   const { ids } = req.body;
 
-  if (!ids || ids.length === 0) {
+  if (!ids || !Array.isArray(ids) || ids.length === 0) {
     return res.json([]);
   }
 
+  let conexao = null;
   try {
-    const [usuarios] = await pool.query(
-      'SELECT id_usuario, nome, foto_profile, status_online FROM Usuario WHERE id_usuario IN (?)',
-      [ids]
-    );
+    conexao = await pool.getConnection();
+    const interrogacoes = ids.map(() => '?').join(', ');
+    const querySQL = `SELECT id_usuario, nome, username, foto_profile, status_online FROM Usuario WHERE id_usuario IN (${interrogacoes})`;
+    const [usuarios] = await conexao.query(querySQL, ids);
 
-    return res.json(usuarios); 
+    return res.json(usuarios);
 
   } catch (error) {
-    console.error('Erro ao traduzir dados de favoritos no MySQL:', error);
-    return res.status(500).json({ erro: 'Erro interno ao carregar detalhes dos favoritos.' });
+    console.error('Erro ao traduzir lista de favoritos no MySQL:', error);
+    return res.status(500).json({ erro: 'Erro interno ao processar favoritos.' });
+  } finally {
+    if (conexao) conexao.release();
   }
 });
-
 router.put('/perfil/:id/midias', upload.fields([{ name: 'foto', maxCount: 1 }, { name: 'banner', maxCount: 1 }]), async (req, res) => {
   const { id } = req.params;
   
@@ -141,48 +167,65 @@ router.put('/perfil/:id/midias', upload.fields([{ name: 'foto', maxCount: 1 }, {
   }
 });
 router.get('/perfil/:id', async (req, res) => {
-  const { id } = req.params;
-  const meuIdLogado = req.query.meuId;
+  const idPerfilVisitado = req.params.id;
+  const meuIdLogado = req.query.meuId;    
 
+  let conexao = null;
   try {
-    const [resultados] = await pool.query(
-      `SELECT nome, username, biografia, localizacao, status_online, foto_profile, banner_fundo, data_criacao 
+    conexao = await pool.getConnection();
+
+    // 1. Busca os dados textuais do dono da página
+    const [usuarios] = await conexao.query(
+      `SELECT id_usuario, nome, username, biografia, localizacao, 
+              foto_profile, banner_fundo, status_online, data_criacao 
        FROM Usuario WHERE id_usuario = ?`,
-      [id]
+      [idPerfilVisitado]
     );
-    
-    if (resultados.length === 0) {
+
+    if (!usuarios || usuarios.length === 0) {
       return res.status(404).json({ erro: 'Usuário não encontrado.' });
     }
-
-    const [[{ totalSeguidores }]] = await pool.query('SELECT COUNT(*) as totalSeguidores FROM seguidores WHERE id_seguido = ?', [id]);
-    const [[{ totalSeguindo }]] = await pool.query('SELECT COUNT(*) as totalSeguindo FROM seguidores WHERE id_seguidor = ?', [id]);
-
-    let jaSegueEstePerfil = false;
-    if (meuIdLogado) {
-      const [checagem] = await pool.query('SELECT * FROM seguidores WHERE id_seguidor = ? AND id_seguido = ?', [meuIdLogado, id]);
-      jaSegueEstePerfil = checagem.length > 0;
-    }
-
-    const [tagsBanco] = await pool.query(
-      `SELECT t.nome_tag FROM Usuario_Tag ut JOIN Tag t ON ut.id_tag = t.id_tag WHERE ut.id_usuario = ?`, 
-      [id]
+    const usuarioTarget = usuarios[0]; 
+    const [resultadoSeguidores] = await conexao.query(
+      'SELECT COUNT(*) as total FROM seguidores WHERE id_seguido = ?', 
+      [idPerfilVisitado]
     );
-    const listaDeTagsDeTexto = tagsBanco.map(t => `#${t.nome_tag}`);
-
-    const dadosUsuarioPlano = resultados[0];
-
+    const totalVotosSeguidores = resultadoSeguidores[0]?.total || 0;
+    const [resultadoSeguindo] = await conexao.query(
+      'SELECT COUNT(*) as total FROM seguidores WHERE id_seguidor = ?', 
+      [idPerfilVisitado]
+    );
+    const totalVotosSeguindo = resultadoSeguindo[0]?.total || 0;
+    let jaSegue = false;
+    if (meuIdLogado && meuIdLogado !== idPerfilVisitado) {
+      const [checagem] = await conexao.query(
+        'SELECT * FROM seguidores WHERE id_seguidor = ? AND id_seguido = ?',
+        [meuIdLogado, idPerfilVisitado]
+      );
+      if (checagem.length > 0) {
+        jaSegue = true;
+      }
+    }
     return res.json({
-      ...dadosUsuarioPlano,
-      tags: listaDeTagsDeTexto,
-      seguidores: totalSeguidores,
-      seguindo: totalSeguindo,
-      jaSeguindo: jaSegueEstePerfil
+      id_usuario: usuarioTarget.id_usuario,
+      nome: usuarioTarget.nome,
+      username: usuarioTarget.username,
+      biografia: usuarioTarget.biografia || '',
+      localizacao: usuarioTarget.localizacao || '',
+      foto_profile: usuarioTarget.foto_profile,
+      banner_fundo: usuarioTarget.banner_fundo,
+      status_online: usuarioTarget.status_online,
+      data_criacao: usuarioTarget.data_criacao,
+      seguidores: totalVotosSeguidores,
+      seguindo: totalVotosSeguindo,
+      jaSeguindo: jaSegue
     });
 
   } catch (error) {
-    console.error('Erro ao carregar dados do perfil:', error);
-    return res.status(500).json({ erro: 'Erro interno no servidor.' });
+    console.error('Erro ao carregar cabeçalho do perfil:', error);
+    return res.status(500).json({ erro: 'Erro interno ao processar dados do perfil.' });
+  } finally {
+    if (conexao) conexao.release();
   }
 });
 router.get('/postagens/:id', async (req, res) => {

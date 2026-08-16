@@ -1,5 +1,6 @@
 <script setup>
-import { ref, onMounted, watch } from 'vue';
+import { ref, onMounted, onUnmounted, watch } from 'vue';
+import { io } from 'socket.io-client';
 import { useRoute } from 'vue-router';
 import userBlackFull from '@/icons/userBlackFull.svg';
 import canetaEdicao from '@/icons/canetaEdicao.svg';
@@ -19,13 +20,49 @@ import { useRouter } from 'vue-router';
 import lixeira from '@/icons/lixeira.svg'
 const router = useRouter();
 
-const logout = () => {
-  localStorage.removeItem('ifchat_token')
-  alert('Você saiu da conta!')
-  router.push('/')
-}
+async function logout() {
+  const idLogado = localStorage.getItem('ifchat_user_id');
 
+  const faxinaSessaoLocal = () => {
+    localStorage.removeItem('ifchat_user_id');
+    localStorage.removeItem('ifchat_user_name');
+    localStorage.removeItem('ifchat_user_username');
+    localStorage.removeItem('ifchat_user_foto');
+    localStorage.removeItem('ifchat_user_token');
+    localStorage.removeItem('ifchat_token');
+  };
+
+  if (!idLogado) {
+    faxinaSessaoLocal();
+    router.push('/');
+    return;
+  }
+
+  try {
+    const resposta = await fetch('http://localhost:3000/api/usuario/logout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idUsuario: idLogado })
+    });
+
+    if (resposta.ok) {
+      faxinaSessaoLocal();
+      alert('Você saiu da conta com sucesso!');
+      router.push('/');
+    } else {
+      console.error("O servidor rejeitou o pedido de desconexão.");
+      faxinaSessaoLocal();
+      router.push('/');
+    }
+  } catch (erro) {
+    console.error("Erro de conexão ao tentar fazer logout:", erro);
+    faxinaSessaoLocal();
+    router.push('/');
+  }
+}
 const route = useRoute();
+
+const socket = io('http://localhost:3000');
 
 const editarPerfil = ref(false);
 
@@ -329,10 +366,6 @@ async function alternarSeguirUsuario() {
   }
 };
 const eMeuPerfil = ref(false);
-onMounted(() => {
-  meuIdLogado.value = localStorage.getItem('ifchat_user_id') || '';
-  carregarDadosDoPerfil();
-});
 function gerenciarPermissoesDeVisualizacao() {
   const idAtualDaBarra = route.params.id;
   meuIdLogado.value = localStorage.getItem('ifchat_user_id') || '';
@@ -348,22 +381,31 @@ watch(
     if (novoId) {
       gerenciarPermissoesDeVisualizacao();
       carregarDadosDoPerfil();
+      verificarStatusFavorito();
       carregarGradeDeFavoritosVisuais();
     }
   }
 );
 onMounted(() => {
+  meuIdLogado.value = localStorage.getItem('ifchat_user_id') || '';
   gerenciarPermissoesDeVisualizacao();
   carregarDadosDoPerfil();
-});
-watch(
-  () => route.params.id,
-  (novoId) => {
-    if (novoId) {
-      carregarDadosDoPerfil();
+  verificarStatusFavorito();
+  carregarGradeDeFavoritosVisuais();
+
+   socket.on('usuario_status_mudou', (dadosRecebidos) => {
+    if (route.params.id === dadosRecebidos.id_usuario) {
+      statusOnline.value = dadosRecebidos.status_online;
     }
-  }
-);
+     const amigoNaLista = perfisFavoritos.value.find(p => p.id_usuario === dadosRecebidos.id_usuario);
+    if (amigoNaLista) {
+      amigoNaLista.status_online = dadosRecebidos.status_online;
+    }
+  });
+});
+onUnmounted(() => {
+  socket.off('usuario_status_mudou');
+});
 </script>
 
 <template>
@@ -460,7 +502,7 @@ watch(
           <h3 class="tituloTags">Tags</h3>
           <div class="divDasTagsDoUsuario">
             <div v-for="(tag, index) in tagsDoUsuario" :key="index">
-            <button class="tag" @click="deletarTag(index)">
+            <button class="tag" :disabled="meuIdLogado !== idUsuarioDaURL" @click="deletarTag(index)">
               {{ tag }}
             </button>
           </div>
@@ -552,16 +594,16 @@ watch(
           </div>
         </div>
         <div class="favoritos">
-          <h3>Perfis favoritos</h3>
+          <h3>Perfim favoritos</h3>
           <div v-if="perfisFavoritos.length === 0" class="textoDeAviso info-vazio">
-            Você ainda não favoritou nenhum perfil.
+            Nenhum perfil favoritado encontrado nesta conta.
           </div>
           <div v-else class="gradeFavoritos">
             <div v-for="perfil in perfisFavoritos" :key="perfil.id_usuario" class="card-favorito">
               <div class="avatar-favorito-container">
                 <img v-if="perfil.foto_profile" :src="perfil.foto_profile" alt="Avatar" class="fotoPerfil-favorito">
                 <img v-else :src="userBlackFull" alt="Avatar Padrão" class="fotoPerfilDefault-favorito">
-                <div v-if="perfil.status_online" class="bolinha-status-favorito online"></div>
+                <div v-if="perfil.status_online === 1" class="bolinha-status-favorito online"></div>
                 <div v-else class="bolinha-status-favorito offline"></div>
               </div>
               <span class="nome-favorito">{{ perfil.nome }}</span>
@@ -724,6 +766,13 @@ main {
   margin-top: 0.5vw;
   flex-wrap: wrap;
   gap: 0.4vw;
+}
+.container-tags-postagem {
+  color: blue;
+  display: flex;
+  gap: 0.3vw;
+  font-size: 0.85vw;
+  flex-wrap: wrap;
 }
 .listaParaAdicionarTags {
   display: flex;
@@ -1255,6 +1304,7 @@ cursor: pointer;
   padding: 0.3vw 0.3vw;
   display: flex;
   align-items: center;
+  color: #000;
   justify-content: center;
 }
 .tag:hover {
