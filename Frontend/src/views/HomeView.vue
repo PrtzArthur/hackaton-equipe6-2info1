@@ -2,8 +2,10 @@
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import userBlackFull from '@/icons/userBlackFull.svg';
+import { useToast } from 'vue-toastification';
 
 const router = useRouter();
+const toast = useToast();
 
 const postagensFeedGlobal = ref([]);
 const carregandoFeed = ref(true);
@@ -88,7 +90,7 @@ async function votarNaEnquete(idOpcao, idPostagem) {
         });
       }
     } else {
-      alert(dados.erro || 'Erro com o voto');
+      toast.error(dados.erro || 'Erro com o voto');
     }
   } catch (erro) {
     console.error('Erro ao votar', erro);
@@ -300,14 +302,22 @@ section {
 .nomes-autor-post {
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 25vw;
+  max-width: 25vw;
 }
 .nome-real-autor {
   font-size: 1vw;
   color: #000;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .handle-autor {
   font-size: 0.8vw;
   color: #7a7a7a;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .container-paginacao-home {
   display: flex;

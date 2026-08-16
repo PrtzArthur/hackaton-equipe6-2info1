@@ -18,7 +18,10 @@ import favoritarPreenchido from '@/icons/favoritarPreenchido.svg';
 import logoutRED from '@/icons/logoutRED.svg'
 import { useRouter } from 'vue-router';
 import lixeira from '@/icons/lixeira.svg'
+import { useToast } from 'vue-toastification';
+
 const router = useRouter();
+const toast = useToast();
 
 async function logout() {
   const idLogado = localStorage.getItem('ifchat_user_id');
@@ -47,7 +50,7 @@ async function logout() {
 
     if (resposta.ok) {
       faxinaSessaoLocal();
-      alert('Você saiu da conta com sucesso!');
+      toast.info('Você saiu da conta com sucesso!');
       router.push('/');
     } else {
       console.error("O servidor rejeitou o pedido de desconexão.");
@@ -182,15 +185,15 @@ const deletarPostagemDoBanco = async (idPostagem) => {
     const dados = await resposta.json();
 
     if (resposta.ok) {
-      alert("Postagem excluída com sucesso!");
+      toast.success("Postagem excluída com sucesso!");
       postagens.value = postagens.value.filter(post => post.id_postagem !== idPostagem);
     } else {
-      alert(dados.erro || "Não foi possível deletar a postagem.");
+      toast.warning(dados.erro || "Não foi possível deletar a postagem.");
     }
 
   } catch (erro) {
     console.error("Erro de conexão ao deletar post:", erro);
-    alert("Erro de comunicação com o servidor.");
+    toast.error("Erro de comunicação com o servidor.");
   }
 };
 
@@ -220,7 +223,7 @@ const edicaoDosDados = async () => {
       const dados = await resposta.json();
 
       if (!resposta.ok) {
-        alert(dados.erro || "Erro ao atualizar dados.");
+        toast.error(dados.erro || "Erro ao atualizar dados.");
         return;
       }
       if (arquivoFoto.value || arquivoBanner.value) {
@@ -238,7 +241,7 @@ const edicaoDosDados = async () => {
           fotoPerfil.value = resultadoMidia.foto_profile;
           bannerUrl.value = resultadoMidia.banner_fundo;
         } else {
-          alert(resultadoMidia.erro || "Erro ao processar imagens.");
+          toast.error(resultadoMidia.erro || "Erro ao processar imagens.");
         }
       }
       nomeUsuario.value = nomeEdit.value;
@@ -255,7 +258,7 @@ function moverTagParaListaUsuario(tagUniversal) {
   if (!tagsDoUsuario.value.includes(tagUniversal)) {
     tagsDoUsuario.value.push(tagUniversal);
   } else {
-    alert('Você já adicionou esta tag ao seu perfil!');
+    toast.warning('Você já adicionou esta tag ao seu perfil!');
   }
 }
 function mostrarJanelaEditor() {
@@ -320,12 +323,15 @@ async function votarNaEnquete(idOpcao, idPostagem) {
     if (resposta.ok) {
       if (typeof carregarDadosDoPerfil === 'function') carregarDadosDoPerfil();
     } else {
-      alert(dados.erro || 'Erro com o voto');
+      toast.error(dados.erro || 'Erro com o voto');
     }
   } catch (erro) {
     console.error('Erro ao votar', erro);
   }
 };
+function irParaPerfilDoAmigo(idAmigo) {
+  router.push(`/usuario/${idAmigo}`);
+}
 async function alternarSeguirUsuario() {
   const idAtualDaBarra = route.params.id;
 
@@ -345,7 +351,7 @@ async function alternarSeguirUsuario() {
       jaEstouSeguindo.value = (dados.status === 'seguiu');
       seguidoresUsuario.value = dados.contadorSeguidoresDoPerfil;
     } else {
-      alert(dados.erro || "Erro ao processar ação.");
+      toast.error(dados.erro || "Erro ao processar ação.");
     }
   } catch (erro) {
     console.error("Erro de conexão ao seguir:", erro);
@@ -410,7 +416,7 @@ onUnmounted(() => {
               <img v-else :src="userBlackFull" alt="Default-foto-perfil" class="fotoPerfilDefault">
             </div>
           </div>
-          <div class="dadosCabecalho">
+          <div class="dados-Cabecalho">
             <h2 class="nomeDeUsuario">{{ nomeUsuario }}</h2>
             <div v-if="statusOnline" class="statusUsuarioOnline">
               <div class="IndicadorOnline"></div>
@@ -587,7 +593,7 @@ onUnmounted(() => {
             Nenhum perfil favoritado encontrado nesta conta.
           </div>
           <div v-else class="gradeFavoritos">
-            <div v-for="perfil in perfisFavoritos" :key="perfil.id_usuario" class="card-favorito">
+            <div v-for="perfil in perfisFavoritos" :key="perfil.id_usuario" @click="irParaPerfilDoAmigo(perfil.id_usuario)" class="card-favorito">
               <div class="avatar-favorito-container">
                 <img v-if="perfil.foto_profile" :src="perfil.foto_profile" alt="Avatar" class="fotoPerfil-favorito">
                 <img v-else :src="userBlackFull" alt="Avatar Padrão" class="fotoPerfilDefault-favorito">
@@ -871,9 +877,15 @@ main {
   align-items: center;
   justify-content: center;
 }
-.fotoPerfil-favorito, .fotoPerfilDefault-favorito {
+.fotoPerfil-favorito {
   width: 100%;
   height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+.fotoPerfilDefault-favorito {
+  width: 4.55vw;
+  height: auto;
   border-radius: 50%;
   object-fit: cover;
 }
@@ -906,13 +918,46 @@ main {
   justify-content: center;
   gap: 0.5vw;
 }
-.dadosCabecalho {
+.dados-Cabecalho {
   display: flex;
   flex-direction: column;
   gap: 0.2vw;
   max-width: 25vw;
   min-width: 0;
   overflow: hidden;
+}
+.card-favorito {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #000;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  width: 5vw;
+  max-width: 5vw;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3vw;
+  border-radius: 6px;
+}
+.card-favorito:hover {
+  background-color: #f9f9f9;
+  transition: 0.2s;
+  cursor: pointer;
+}
+.gradeFavoritos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4vw;
+  margin-top: 0.5vw;
+  border: 1px solid #000;
+  padding: 0.5vw;
+  height: 9vw;
+  border-radius: 6px;
+}
+.nome-favorito {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: bolder;
 }
 .cartao-postagem-usuario {
   border: 1px solid #000;
@@ -1534,12 +1579,6 @@ section::-webkit-scrollbar-thumb:hover {
   display: flex;
   gap: 0.1vw;
   align-items: center;
-}
-.gradeFavoritos {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.8vw;
-  margin-top: 0.5vw;
 }
 .postagens, .mural, .favoritos, .suporte {
   margin: 1.5vw 1vw;

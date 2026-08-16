@@ -1,8 +1,10 @@
 <script setup>
 import { ref } from 'vue';
 import { RouterLink, useRouter } from 'vue-router';
+import { useToast } from 'vue-toastification';
 
 const router = useRouter();
+const toast = useToast();
 
 const emailOuHandle = ref('');
 const senha = ref('');
@@ -25,14 +27,14 @@ try {
       localStorage.setItem('ifchat_token', dados.token);
       localStorage.setItem('ifchat_user_id', dados.id_usuario);
 
-      alert('Login efetuado com sucesso!');
+      toast.success('Login efetuado com sucesso!');
       router.push('/home');
     } else {
-      alert(dados.erro || 'Falha ao autenticar.');
+      toast.error(dados.erro || 'Falha ao autenticar.');
     }
   } catch (erro) {
     console.error('Erro de conexão com o servidor:', erro);
-    alert('Erro de conexão: Garanta que a sua API Node está ligada no terminal.');
+    toast.error('Erro de conexão: Garanta que a sua API Node está ligada no terminal.');
   }
 };
 </script>

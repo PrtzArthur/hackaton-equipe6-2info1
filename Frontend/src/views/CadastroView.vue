@@ -64,11 +64,11 @@ const realizarCadastro = async () => {
           </div>
           <div class="Agrupacao">
             <label for="handle" class="labels">Handle</label>
-            <input v-model="handle" type="text" placeholder="@nome_de_exemplo" id="nome" required>
+            <input v-model="handle" type="text" minlength="8" maxlength="50" placeholder="@nome_de_exemplo" id="nome" required>
           </div>
           <div class="Agrupacao">
             <label for="email" class="labels">Email</label>
-            <input v-model="email" type="email" placeholder="exemplo@email.com" id="email" required>
+            <input v-model="email" type="email" maxlength="255" placeholder="exemplo@email.com" id="email" required>
           </div>
           <div class="Agrupacao">
             <label for="senha" class="labels">Senha</label>
