@@ -112,6 +112,63 @@ const naoSalvo = ref(false);
 const telaExibicao = ref(true);
 const telaConfig = ref(false);
 
+// --- Bloquear usuário ---
+const usuarioBloqueado = ref(false);
+const mostrarConfirmacaoBloqueio = ref(false);
+
+function abrirConfirmacaoBloqueio() {
+  mostrarConfirmacaoBloqueio.value = true;
+}
+
+function cancelarBloqueio() {
+  mostrarConfirmacaoBloqueio.value = false;
+}
+
+async function confirmarBloqueio() {
+  try {
+    const resposta = await fetch(`http://localhost:3000/api/usuario/bloquear/${idUsuarioDaURL}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idUsuarioLogado: meuIdLogado.value })
+    });
+
+    const dados = await resposta.json();
+
+    if (resposta.ok) {
+      usuarioBloqueado.value = true;
+      mostrarConfirmacaoBloqueio.value = false;
+      alert('Usuário bloqueado com sucesso!');
+    } else {
+      alert(dados.erro || 'Não foi possível bloquear o usuário.');
+    }
+  } catch (erro) {
+    console.error('Erro ao bloquear usuário:', erro);
+    alert('Erro de comunicação com o servidor.');
+  }
+}
+
+async function desbloquearUsuario() {
+  try {
+    const resposta = await fetch(`http://localhost:3000/api/usuario/bloquear/${idUsuarioDaURL}`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idUsuarioLogado: meuIdLogado.value })
+    });
+
+    if (resposta.ok) {
+      usuarioBloqueado.value = false;
+      alert('Usuário desbloqueado.');
+    } else {
+      const dados = await resposta.json();
+      alert(dados.erro || 'Não foi possível desbloquear o usuário.');
+    }
+  } catch (erro) {
+    console.error('Erro ao desbloquear usuário:', erro);
+    alert('Erro de comunicação com o servidor.');
+  }
+}
+// --- Fim bloquear usuário ---
+
 function mostrarTelaConfiguracao() {
   telaConfig.value = !telaConfig.value;
   telaExibicao.value = !telaExibicao.value;
@@ -637,6 +694,14 @@ onUnmounted(() => {
           <a href="#" class="link-suporte">
             <img :src="setinha" alt="Suporte"> Suporte
           </a>
+          <div v-if="idUsuarioDaURL !== meuIdLogado" class="acoesModeracao">
+            <button v-if="!usuarioBloqueado" @click="abrirConfirmacaoBloqueio" class="btnBloquear">
+              Bloquear usuário
+            </button>
+            <button v-else @click="desbloquearUsuario" class="btnDesbloquear">
+              Desbloquear usuário
+            </button>
+          </div>
         </div>
       </div>
     </section>
@@ -685,6 +750,20 @@ onUnmounted(() => {
             <button type="button" @click="editarPerfil = false" class="cancelarAlteracoes">Cancelar</button>
           </div>
         </form>
+        </div>
+      </div>
+      <div v-if="mostrarConfirmacaoBloqueio" class="overlay">
+        <div class="form formBloqueio">
+          <h2 class="overlayFormTitulo overlayFormTituloVermelho">Bloquear {{ nomeUsuario }}?</h2>
+          <div class="formularioDeEdicao">
+            <p class="textoConfirmacaoBloqueio">
+              Vocês deixarão de se seguir. {{ nomeUsuario }} não poderá ver seu perfil, mandar mensagens ou comentar nas suas postagens.
+            </p>
+            <div class="botoesDoFormEditPerfil">
+              <button type="button" @click="confirmarBloqueio" class="btnConfirmarBloqueio">Bloquear</button>
+              <button type="button" @click="cancelarBloqueio" class="cancelarAlteracoes">Cancelar</button>
+            </div>
+          </div>
         </div>
       </div>
       <button v-if="telaConfig"  @click="mostrarTelaConfiguracao" class="botaoVoltar">
@@ -1721,5 +1800,60 @@ section::-webkit-scrollbar-thumb:hover {
 .seta-suporte {
   display: inline-block;
   transform: rotate(0deg);
+}
+
+/* --- Bloquear usuário --- */
+.acoesModeracao {
+  margin-top: 0.8vw;
+}
+.btnBloquear {
+  background-color: #fff;
+  border: none;
+  color: #cf0000;
+  font-weight: bold;
+  font-size: 1vw;
+  padding: 0;
+}
+.btnBloquear:hover {
+  text-decoration: underline;
+  cursor: pointer;
+}
+.btnDesbloquear {
+  background-color: #fff;
+  border: none;
+  color: #3CBC00;
+  font-weight: bold;
+  font-size: 1vw;
+  padding: 0;
+}
+.btnDesbloquear:hover {
+  text-decoration: underline;
+  cursor: pointer;
+}
+.overlayFormTituloVermelho {
+  background-color: #cf0000 !important;
+}
+.formBloqueio {
+  width: 26vw;
+}
+.textoConfirmacaoBloqueio {
+  padding: 0 1vw;
+  color: #333;
+  font-size: 1vw;
+  line-height: 1.4;
+}
+.btnConfirmarBloqueio {
+  padding: 0.5vw;
+  width: 7.2vw;
+  border-radius: 10px;
+  font-size: 1vw;
+  border: none;
+  background-color: #cf0000;
+  font-weight: bold;
+  color: #fff;
+}
+.btnConfirmarBloqueio:hover {
+  background-color: #ff0000;
+  cursor: pointer;
 }
 </style>
