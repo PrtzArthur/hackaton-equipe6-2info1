@@ -1,18 +1,19 @@
 <script setup>
 import { ref, computed, nextTick } from 'vue'
 
+
 const buscaLista = ref('')
 const buscaPostagem = ref('')
 
-// Controle da criação de nova lista
+
 const criandoLista = ref(false)
 const nomeNovaLista = ref('')
 const inputNovaLista = ref(null)
 
-// Controle do Modal de Confirmação de Exclusão
+
 const exibirModalExclusao = ref(false)
 
-// Array de listas
+
 const listas = ref([
   {
     id: 1,
@@ -72,13 +73,16 @@ const listas = ref([
   }
 ])
 
+
 const listaSelecionada = ref(listas.value[1] || null)
+
 
 const listasFiltradas = computed(() => {
   return listas.value.filter(l => 
     l.nome.toLowerCase().includes(buscaLista.value.toLowerCase())
   )
 })
+
 
 const postagensFiltradas = computed(() => {
   if (!listaSelecionada.value) return []
@@ -88,10 +92,12 @@ const postagensFiltradas = computed(() => {
   )
 })
 
+
 function selecionarLista(lista) {
   listaSelecionada.value = lista
   buscaPostagem.value = ''
 }
+
 
 async function ativarInputCriacao() {
   criandoLista.value = true
@@ -100,6 +106,7 @@ async function ativarInputCriacao() {
     inputNovaLista.value.focus()
   }
 }
+
 
 function salvarNovaLista() {
   const nomeFormatado = nomeNovaLista.value.trim()
@@ -116,6 +123,7 @@ function salvarNovaLista() {
   criandoLista.value = false
 }
 
+
 function cancelarOuSalvar() {
   if (nomeNovaLista.value.trim()) {
     salvarNovaLista()
@@ -125,19 +133,19 @@ function cancelarOuSalvar() {
   }
 }
 
-// Abre a caixa de diálogo/modal no centro da tela
+
 function abrirModalExclusao() {
   if (listaSelecionada.value) {
     exibirModalExclusao.value = true
   }
 }
 
-// Fecha o modal sem fazer nada
+
 function cancelarExclusao() {
   exibirModalExclusao.value = false
 }
 
-// Executa a exclusão confirmada
+
 function confirmarExclusao() {
   if (!listaSelecionada.value) return
 
@@ -149,17 +157,19 @@ function confirmarExclusao() {
   exibirModalExclusao.value = false
 }
 
+
 function removerPostagem(postId) {
   if (!listaSelecionada.value) return
   listaSelecionada.value.postagens = listaSelecionada.value.postagens.filter(p => p.id !== postId)
 }
+
+
 </script>
 
 <template>
   <main>
     <div class="saved-container">
       
-      <!-- COLUNA DA ESQUERDA: LISTAS -->
       <div class="column-card">
         <header class="card-header">
           <h1>Listas de postagens salvas</h1>
@@ -199,7 +209,6 @@ function removerPostagem(postId) {
         </div>
       </div>
 
-      <!-- COLUNA DA DIREITA: POSTAGENS DA LISTA SELECIONADA -->
       <div class="column-card">
         <header class="card-header header-with-action">
           <h1>
@@ -283,7 +292,6 @@ function removerPostagem(postId) {
 
     </div>
 
-    <!-- MODAL DE CONFIRMAÇÃO DE EXCLUSÃO -->
     <div v-if="exibirModalExclusao" class="modal-overlay" @click.self="cancelarExclusao">
       <div class="modal-card">
         <h2>Excluir Lista</h2>
@@ -299,6 +307,8 @@ function removerPostagem(postId) {
 </template>
 
 <style scoped>
+
+
 main {
   background-color: rgba(85, 255, 51, 0.14);
   height: 100vh;
@@ -315,6 +325,7 @@ main {
   overflow-x: hidden;
 }
 
+
 .saved-container {
   display: flex;
   gap: 20px;
@@ -327,6 +338,7 @@ main {
   transform: translateY(-50%);
 }
 
+
 .column-card {
   flex: 1;
   background-color: #ffffff;
@@ -338,10 +350,12 @@ main {
   box-sizing: border-box;
 }
 
+
 .card-header {
   padding: 16px 20px;
   border-bottom: 1px solid #000000;
 }
+
 
 .card-header h1 {
   margin: 0;
@@ -350,15 +364,18 @@ main {
   color: #000000;
 }
 
+
 .header-with-action {
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
+
 .light-text {
   font-weight: normal;
 }
+
 
 .scroll-content {
   flex: 1;
@@ -369,6 +386,7 @@ main {
   gap: 12px;
 }
 
+
 .search-box {
   display: flex;
   align-items: center;
@@ -378,6 +396,7 @@ main {
   background: #ffffff;
 }
 
+
 .search-box input {
   width: 100%;
   border: none;
@@ -385,10 +404,12 @@ main {
   font-size: 0.85rem;
 }
 
+
 .search-icon {
   font-size: 0.8rem;
   color: #000000;
 }
+
 
 .add-list-btn {
   width: 100%;
@@ -402,11 +423,13 @@ main {
   cursor: pointer;
 }
 
+
 .plus-circle {
   font-size: 1.8rem;
   line-height: 1;
   color: #000000;
 }
+
 
 .add-list-input-box {
   width: 100%;
@@ -420,6 +443,7 @@ main {
   box-sizing: border-box;
 }
 
+
 .add-list-input-box input {
   width: 100%;
   height: 100%;
@@ -431,11 +455,13 @@ main {
   background: transparent;
 }
 
+
 .lists-wrapper {
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
+
 
 .list-item {
   border: 1px solid #000000;
@@ -448,14 +474,17 @@ main {
   background-color: #ffffff;
 }
 
+
 .list-item.active {
   border: 2px solid #55ff33;
 }
+
 
 .item-count {
   font-size: 0.85rem;
   color: #888888;
 }
+
 
 .posts-wrapper {
   display: flex;
@@ -463,12 +492,14 @@ main {
   gap: 14px;
 }
 
+
 .empty-state {
   text-align: center;
   font-size: 0.85rem;
   color: #777777;
   margin-top: 20px;
 }
+
 
 .post-card {
   border: 1px solid #000000;
@@ -480,10 +511,12 @@ main {
   gap: 6px;
 }
 
+
 .post-header-meta {
   font-size: 0.68rem;
   color: #777777;
 }
+
 
 .user-row {
   display: flex;
@@ -491,9 +524,11 @@ main {
   gap: 8px;
 }
 
+
 .avatar-icon {
   font-size: 1.1rem;
 }
+
 
 .post-text {
   margin: 2px 0;
@@ -501,12 +536,14 @@ main {
   color: #000000;
 }
 
+
 .poll-container {
   display: flex;
   flex-direction: column;
   gap: 6px;
   margin: 4px 0;
 }
+
 
 .poll-option {
   position: relative;
@@ -521,6 +558,7 @@ main {
   background-color: #ffffff;
 }
 
+
 .poll-bar {
   position: absolute;
   left: 0;
@@ -530,15 +568,18 @@ main {
   z-index: 1;
 }
 
+
 .option-label, .option-percent {
   position: relative;
   z-index: 2;
   font-size: 0.75rem;
 }
 
+
 .option-percent {
   font-weight: bold;
 }
+
 
 .post-actions {
   display: flex;
@@ -548,13 +589,16 @@ main {
   margin-top: 4px;
 }
 
+
 .action-icon {
   cursor: pointer;
 }
 
+
 .active-bookmark {
   color: #55ff33;
 }
+
 
 .post-footer {
   display: flex;
@@ -562,6 +606,7 @@ main {
   border-top: 1px solid #eeeeee;
   padding-top: 4px;
 }
+
 
 .trash-btn {
   background: none;
@@ -571,11 +616,12 @@ main {
   opacity: 0.8;
 }
 
+
 .trash-btn:hover {
   opacity: 1;
 }
 
-/* ESTILOS DO MODAL DE CONFIRMAÇÃO */
+
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -589,6 +635,7 @@ main {
   z-index: 999;
 }
 
+
 .modal-card {
   background-color: #ffffff;
   border: 1px solid #000000;
@@ -600,12 +647,14 @@ main {
   text-align: center;
 }
 
+
 .modal-card h2 {
   margin: 0 0 10px 0;
   font-size: 1.1rem;
   font-weight: bold;
   color: #000000;
 }
+
 
 .modal-card p {
   font-size: 0.88rem;
@@ -614,11 +663,13 @@ main {
   line-height: 1.4;
 }
 
+
 .modal-actions {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
 }
+
 
 .btn-cancel {
   background-color: #ffffff;
@@ -630,9 +681,11 @@ main {
   cursor: pointer;
 }
 
+
 .btn-cancel:hover {
   background-color: #f0f0f0;
 }
+
 
 .btn-confirm {
   background-color: #ff4d4d;
@@ -643,9 +696,12 @@ main {
   font-size: 0.85rem;
   font-weight: bold;
   cursor: pointer;
+
 }
 
 .btn-confirm:hover {
   background-color: #cc0000;
 }
+
+
 </style>
