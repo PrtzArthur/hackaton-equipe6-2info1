@@ -156,6 +156,10 @@ header h1 {
 .imgIcon.preenchido {
   display: none;
 }
+.divLink img {
+  width: 2.5vw;
+  height: auto;
+}
 .divLink.ativo {
   background-color: rgba(85, 255, 51, 0.14);
   border-left: 0.45vw solid #3CBC00;

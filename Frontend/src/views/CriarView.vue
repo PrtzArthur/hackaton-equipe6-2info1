@@ -1,12 +1,14 @@
 <script setup>
 import { ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import voltar from '@/icons/voltar.png'
+import { useToast } from 'vue-toastification';
+import voltar from '@/icons/voltar.svg'
 import tagsTotais from '@/data/tags';
 import plus from '@/icons/plus.svg'
 
 const route = useRoute();
 const router = useRouter();
+const toast = useToast();
 
 const listaTagsTotais = ref(tagsTotais);
 const adicionarTag = ref(false);
@@ -42,7 +44,7 @@ function adicionarOpcaoEnquete() {
   if (opcoesEnquete.value.length < 5) {
     opcoesEnquete.value.push({ id: Date.now(), texto: '' });
   } else {
-    alert("Você só pode adicionar até 5 opções na enquete.");
+    toast.warning("Você só pode adicionar até 5 opções na enquete.");
   }
 };
 function removerOpcaoEnquete(index) {
@@ -98,10 +100,10 @@ const enviarPost = async () => {
     const dados = await resposta.json();
 
     if (resposta.ok) {
-      alert('Postagem completa criada com sucesso!');
+      toast.success('Postagem completa criada com sucesso!');
       router.push('/home');
     } else {
-      alert(dados.erro || "Erro ao fazer postagem.");
+      toast.error(dados.erro || "Erro ao fazer postagem.");
     }
 
   } catch(erro) {
@@ -135,7 +137,7 @@ const enviarPost = async () => {
           <div class="lista-inputs-enquete">
 
             <div v-for="(opcao, index) in opcoesEnquete" :key="opcao.id" class="linha-opcao-enquete">
-              <input v-model="opcao.texto" type="text" :placeholder="`Opção ${index + 1}`" maxlength="100">
+              <input v-model="opcao.texto" type="text" :placeholder="`Opção ${index + 1}`" maxlength="25">
               <button v-if="opcoesEnquete.length > 2" type="button" @click="removerOpcaoEnquete(index)" class="btn-deletar-opcao">&times;</button>
             </div>
           </div>
