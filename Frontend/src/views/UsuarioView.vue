@@ -1,5 +1,6 @@
 <script setup>
 import { ref, onMounted, onUnmounted, watch } from 'vue';
+import ModalComentarios from '@/components/ModalComentarios.vue';
 import { io } from 'socket.io-client';
 import { useRoute } from 'vue-router';
 import userBlackFull from '@/icons/userBlackFull.svg';
@@ -11,7 +12,15 @@ import interrogacao from '@/icons/interrogacao.svg';
 import tagsTotais from '@/data/tags';
 import plus from '@/icons/plus.svg';
 import setinha from '@/icons/setinha.svg';
-import voltar from '@/icons/voltar.png';
+import voltar from '@/icons/voltar.svg';
+import marcadorInline from '@/icons/marcadorInline.svg';
+import marcadorPreenchido from '@/icons/marcadorPreenchido.svg';
+import likePreenchido from '@/icons/likePreenchido.svg';
+import likeInline from '@/icons/likeInline.svg';
+import compartilhar from '@/icons/compartilhar.svg';
+import comentarios from '@/icons/comentarios.svg';
+import dislikeInline from '@/icons/dislikeInline.svg';
+import dislikePreenchido from '@/icons/dislikePreenchido.svg';
 import notificacoesAtivo from '@/icons/notificacoesAtivo.svg';
 import favoritarInline from '@/icons/favoritarInline.svg';
 import favoritarPreenchido from '@/icons/favoritarPreenchido.svg';
@@ -68,6 +77,13 @@ const route = useRoute();
 const socket = io('http://localhost:3000');
 
 const editarPerfil = ref(false);
+const modalAberto = ref(false);
+const postSelecionado = ref(null);
+
+function abrirMural(post) {
+  postSelecionado.value = post;
+  modalAberto.value = true;
+}
 
 const nomeUsuario = ref('Carregando...');
 const statusOnline = ref(false);
@@ -86,6 +102,12 @@ const adicionarTag = ref(false);
 const listaTagsTotais = ref(tagsTotais);
 const arquivoFoto = ref(null);
 const arquivoBanner = ref(null);
+const removerFotoMarcada = ref(false);
+const removerBannerMarcado = ref(false);
+
+const curtido = ref(false);
+const naoCurtido = ref(false);
+const naoSalvo = ref(false);
 
 const telaExibicao = ref(true);
 const telaConfig = ref(false);
@@ -97,7 +119,6 @@ function mostrarTelaConfiguracao() {
 function capturarFoto(event) {
   arquivoFoto.value = event.target.files[0];
 }
-
 function capturarBanner(event) {
   arquivoBanner.value = event.target.files[0];
 }
@@ -117,14 +138,12 @@ const jaEFavorito = ref(false);
 function obterChaveFavoritos() {
   return `ifchat_favoritos_${meuIdLogado.value}`;
 }
-
 function verificarStatusFavorito() {
   const idAtualDaBarra = route.params.id;
 
   const favoritosSalvos = JSON.parse(localStorage.getItem(obterChaveFavoritos()) || '[]');
   jaEFavorito.value = favoritosSalvos.includes(idAtualDaBarra);
 }
-
 function alternarFavorito() {
   const idAtualDaBarra = route.params.id;
   const chaveConta = obterChaveFavoritos();
@@ -141,7 +160,6 @@ function alternarFavorito() {
   localStorage.setItem(chaveConta, JSON.stringify(favoritosSalvos));
   carregarGradeDeFavoritosVisuais();
 }
-
 async function carregarGradeDeFavoritosVisuais() {
   const idAtualDaBarra = route.params.id;
   const donoDoPerfilExibido = idAtualDaBarra;
@@ -196,7 +214,6 @@ const deletarPostagemDoBanco = async (idPostagem) => {
     toast.error("Erro de comunicação com o servidor.");
   }
 };
-
 const edicaoDosDados = async () => {
   const idAtualDaBarra = route.params.id;
 
@@ -226,20 +243,24 @@ const edicaoDosDados = async () => {
         toast.error(dados.erro || "Erro ao atualizar dados.");
         return;
       }
-      if (arquivoFoto.value || arquivoBanner.value) {
+      if (arquivoFoto.value || arquivoBanner.value || removerFotoMarcada.value || removerBannerMarcado.value) {
         const dadosMidia = new FormData();
 
-        if (arquivoFoto.value) dadosMidia.append('foto', arquivoFoto.value);
-        if (arquivoBanner.value) dadosMidia.append('banner', arquivoBanner.value);
+        if (arquivoFoto.value && !removerFotoMarcada.value) dadosMidia.append('foto', arquivoFoto.value);
+        if (arquivoBanner.value && !removerBannerMarcado.value) dadosMidia.append('banner', arquivoBanner.value);
+
+        dadosMidia.append('removerFoto', removerFotoMarcada.value);
+        dadosMidia.append('removerBanner', removerBannerMarcado.value);
 
         const respostaMidia = await fetch(`http://localhost:3000/api/usuario/perfil/${idAtualDaBarra}/midias`, {
           method: 'PUT',
           body: dadosMidia
         });
         const resultadoMidia = await respostaMidia.json();
+
         if (respostaMidia.ok) {
-          fotoPerfil.value = resultadoMidia.foto_profile;
-          bannerUrl.value = resultadoMidia.banner_fundo;
+          fotoPerfil.value = resultadoMidia.foto_profile || '';
+          bannerUrl.value = resultadoMidia.banner_fundo || '';
         } else {
           toast.error(resultadoMidia.erro || "Erro ao processar imagens.");
         }
@@ -247,13 +268,17 @@ const edicaoDosDados = async () => {
       nomeUsuario.value = nomeEdit.value;
       biografia.value = biografiaEdit.value;
       localizacao.value = localizacaoEdit.value;
+      removerFotoMarcada.value = false;
+      removerBannerMarcado.value = false;
+      arquivoFoto.value = null;
+      arquivoBanner.value = null;
       editarPerfil.value = false;
+      toast.success("Perfil atualizado com sucesso!");
     } catch(erro) {
       console.error('Não foi possível adicionar os dados', erro);
     }
   }
 };
-
 function moverTagParaListaUsuario(tagUniversal) {
   if (!tagsDoUsuario.value.includes(tagUniversal)) {
     tagsDoUsuario.value.push(tagUniversal);
@@ -269,11 +294,9 @@ function mostrarJanelaEditor() {
 function deletarTag(index) {
   tagsDoUsuario.value.splice(index, 1);
 }
-
 const idUsuarioDaURL = ref('');
 const meuIdLogado = ref('');
 const jaEstouSeguindo = ref(false);
-
 const carregarDadosDoPerfil = async () => {
   try {
     const idAtualDaBarra = route.params.id;
@@ -305,7 +328,6 @@ const carregarDadosDoPerfil = async () => {
     console.error("Erro ao buscar dados do perfil:", erro);
   }
 };
-
 async function votarNaEnquete(idOpcao, idPostagem) {
   try {
     const resposta = await fetch('http://localhost:3000/api/criar/enquetes/votar/opcao', {
@@ -553,7 +575,7 @@ onUnmounted(() => {
                   {{ opcao.texto_opcao }}
                   <strong v-if="opcao.votadoPorMim" class="opcao-escolhida">!</strong>
                 </span>
-                <span v-if="postagem.jaVotado" class="porcentagem-texto-voto">{{ opcao.porcentagem }}%</span>
+                <span v-if="postagem.jaVotado || idUsuarioDaURL === meuIdLogado" class="porcentagem-texto-voto">{{ opcao.porcentagem }}%</span>
               </div>
             </button>
           </div>
@@ -564,6 +586,13 @@ onUnmounted(() => {
         <span v-for="(tag, index) in postagem.tags" :key="index" class="pilula-tag-post">
           {{ tag }}
         </span>
+      </div>
+      <div class="div-botoes-postagens">
+        <button :disabled="idUsuarioDaURL === meuIdLogado" class="btn-post"><img v-if="curtido" :src="likePreenchido" alt=""><img v-else :src="likeInline" alt="curtir"></button>
+        <button :disabled="idUsuarioDaURL === meuIdLogado" class="btn-post"><img v-if="naoCurtido" :src="dislikePreenchido" alt=""><img v-else :src="dislikeInline" alt="não curtir"></button>
+        <button class="btn-post" @click="abrirMural(postagem)"><img :src="comentarios" alt="comentar"></button>
+        <button class="btn-post"><img :src="compartilhar" alt="compartilhar"></button>
+        <button class="btn-post"><img v-if="!naoSalvo" :src="marcadorInline" alt=""><img v-else :src="marcadorPreenchido" alt="não curtir"></button>
       </div>
       <div class="divDeleteEPublicacao">
         <span class="data-do-post">
@@ -611,7 +640,12 @@ onUnmounted(() => {
         </div>
       </div>
     </section>
-    <div v-if="editarPerfil" class="overlay">
+    <ModalComentarios
+  :isOpen="modalAberto"
+  :post="postSelecionado"
+  @fechar="modalAberto = false"
+/>
+    <div v-if="editarPerfil" class="overlay" @click.self="editarPerfil = false">
         <div class="form">
           <h2 class="overlayFormTitulo">Editar Perfil</h2>
           <form @submit.prevent="edicaoDosDados" class="formularioDeEdicao">
@@ -628,14 +662,24 @@ onUnmounted(() => {
             <label for="biografiaEdit">Nova biografia</label>
             <textarea v-model="biografiaEdit" id="biografiaEdit" rows="3" maxlength="500" placeholder="Insira sua biografia" class="textarea"></textarea>
           </div>
-          <div class="divEditImage">
-      <label class="labelMidiPerfil">Alterar Foto de Perfil:</label>
-      <input type="file" accept="image/*" @change="capturarFoto" class="imageInput">
-    </div>
+         <div class="divEditImage">
+        <label class="labelMidiPerfil">Alterar Foto de Perfil:</label>
+        <div class="linha-controle-midia-edit">
+          <input type="file" accept="image/*" @change="capturarFoto" class="imageInput" :disabled="removerFotoMarcada">
+          <button type="button" @click="removerFotoMarcada = !removerFotoMarcada" :class=" removerFotoMarcada ? 'marcado-para-excluir-form' : 'marcado-para-manter-form'">
+            {{ removerFotoMarcada ? 'Manter-Foto' : 'Remover' }}
+          </button>
+        </div>
+      </div>
     <div class="divEditImage">
-      <label class="labelMidiPerfil">Alterar Imagem de Banner:</label>
-      <input type="file" accept="image/*" @change="capturarBanner" class="imageInput">
-    </div>
+        <label class="labelMidiPerfil">Alterar Imagem de Banner:</label>
+        <div class="linha-controle-midia-edit">
+          <input type="file" accept="image/*" @change="capturarBanner" class="imageInput" :disabled="removerBannerMarcado">
+          <button type="button" @click="removerBannerMarcado = !removerBannerMarcado" :class=" removerBannerMarcado ? 'marcado-para-excluir-form' : 'marcado-para-manter-form' ">
+            {{ removerBannerMarcado ? 'Manter-Banner' : 'Remover' }}
+          </button>
+        </div>
+      </div>
           <div class="botoesDoFormEditPerfil">
             <button type="submit" class="salvarAlteracoes">Salvar</button>
             <button type="button" @click="editarPerfil = false" class="cancelarAlteracoes">Cancelar</button>
@@ -767,6 +811,55 @@ main {
   gap: 0.3vw;
   font-size: 0.85vw;
   flex-wrap: wrap;
+}
+.marcado-para-manter-form {
+  background-color: #fff;
+  border: 1px solid #000;
+  width: 100%;
+  font-size: 1vw;
+  padding: 0.5vw;
+  border-radius: 6px;
+}
+.div-botoes-postagens {
+  display: flex;
+  align-items: center;
+}
+.marcado-para-manter-form:hover {
+  background-color: #f9f9f9;
+  cursor: pointer;
+  transition: 0.2s;
+}
+.data-do-post {
+  font-size: 0.8vw;
+  color: #7a7a7a;
+}
+.marcado-para-excluir-form {
+  background-color: #ff0000;
+  border: 1px transparent #000;
+  color: #fff;
+  width: 100%;
+  border: none;
+  font-weight: bolder;
+  font-size: 1vw;
+  padding: 0.5vw;
+  border-radius: 6px;
+}
+.marcado-para-excluir-form:hover {
+  background-color: #cf0000;
+  cursor: pointer;
+  transition: 0.2s;
+}
+.btn-post {
+  width: 2.5vw;
+  height: 2.5vw;
+  border-radius: 50%;
+  background-color: #fff;
+  border: none;
+}
+.btn-post:hover {
+  background-color: #f9f9f9;
+  cursor: pointer;
+  transition: 0.2s;
 }
 .listaParaAdicionarTags {
   display: flex;
@@ -915,8 +1008,11 @@ main {
   box-sizing: border-box;
   min-height: 10vw;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
+  scrollbar-width: thin;
   gap: 0.5vw;
+  max-height: 40vw;
+  overflow-y: auto;
 }
 .dados-Cabecalho {
   display: flex;
@@ -932,11 +1028,11 @@ main {
   border: 1px solid #000;
   text-overflow: ellipsis;
   overflow: hidden;
-  width: 5vw;
-  max-width: 5vw;
+  width: 6vw;
+  max-width: 6vw;
   align-items: center;
   justify-content: center;
-  gap: 0.3vw;
+  gap: 0.5vw;
   border-radius: 6px;
 }
 .card-favorito:hover {
@@ -1216,7 +1312,7 @@ section.configuracoes {
   width: 100%;
 }
 .imageInput::-webkit-file-upload-button:hover {
-  background-color: #e2e2e2;
+  background-color: #37ad00;
   border-color: #b5b5b5;
 }
 .imageInput {
@@ -1231,15 +1327,21 @@ section.configuracoes {
   color: #000;
   text-align: left;
 }
+.linha-controle-midia-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7vw;
+}
 .imageInput::-webkit-file-upload-button {
-  background-color: #f1f1f1;
+  background-color: #3CBC00;
   border: 1px solid #ccc;
   border-radius: 6px;
   padding: 0.4vw 0.8vw;
-  font-size: 0.9vw;
-  font-weight: 500;
+  font-size: 1vw;
+  font-weight: bolder;
   cursor: pointer;
   transition: 0.2s;
+  color: #fff;
   margin-right: 0.5vw;
 }
 .overlayFormTitulo {
@@ -1580,7 +1682,7 @@ section::-webkit-scrollbar-thumb:hover {
   gap: 0.1vw;
   align-items: center;
 }
-.postagens, .mural, .favoritos, .suporte {
+.postagens, .mural, .favoritos {
   margin: 1.5vw 1vw;
 }
 .postagens h3, .mural h3, .favoritos h3 {
@@ -1599,6 +1701,7 @@ section::-webkit-scrollbar-thumb:hover {
   justify-content: center;
 }
 .suporte {
+  margin: 0 1vw 0.7vw 1vw;
   margin-top: 2vw;
   padding-top: 1vw;
   border-top: 1px solid #000;

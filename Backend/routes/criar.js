@@ -211,6 +211,156 @@ router.post('/postagens/:id', upload.single('imagem_post'), async (req, res) => 
     if (conexao) conexao.release();
   }
 });
+router.post('/comentarios/novo', async (req, res) => {
+  const { idUsuario, idPostagem, conteudo } = req.body;
+
+  if (!idUsuario || !idPostagem || !conteudo || conteudo.trim() === '') {
+    return res.status(400).json({ erro: 'O conteúdo do comentário é obrigatório.' });
+  }
+
+  let conexao = null;
+  try {
+    conexao = await pool.getConnection();
+    const idComentario = crypto.randomUUID();
+    await conexao.query(
+      `INSERT INTO Comentario (id_comentario, conteudo_comentario, id_usuario, id_postagem) 
+       VALUES (?, ?, ?, ?)`,
+      [idComentario, conteudo.trim(), idUsuario, idPostagem]
+    );
+    const [autores] = await conexao.query(
+      'SELECT nome, username, foto_profile FROM Usuario WHERE id_usuario = ?',
+      [idUsuario]
+    );
+    if (!autores || autores.length === 0) {
+      return res.status(404).json({ erro: 'Autor do comentário não encontrado.' });
+    }
+    const autorReal = autores[0]; 
+    const novoComentarioObjeto = {
+      id_comentario: idComentario,
+      id_postagem: idPostagem,
+      conteudo_comentario: conteudo.trim(),
+      data_comentario: new Date(),
+      nome: autorReal.nome,
+      username: autorReal.username,
+      foto_profile: autorReal.foto_profile,
+      total_likes: 0,
+      total_dislikes: 0,
+      meu_voto: null
+    };
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('novo_comentario_recebido', novoComentarioObjeto);
+    }
+    return res.status(201).json(novoComentarioObjeto);
+
+  } catch (error) {
+    console.error('ERRO CRÍTICO NO MYSQL AO SALVAR COMENTÁRIO:', error);
+    return res.status(500).json({ erro: 'Erro interno no servidor ao processar comentário.' });
+  } finally {
+    if (conexao) conexao.release();
+  }
+});
+router.get('/postagens/:idPostagem/comentarios', async (req, res) => {
+  const { idPostagem } = req.params;
+  const meuIdLogado = req.query.meuId || '';
+  const filtro = req.query.filtro || 'recente';
+
+  let conexao = null;
+  try {
+    conexao = await pool.getConnection();
+    let querySQL = `
+      SELECT c.id_comentario, c.conteudo_comentario, c.data_comentario, c.id_usuario,
+             u.nome, u.username, u.foto_profile,
+             COALESCE(SUM(CASE WHEN ic.tipo_interacao = 'like' THEN 1 ELSE 0 END), 0) AS total_likes,
+             COALESCE(SUM(CASE WHEN ic.tipo_interacao = 'dislike' THEN 1 ELSE 0 END), 0) AS total_dislikes
+      FROM Comentario c
+      JOIN Usuario u ON c.id_usuario = u.id_usuario
+      LEFT JOIN Interacao_Comentario ic ON c.id_comentario = ic.id_comentario
+      WHERE c.id_postagem = ?
+      GROUP BY c.id_comentario, u.id_usuario
+    `;
+    if (filtro === 'relevante') {
+      querySQL += ` ORDER BY (total_likes - total_dislikes) DESC, c.data_comentario DESC`;
+    } else {
+      querySQL += ` ORDER BY c.data_comentario DESC`;
+    }
+
+    const [comentarios] = await conexao.query(querySQL, [idPostagem]);
+    const listaFinalComentarios = [];
+    for (const c of comentarios) {
+      let votoDoVisitante = null;
+
+      if (meuIdLogado) {
+        const [votos] = await conexao.query(
+          'SELECT tipo_interacao FROM Interacao_Comentario WHERE id_usuario = ? AND id_comentario = ?',
+          [meuIdLogado, c.id_comentario]
+        );
+        if (votos.length > 0) {
+          votoDoVisitante = votos[0].tipo_interacao;
+        }
+      }
+      listaFinalComentarios.push({
+        ...c,
+        meu_voto: votoDoVisitante,
+        autor: c.id_usuario
+      });
+    }
+
+    return res.json(listaFinalComentarios);
+
+  } catch (error) {
+    console.error('Erro ao buscar lista de comentários filtrada:', error);
+    return res.status(500).json({ erro: 'Erro interno ao carregar discussões.' });
+  } finally {
+    if (conexao) conexao.release();
+  }
+});
+router.post('/postagens/comentarios/votar', async (req, res) => {
+  const { idUsuario, idComentario, tipoVoto } = req.body;
+
+  if (!idUsuario || !idComentario || !['like', 'dislike'].includes(tipoVoto)) {
+    return res.status(400).json({ erro: 'Dados inválidos fornecidos para votação.' });
+  }
+
+  let conexao = null;
+  try {
+    conexao = await pool.getConnection();
+    const [registros] = await conexao.query(
+      'SELECT tipo_interacao FROM Interacao_Comentario WHERE id_usuario = ? AND id_comentario = ?',
+      [idUsuario, idComentario]
+    );
+
+    if (registros.length > 0) {
+      const votoSalvoAntigo = registros[0].tipo_interacao;
+
+      if (votoSalvoAntigo === tipoVoto) {
+        await conexao.query(
+          'DELETE FROM Interacao_Comentario WHERE id_usuario = ? AND id_comentario = ?',
+          [idUsuario, idComentario]
+        );
+        return res.json({ status: 'anulado', mensagem: 'Voto removido!', votoAtual: null });
+      } else {
+        await conexao.query(
+          'UPDATE Interacao_Comentario SET tipo_interacao = ? WHERE id_usuario = ? AND id_comentario = ?',
+          [tipoVoto, idUsuario, idComentario]
+        );
+        return res.json({ status: 'invertido', mensagem: 'Voto atualizado!', votoAtual: tipoVoto });
+      }
+    } else {
+      await conexao.query(
+        'INSERT INTO Interacao_Comentario (id_usuario, id_comentario, tipo_interacao) VALUES (?, ?, ?)',
+        [idUsuario, idComentario, tipoVoto]
+      );
+      return res.json({ status: 'computado', mensagem: 'Voto computado com sucesso!', votoAtual: tipoVoto });
+    }
+
+  } catch (error) {
+    console.error('Erro ao processar transação de voto em comentário:', error);
+    return res.status(500).json({ erro: 'Erro interno ao salvar voto.' });
+  } finally {
+    if (conexao) conexao.release();
+  }
+});
 
 export default router;
 

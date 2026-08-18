@@ -2,7 +2,7 @@
 import { ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useToast } from 'vue-toastification';
-import voltar from '@/icons/voltar.png'
+import voltar from '@/icons/voltar.svg'
 import tagsTotais from '@/data/tags';
 import plus from '@/icons/plus.svg'
 

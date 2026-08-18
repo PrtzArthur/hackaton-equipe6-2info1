@@ -3,9 +3,26 @@ import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import userBlackFull from '@/icons/userBlackFull.svg';
 import { useToast } from 'vue-toastification';
+import marcadorInline from '@/icons/marcadorInline.svg';
+import marcadorPreenchido from '@/icons/marcadorPreenchido.svg';
+import likePreenchido from '@/icons/likePreenchido.svg';
+import likeInline from '@/icons/likeInline.svg';
+import compartilhar from '@/icons/compartilhar.svg';
+import comentarios from '@/icons/comentarios.svg';
+import dislikeInline from '@/icons/dislikeInline.svg';
+import dislikePreenchido from '@/icons/dislikePreenchido.svg';
+import ModalComentarios from '@/components/ModalComentarios.vue';
 
 const router = useRouter();
 const toast = useToast();
+
+const modalAberto = ref(false);
+const postSelecionado = ref(null);
+
+function abrirMural(post) {
+  postSelecionado.value = post;
+  modalAberto.value = true;
+}
 
 const postagensFeedGlobal = ref([]);
 const carregandoFeed = ref(true);
@@ -160,7 +177,7 @@ onMounted(() => {
                       {{ opcao.texto_opcao }}
                       <strong v-if="opcao.votadoPorMim">!</strong>
                     </span>
-                    <span v-if="post.jaVotado" class="porcentagem-texto-voto">{{ opcao.porcentagem }}%</span>
+                    <span v-if="post.jaVotado || post.autor.id === meuIdLogado" class="porcentagem-texto-voto">{{ opcao.porcentagem }}%</span>
                   </div>
                 </button>
               </div>
@@ -171,6 +188,13 @@ onMounted(() => {
             <span v-for="(tag, index) in post.tags" :key="index" class="pilula-tag-post">
               {{ tag }}
             </span>
+          </div>
+          <div class="div-botoes-postagens">
+            <button :disabled="post.autor.id === meuIdLogado" class="btn-post"><img v-if="curtido" :src="likePreenchido" alt=""><img v-else :src="likeInline" alt="curtir"></button>
+            <button :disabled="post.autor.id === meuIdLogado" class="btn-post"><img v-if="naoCurtido" :src="dislikePreenchido" alt=""><img v-else :src="dislikeInline" alt="não curtir"></button>
+            <button class="btn-post" @click="abrirMural(post)"><img :src="comentarios" alt="comentar"></button>
+            <button class="btn-post"><img :src="compartilhar" alt="compartilhar"></button>
+            <button class="btn-post"><img v-if="!naoSalvo" :src="marcadorInline" alt=""><img v-else :src="marcadorPreenchido" alt="não curtir"></button>
           </div>
           <span class="data-do-post">
             Publicado em: {{ new Date(post.data_envio).toLocaleDateString('pt-BR') }}
@@ -190,6 +214,11 @@ onMounted(() => {
         </div>
       </div>
     </section>
+    <ModalComentarios
+  :isOpen="modalAberto"
+  :post="postSelecionado"
+  @fechar="modalAberto = false"
+/>
   </main>
 </template>
 
@@ -226,10 +255,34 @@ section {
   scrollbar-width: thin;
   padding: 2px;
 }
+.btn-post {
+  width: 2.5vw;
+  height: 2.5vw;
+  border-radius: 50%;
+  background-color: #fff;
+  border: none;
+}
+.btn-post:hover {
+  background-color: #f9f9f9;
+  cursor: pointer;
+  transition: 0.2s;
+}
+.btn-post img {
+  width: auto;
+  height: 1.5vw;
+}
 .aviso-carregando-home {
   margin-top: 2vw;
   width: 100%;
   text-align: center;
+}
+.div-botoes-postagens {
+  display: flex;
+  align-items: center;
+}
+.porcentagem-texto-voto {
+  color: #3CBC00;
+  font-weight: bolder;
 }
 .texto-aviso {
   font-weight: bolder;

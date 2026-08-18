@@ -114,6 +114,9 @@ router.put('/perfil/:id/midias', upload.fields([{ name: 'foto', maxCount: 1 }, {
   const { id } = req.params;
   
   try {
+    const removerFoto = req.body.removerFoto === 'true';
+    const removerBanner = req.body.removerBanner === 'true';
+
     const arquivosRecebidos = req.files || {};
     const fotoEnviada = arquivosRecebidos['foto'] ? arquivosRecebidos['foto'][0] : null;
     const bannerEnviado = arquivosRecebidos['banner'] ? arquivosRecebidos['banner'][0] : null;
@@ -132,6 +135,7 @@ router.put('/perfil/:id/midias', upload.fields([{ name: 'foto', maxCount: 1 }, {
         return res.status(400).json({ erro: `Banner recusado: ${checagemBanner.motivo}` });
       }
     }
+
     const [resultados] = await pool.query('SELECT foto_profile, banner_fundo FROM Usuario WHERE id_usuario = ?', [id]);
 
     if (resultados.length === 0) {
@@ -142,12 +146,18 @@ router.put('/perfil/:id/midias', upload.fields([{ name: 'foto', maxCount: 1 }, {
 
     let urlFoto = resultados[0]?.foto_profile;
     let urlBanner = resultados[0]?.banner_fundo;
-    if (fotoEnviada) {
+
+    if (removerFoto) {
+      apagarArquivoLocalAntigo(urlFoto);
+      urlFoto = null; 
+    } else if (fotoEnviada) {
       apagarArquivoLocalAntigo(urlFoto); 
       urlFoto = `http://localhost:3000/imagens/${fotoEnviada.filename}`;
     }
-
-    if (bannerEnviado) {
+    if (removerBanner) {
+      apagarArquivoLocalAntigo(urlBanner);
+      urlBanner = null;
+    } else if (bannerEnviado) {
       apagarArquivoLocalAntigo(urlBanner);
       urlBanner = `http://localhost:3000/imagens/${bannerEnviado.filename}`;
     }
@@ -175,7 +185,7 @@ router.get('/perfil/:id', async (req, res) => {
     conexao = await pool.getConnection();
     const [usuarios] = await conexao.query(
       `SELECT id_usuario, nome, username, biografia, localizacao, 
-              foto_profile, banner_fundo, status_online, data_criacao 
+       foto_profile, banner_fundo, status_online, data_criacao 
        FROM Usuario WHERE id_usuario = ?`,
       [idPerfilVisitado]
     );
@@ -190,7 +200,7 @@ router.get('/perfil/:id', async (req, res) => {
        WHERE ut.id_usuario = ?`,
       [idPerfilVisitado]
     );
-    const listaDeTagsDoUsuario = tagsBanco.map(t => t.nome_tag);
+    const listaDeTagsDoUsuario = tagsBanco.map(t => `#${t.nome_tag}`);
 
     const [resultadoSeguidores] = await conexao.query(
       'SELECT COUNT(*) as total FROM seguidores WHERE id_seguido = ?', 
