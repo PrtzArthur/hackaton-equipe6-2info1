@@ -38,4 +38,6 @@ __screenshots__/
 # Vite
 *.timestamp-*-*.mjs
 
+#Backend
+
 Backend/credenciais-google.json
