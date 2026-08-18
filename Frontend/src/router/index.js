@@ -12,6 +12,7 @@ import CriarView from '@/views/CriarView.vue'
 import UsuarioView from '@/views/UsuarioView.vue'
 import AvisosView from '@/views/AvisosView.vue'
 import RecSenhaView from '@/views/RecSenhaView.vue'
+import RefeitorioView from '@/views/RefeitorioView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -92,6 +93,12 @@ const router = createRouter({
       path: '/home',
       name: 'Home',
       component: HomeView,
+      meta: { requiresAuth: true }
+    } ,
+    {
+      path: '/refeitorio',
+      name: 'Refeitorio',
+      component: RefeitorioView,
       meta: { requiresAuth: true }
     }
   ],
