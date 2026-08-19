@@ -17,100 +17,159 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage: storage });
 router.get('/feed/global', async (req, res) => {
-  let conexao = null;
-  const pagina = parseInt(req.query.page) || 1;
-  const meuIdLogado = req.query.meuId;
-  const limite = 6;
-  const deslocamento = (pagina - 1) * limite;
+  const meuIdLogado = req.query.meuId || '';
+  const pagina = parseInt(req.query.page, 10) || 1;
+  const limiteItens = 6; 
+  const deslocamentoOffset = parseInt((pagina - 1) * limiteItens, 10);
 
+  let conexao = null;
   try {
     conexao = await pool.getConnection();
-    const [postagens] = await conexao.query(
-      `SELECT p.id_postagem, p.tipo, p.conteudo, p.data_envio, p.id_usuario,
-              u.nome, u.username, u.foto_profile
-       FROM Postagem p JOIN Usuario u ON p.id_usuario = u.id_usuario
-       ORDER BY p.data_envio DESC LIMIT ? OFFSET ?`,
-      [limite, deslocamento]
-    );
 
-    const feedCompleto = [];
+    const querySQL = `
+      SELECT p.id_postagem, p.conteudo, p.data_envio, p.tipo, p.id_usuario,
+             u.nome, u.username, u.foto_profile,
+             m.imagem_anexada AS imagem,
+             COALESCE(SUM(CASE WHEN c.tipo_voto = 'like' THEN 1 ELSE 0 END), 0) AS total_likes,
+             COALESCE(SUM(CASE WHEN c.tipo_voto = 'dislike' THEN 1 ELSE 0 END), 0) AS total_dislikes
+      FROM Postagem p
+      JOIN Usuario u ON p.id_usuario = u.id_usuario
+      LEFT JOIN Curtida c ON p.id_postagem = c.id_postagem
+      LEFT JOIN Midia_Postagem m ON p.id_postagem = m.id_postagem
+      GROUP BY p.id_postagem, p.conteudo, p.data_envio, p.tipo, p.id_usuario, u.nome, u.username, u.foto_profile, m.imagem_anexada
+      ORDER BY p.data_envio DESC
+      LIMIT ? OFFSET ?
+    `;
+    const [postagensBanco] = await conexao.query(querySQL, [limiteItens, deslocamentoOffset]);
+    const postagensProcessadas = [];
 
-    for (const post of postagens) {
-      const [midias] = await conexao.query('SELECT imagem_anexada FROM Midia_Postagem WHERE id_postagem = ?', [post.id_postagem]);
-      const [opcoesEnquete] = await conexao.query('SELECT id_opcao, texto_opcao FROM Opcao_enquete WHERE id_postagem = ?', [post.id_postagem]);
-
-      const [resultadoTotalPost] = await conexao.query(
-        `SELECT COUNT(*) AS total FROM Voto v JOIN Opcao_enquete o ON v.id_opcao = o.id_opcao WHERE o.id_postagem = ?`, 
-        [post.id_postagem]
-      );
-      const totalVotosPost = resultadoTotalPost[0]?.total || 0;
-
-      const opcoesComVotos = [];
-      let usuarioJaVotouNestePost = false;
-
-      for (const o of opcoesEnquete) {
-        const [resultadoTotalOpcao] = await conexao.query('SELECT COUNT(*) AS total FROM Voto WHERE id_opcao = ?', [o.id_opcao]);
-        const totalVotosOpcao = resultadoTotalOpcao[0]?.total || 0;
-
-        let votoDoLogado = false;
+    for (const post of postagensBanco) {
+      let meuVotoNoPost = null;
+      let tagsFormatadas = [];
+      let opcoesEnquete = [];
+      let jaVotouNaEnquete = false;
+      let totalVotosGeral = 0;
+      try {
         if (meuIdLogado) {
-          const [checaVoto] = await conexao.query('SELECT * FROM Voto WHERE id_usuario = ? AND id_opcao = ?', [meuIdLogado, o.id_opcao]);
-          if (checaVoto.length > 0) { votoDoLogado = true; usuarioJaVotouNestePost = true; }
+          const [checaVoto] = await conexao.query(
+            'SELECT tipo_voto FROM Curtida WHERE id_usuario = ? AND id_postagem = ?',
+            [meuIdLogado, post.id_postagem]
+          );
+          if (checaVoto && checaVoto.length > 0) {
+            meuVotoNoPost = checaVoto[0].tipo_voto;
+          }
         }
+      } catch (e) { console.warn("Aviso: Falha ao ler curtidas do post na Home.", e.message); }
 
-        opcoesComVotos.push({
-          id_opcao: o.id_opcao,
-          texto_opcao: o.texto_opcao,
-          votos: totalVotosOpcao,
-          porcentagem: totalVotosPost > 0 ? Math.round((totalVotosOpcao / totalVotosPost) * 100) : 0,
-          votadoPorMim: votoDoLogado
-        });
+      try {
+        const [tagsBanco] = await conexao.query(
+          `SELECT t.nome_tag 
+           FROM postagem_tag pt 
+           JOIN Tag t ON pt.id_tag = t.id_tag 
+           WHERE pt.id_postagem = ?`,
+          [post.id_postagem]
+        );
+        tagsFormatadas = tagsBanco.map(t => `#${t.nome_tag}`);
+      } catch (e) { console.warn("Aviso: Falha ao ler tags do post na Home.", e.message); }
+      try {
+        if (post.tipo === 'postagemComEnquete') {
+          const [opcoes] = await conexao.query(
+            `SELECT id_opcao, texto_opcao FROM Opcao_enquete WHERE id_postagem = ?`,
+            [post.id_postagem]
+          );
+          const [totalVotosBanco] = await conexao.query(
+            `SELECT COUNT(*) AS total 
+             FROM Voto v
+             JOIN Opcao_enquete oe ON v.id_opcao = oe.id_opcao
+             WHERE oe.id_postagem = ?`,
+            [post.id_postagem]
+          );
+          totalVotosGeral = totalVotosBanco[0]?.total || 0;
+          if (meuIdLogado) {
+            const [votoUsuarioEnquete] = await conexao.query(
+              `SELECT v.id_opcao 
+               FROM Voto v
+               JOIN Opcao_enquete oe ON v.id_opcao = oe.id_opcao
+               WHERE v.id_usuario = ? AND oe.id_postagem = ?`,
+              [meuIdLogado, post.id_postagem]
+            );
+            if (votoUsuarioEnquete && votoUsuarioEnquete.length > 0) {
+              jaVotouNaEnquete = true;
+            }
+          }
+          for (const op of opcoes) {
+            const [votosDaOpcao] = await conexao.query(
+              `SELECT COUNT(*) AS total FROM Voto WHERE id_opcao = ?`,
+              [op.id_opcao]
+            );
+            const totalVotosOpcao = votosDaOpcao[0]?.total || 0;
+            const porcentagemCalculada = totalVotosGeral > 0 ? Math.round((totalVotosOpcao / totalVotosGeral) * 100) : 0;
+
+            let votadoPorMim = false;
+            if (meuIdLogado) {
+              const [checaOpcaoUnica] = await conexao.query(
+                `SELECT * FROM Voto WHERE id_usuario = ? AND id_opcao = ?`,
+                [meuIdLogado, op.id_opcao]
+              );
+              if (checaOpcaoUnica && checaOpcaoUnica.length > 0) votadoPorMim = true;
+            }
+
+            opcoesEnquete.push({
+              id_opcao: op.id_opcao,
+              texto_opcao: op.texto_opcao,
+              porcentagem: porcentagemCalculada,
+              votadoPorMim: votadoPorMim
+            });
+          }
+        }
+      } catch (e) { 
+        console.warn(`Aviso: Falha na estrutura de enquete da Home no post ${post.id_postagem}:`, e.message); 
       }
-
-      const [tagsBanco] = await conexao.query(
-        `SELECT t.nome_tag FROM Postagem_Tag pt JOIN Tag t ON pt.id_tag = t.id_tag WHERE pt.id_postagem = ?`,
-        [post.id_postagem]
-      );
-      const listaDeTagsDoPost = tagsBanco.map(t => `#${t.nome_tag}`);
-
-      feedCompleto.push({
+      postagensProcessadas.push({
         id_postagem: post.id_postagem,
-        tipo: post.tipo,
         conteudo: post.conteudo,
         data_envio: post.data_envio,
-        autor: { id: post.id_usuario, nome: post.nome, username: post.username, foto: post.foto_profile },
-        imagem: (midias && midias.length > 0) ? midias[0].imagem_anexada : null,
-        opcoes: opcoesComVotos,
-        jaVotado: usuarioJaVotouNestePost,
-        totalVotosGeral: totalVotosPost,
-        tags: listaDeTagsDoPost 
+        tipo: post.tipo,
+        imagem: post.imagem,
+        meu_voto_post: meuVotoNoPost,
+        total_likes: post.total_likes,
+        total_dislikes: post.total_dislikes,
+        autor: {
+          id: post.id_usuario,
+          nome: post.nome,
+          username: post.username,
+          foto: post.foto_profile
+        },
+        opcoes: opcoesEnquete,                
+        tags: tagsFormatadas,                   
+        jaVotado: jaVotouNaEnquete,
+        totalVotosGeral: totalVotosGeral
       });
     }
-    return res.json(feedCompleto);
+    return res.json(postagensProcessadas);
+
   } catch (error) {
-    console.error(error);
-    return res.status(500).json({ erro: 'Erro interno no feed.' });
+    console.error('Erro no MySQL ao renderizar feed paginado da Home:', error);
+    return res.status(500).json({ erro: 'Erro interno ao processar timeline global.' });
   } finally {
     if (conexao) conexao.release();
   }
 });
-
-
 router.post('/enquetes/votar/opcao', async (req, res) => {
     const { idUsuario, idOpcao, idPostagem } = req.body;
 
     let conexao = null;
-
     try {
         conexao = await pool.getConnection();
         await conexao.beginTransaction();
-
         const [votoExistente] = await conexao.query(
           `SELECT v.id_opcao FROM Voto v 
            JOIN Opcao_enquete o ON v.id_opcao = o.id_opcao 
            WHERE v.id_usuario = ? AND o.id_postagem = ?`,
           [idUsuario, idPostagem]
         );
+
+        let statusFinal = 'votado';
 
         if (votoExistente && votoExistente.length > 0) {
           const idOpcaoAntiga = votoExistente[0].id_opcao;
@@ -120,23 +179,63 @@ router.post('/enquetes/votar/opcao', async (req, res) => {
               'DELETE FROM Voto WHERE id_usuario = ? AND id_opcao = ?',
               [idUsuario, idOpcao]
             );
-            await conexao.commit();
-            return res.json({ mensagem: 'Voto removido com sucesso!', status: 'desmarcado' });
+            statusFinal = 'desmarcado';
+          } else {
+            await conexao.query(
+              'DELETE FROM Voto WHERE id_usuario = ? AND id_opcao = ?',
+              [idUsuario, idOpcaoAntiga]
+            );
+            await conexao.query(
+              'INSERT INTO Voto (id_usuario, id_opcao) VALUES (?, ?)',
+              [idUsuario, idOpcao]
+            );
+            statusFinal = 'votado';
           }
-          
+        } else {
           await conexao.query(
-            'DELETE FROM Voto WHERE id_usuario = ? AND id_opcao = ?',
-            [idUsuario, idOpcaoAntiga]
+            'INSERT INTO Voto (id_usuario, id_opcao) VALUES (?, ?)',
+            [idUsuario, idOpcao]
           );
+          statusFinal = 'votado';
         }
         
-        await conexao.query(
-          'INSERT INTO Voto (id_usuario, id_opcao) VALUES (?, ?)',
-          [idUsuario, idOpcao]
-        );
-        
         await conexao.commit();
-        return res.json({ mensagem: 'Voto atualizado com sucesso!', status: 'votado' });
+        const [totalBanco] = await conexao.query(
+          `SELECT COUNT(*) AS total FROM Voto v 
+           JOIN Opcao_enquete oe ON v.id_opcao = oe.id_opcao WHERE oe.id_postagem = ?`,
+          [idPostagem]
+        );
+        const novoTotalGeral = totalBanco[0]?.total || 0;
+
+        const [opcoesBanco] = await conexao.query(
+          `SELECT id_opcao, texto_opcao FROM Opcao_enquete WHERE id_postagem = ?`,
+          [idPostagem]
+        );
+
+        const novasOpcoesProcessadas = [];
+        for (const op of opcoesBanco) {
+          const [votosOp] = await conexao.query(`SELECT COUNT(*) AS total FROM Voto WHERE id_opcao = ?`, [op.id_opcao]);
+          const totalVotosOpcao = votosOp[0]?.total || 0;
+          const novaPorcentagem = novoTotalGeral > 0 ? Math.round((totalVotosOpcao / novoTotalGeral) * 100) : 0;
+          const [checaSeVotou] = await conexao.query(
+            `SELECT * FROM Voto WHERE id_usuario = ? AND id_opcao = ?`, 
+            [idUsuario, op.id_opcao]
+          );
+
+          novasOpcoesProcessadas.push({
+            id_opcao: op.id_opcao,
+            texto_opcao: op.texto_opcao,
+            porcentagem: novaPorcentagem,
+            votadoPorMim: checaSeVotou.length > 0
+          });
+        }
+        return res.json({ 
+          mensagem: 'Voto processado com sucesso!', 
+          status: statusFinal,
+          novasOpcoes: novasOpcoesProcessadas,
+          totalVotosGeral: novoTotalGeral,
+          jaVotado: statusFinal === 'desmarcado' ? novasOpcoesProcessadas.some(o => o.votadoPorMim) : true
+        });
         
     } catch(erro) {
         if (conexao) await conexao.rollback();
@@ -323,36 +422,38 @@ router.post('/curtir/postagem', async (req, res) => {
   }
 
   let conexao = null;
-  try {
-    conexao = await pool.getConnection();
-    const [registros] = await conexao.query(
-      `SELECT tipo_voto FROM Curtida WHERE id_usuario = ? AND id_postagem = ?`,
-      [idDoUsuario, idDaPostagem]
-    );
-    if (registros.length > 0) {
-      const votoAntigo = registros[0].tipo_voto;
+try {
+  conexao = await pool.getConnection();
+  const [registros] = await conexao.query(
+    `SELECT tipo_voto FROM Curtida WHERE id_usuario = ? AND id_postagem = ?`,
+    [idDoUsuario, idDaPostagem]
+  );
 
-      if (votoAntigo === tipoVoto) {
-        await conexao.query(
-          'DELETE FROM Curtida WHERE id_usuario = ? AND id_postagem = ?',
-          [idDoUsuario, idDaPostagem]
-        );
-        return res.json({ status: 'anulado', mensagem: 'Voto removido!', votoAtual: null });
-      } else {
-        await conexao.query(
-          'UPDATE Curtida SET tipo_voto = ? WHERE id_usuario = ? AND id_postagem = ?',
-          [tipoVoto, idDoUsuario, idDaPostagem]
-        );
-        return res.json({ status: 'invertido', mensagem: 'Voto atualizado!', votoAtual: tipoVoto });
-      }
+  if (registros.length > 0) {
+    const votoAntigo = registros[0].tipo_voto; 
+
+    if (votoAntigo === tipoVoto) {
+      await conexao.query(
+        'DELETE FROM Curtida WHERE id_usuario = ? AND id_postagem = ?',
+        [idDoUsuario, idDaPostagem]
+      );
+      return res.json({ status: 'anulado', mensagem: 'Voto removido!', votoAtual: null });
     } else {
       await conexao.query(
-        'INSERT INTO Curtida (id_usuario, id_postagem, tipo_voto) VALUES (?, ?, ?)',
-        [idDoUsuario, idDaPostagem, tipoVoto]
+        'UPDATE Curtida SET tipo_voto = ? WHERE id_usuario = ? AND id_postagem = ?',
+        [tipoVoto, idDoUsuario, idDaPostagem]
       );
-      return res.json({ status: 'computado', mensagem: 'Curtida computada bem sucedida', votoAtual: tipoVoto });
+      return res.json({ status: 'invertido', mensagem: 'Voto atualizado!', votoAtual: tipoVoto });
     }
-  } catch(erro) {
+  } else {
+    await conexao.query(
+      'INSERT INTO Curtida (id_usuario, id_postagem, tipo_voto) VALUES (?, ?, ?)',
+      [idDoUsuario, idDaPostagem, tipoVoto]
+    );
+    return res.json({ status: 'computado', mensagem: 'Curtida salva!', votoAtual: tipoVoto });
+  }
+}
+ catch(erro) {
     console.error('Não foi possível curtir o post', erro);
     return res.status(500).json({ erro: 'Erro interno no banco.' });
   } finally {

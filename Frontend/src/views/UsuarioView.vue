@@ -619,10 +619,12 @@ onUnmounted(() => {
          <img v-if="postagem.meu_voto_post === 'like'" :src="likePreenchido" alt="Curtido">
          <img v-else :src="likeInline" alt="curtir">
        </button>
+        <span>{{ postagem.total_likes }}</span>
         <button :disabled="idUsuarioDaURL === meuIdLogado" class="btn-post" @click="curtirPost(postagem, meuIdLogado, 'dislike')">
           <img v-if="postagem.meu_voto_post === 'dislike'" :src="dislikePreenchido" alt="Descurtido">
           <img v-else :src="dislikeInline" alt="não curtir">
         </button>
+        <span>{{ postagem.total_dislikes }}</span>
         <button class="btn-post" @click="abrirMural(postagem)"><img :src="comentarios" alt="comentar"></button>
         <button class="btn-post"><img :src="compartilhar" alt="compartilhar"></button>
         <button class="btn-post"><img v-if="!naoSalvo" :src="marcadorInline" alt=""><img v-else :src="marcadorPreenchido" alt="marcar"></button>

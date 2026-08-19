@@ -60,7 +60,54 @@ async function carregarTimelineGlobal(novaPagina = 1) {
     carregandoMais.value = false;
   }
 }
+async function curtirPost(postagemAlvo, idUsuarioLogado, tipoEscolhido) {
+  if (!idUsuarioLogado) {
+    toast.warning("Você precisa estar logado para interagir!");
+    return;
+  }
 
+  try {
+    const resposta = await fetch('http://localhost:3000/api/criar/curtir/postagem', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        idDoUsuario: idUsuarioLogado,
+        idDaPostagem: postagemAlvo.id_postagem,
+        tipoVoto: tipoEscolhido
+      })
+    });
+
+    const dados = await resposta.json();
+
+    if (resposta.ok) {
+      const votoAntigo = postagemAlvo.meu_voto_post;
+
+      postagemAlvo.meu_voto_post = dados.votoAtual;
+
+      if (dados.votoAtual === null) {
+        if (votoAntigo === 'like') postagemAlvo.total_likes--;
+        if (votoAntigo === 'dislike') postagemAlvo.total_dislikes--;
+      }
+      else if (!votoAntigo) {
+        if (dados.votoAtual === 'like') postagemAlvo.total_likes++;
+        if (dados.votoAtual === 'dislike') postagemAlvo.total_dislikes++;
+      }
+      else if (votoAntigo !== dados.votoAtual) {
+        if (dados.votoAtual === 'like') {
+          postagemAlvo.total_likes++;
+          postagemAlvo.total_dislikes--;
+        } else {
+          postagemAlvo.total_likes--;
+          postagemAlvo.total_dislikes++;
+        }
+      }
+    } else {
+      toast.error(dados.erro || "Falha ao registrar interação.");
+    }
+  } catch(erro) {
+    console.error('Erro ao curtir post:', erro);
+  }
+}
 async function votarNaEnquete(idOpcao, idPostagem) {
   try {
     const resposta = await fetch('http://localhost:3000/api/criar/enquetes/votar/opcao', {
@@ -76,44 +123,23 @@ async function votarNaEnquete(idOpcao, idPostagem) {
     const dados = await resposta.json();
 
     if (resposta.ok) {
+      toast.success(dados.mensagem || "Voto processado!");
+
       const postAlvo = postagensFeedGlobal.value.find(p => p.id_postagem === idPostagem);
 
       if (postAlvo) {
-        const opcaoAlvo = postAlvo.opcoes.find(o => o.id_opcao === idOpcao);
-
-        if (dados.status === 'votado') {
-          postAlvo.opcoes.forEach(o => {
-            if (o.votadoPorMim) {
-              o.votadoPorMim = false;
-              o.votos = Math.max(0, o.votos - 1);
-            }
-          });
-
-          opcaoAlvo.votadoPorMim = true;
-          opcaoAlvo.votos += 1;
-          postAlvo.jaVotado = true;
-        }
-        else if (dados.status === 'desmarcado') {
-          opcaoAlvo.votadoPorMim = false;
-          opcaoAlvo.votos = Math.max(0, opcaoAlvo.votos - 1);
-          postAlvo.jaVotado = postAlvo.opcoes.some(o => o.votadoPorMim);
-        }
-
-        const totalVotosPost = postAlvo.opcoes.reduce((acc, o) => acc + o.votos, 0);
-        postAlvo.totalVotosGeral = totalVotosPost;
-
-        postAlvo.opcoes.forEach(o => {
-          o.porcentagem = totalVotosPost > 0 ? Math.round((o.votos / totalVotosPost) * 100) : 0;
-        });
+        postAlvo.opcoes = dados.novasOpcoes;
+        postAlvo.totalVotosGeral = dados.totalVotosGeral;
+        postAlvo.jaVotado = dados.jaVotado;
       }
+
     } else {
       toast.error(dados.erro || 'Erro com o voto');
     }
   } catch (erro) {
     console.error('Erro ao votar', erro);
   }
-}
-
+};
 function irParaPerfilDoAutor(idAutor) {
   router.push(`/usuario/${idAutor}`);
 }
@@ -165,7 +191,7 @@ onMounted(() => {
 
                 <button
                   type="button"
-                  @click="votarNaEnquete(opcao.id_opcao, post.id_postagem)"
+                  @click.stop.prevent="votarNaEnquete(opcao.id_opcao, post.id_postagem)"
                   class="btn-enquete-dinamico"
                   :class="{ 'opcao-selecionada-local': opcao.votadoPorMim }"
                   :disabled="post.autor.id === meuIdLogado"
@@ -190,8 +216,16 @@ onMounted(() => {
             </span>
           </div>
           <div class="div-botoes-postagens">
-            <button :disabled="post.autor.id === meuIdLogado" class="btn-post"><img v-if="curtido" :src="likePreenchido" alt=""><img v-else :src="likeInline" alt="curtir"></button>
-            <button :disabled="post.autor.id === meuIdLogado" class="btn-post"><img v-if="naoCurtido" :src="dislikePreenchido" alt=""><img v-else :src="dislikeInline" alt="não curtir"></button>
+            <button :disabled="post.autor.id === meuIdLogado" class="btn-post" @click.prevent="curtirPost(post, meuIdLogado, 'like')">
+              <img v-if="post?.meu_voto_post === 'like'" :src="likePreenchido" alt="Curtido">
+              <img v-else :src="likeInline" alt="curtir">
+            </button>
+            <span>{{ post.total_likes }}</span>
+            <button :disabled="post.autor.id === meuIdLogado" class="btn-post" @click.prevent="curtirPost(post, meuIdLogado, 'dislike')">
+              <img v-if="post?.meu_voto_post === 'dislike'" :src="dislikePreenchido" alt="Descurtido">
+              <img v-else :src="dislikeInline" alt="não curtir">
+            </button>
+            <span>{{ post.total_dislikes }}</span>
             <button class="btn-post" @click="abrirMural(post)"><img :src="comentarios" alt="comentar"></button>
             <button class="btn-post"><img :src="compartilhar" alt="compartilhar"></button>
             <button class="btn-post"><img v-if="!naoSalvo" :src="marcadorInline" alt=""><img v-else :src="marcadorPreenchido" alt="não curtir"></button>
