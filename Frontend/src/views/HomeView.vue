@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import userBlackFull from '@/icons/userBlackFull.svg';
 import { useToast } from 'vue-toastification';
@@ -32,12 +32,15 @@ const paginaAtual = ref(1);
 const fimDoFeed = ref(false);
 const meuIdLogado = ref('');
 
+const textoBusca = ref('');
 async function carregarTimelineGlobal(novaPagina = 1) {
   if (novaPagina === 1) carregandoFeed.value = true;
   else carregandoMais.value = true;
 
   try {
-    const resposta = await fetch(`http://localhost:3000/api/criar/feed/global?page=${novaPagina}&meuId=${meuIdLogado.value}`);
+    const termo = encodeURIComponent(textoBusca.value.trim());
+    const url = `http://localhost:3000/api/criar/feed/global?page=${novaPagina}&meuId=${meuIdLogado.value}&busca=${termo}`;
+    const resposta = await fetch(url);
 
     if (resposta.ok) {
       const novosPosts = await resposta.json();
@@ -54,12 +57,22 @@ async function carregarTimelineGlobal(novaPagina = 1) {
       paginaAtual.value = novaPagina;
     }
   } catch (erro) {
-    console.error("Erro ao carregar a timeline do IFchat:", erro);
+    console.error("Erro ao filtrar a timeline:", erro);
   } finally {
     carregandoFeed.value = false;
     carregandoMais.value = false;
   }
 }
+let temporizadorBusca = null;
+watch(textoBusca, () => {
+  clearTimeout(temporizadorBusca);
+
+  temporizadorBusca = setTimeout(() => {
+    fimDoFeed.value = false;
+    carregandoFeed.value = true;
+    carregarTimelineGlobal(1);
+  }, 300);
+});
 async function curtirPost(postagemAlvo, idUsuarioLogado, tipoEscolhido) {
   if (!idUsuarioLogado) {
     toast.warning("Você precisa estar logado para interagir!");
@@ -158,7 +171,7 @@ onMounted(() => {
 
 <template>
   <main>
-    <input  type="text" placeholder="Procurar por..." class="barra-de-pesquisa">
+    <input v-model.trim="textoBusca" type="text" placeholder="Procurar por..." class="barra-de-pesquisa">
     <section class="coluna-central-feed">
       <div v-if="carregandoFeed" class="aviso-carregando-home">
         <span class="texto-aviso">Buscando publicações do IFC...</span>

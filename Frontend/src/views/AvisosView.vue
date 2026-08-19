@@ -1,6 +1,6 @@
 <script setup>
 import { ref } from 'vue'
-const notificacoes = ref([]) // É um array bem temporario em improvisado pra armazenar notificação só pra tester, valeu Bruno!
+const notificacoes = ref([])
 </script>
 
 <template>

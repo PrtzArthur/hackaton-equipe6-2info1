@@ -19,13 +19,32 @@ const upload = multer({ storage: storage });
 router.get('/feed/global', async (req, res) => {
   const meuIdLogado = req.query.meuId || '';
   const pagina = parseInt(req.query.page, 10) || 1;
+  let termoBusca = '';
+  if (req.query.busca) {
+    try {
+      termoBusca = decodeURIComponent(req.query.busca).trim();
+    } catch (e) {
+      console.error('Erro ao ler a busca', e)
+      termoBusca = req.query.busca.trim();
+    }
+  }
+  if (termoBusca === 'undefined' || termoBusca === 'null') {
+    termoBusca = '';
+  }
+
   const limiteItens = 6; 
   const deslocamentoOffset = parseInt((pagina - 1) * limiteItens, 10);
-
+  
   let conexao = null;
   try {
     conexao = await pool.getConnection();
+    let filtroSQL = '';
+    const parametrosQuery = [];
 
+    if (termoBusca.trim() !== '') {
+      filtroSQL = ` AND LOWER(p.conteudo) LIKE CONCAT('%', LOWER(?), '%') `;
+      parametrosQuery.push(termoBusca.trim().toLowerCase());
+    }
     const querySQL = `
       SELECT p.id_postagem, p.conteudo, p.data_envio, p.tipo, p.id_usuario,
              u.nome, u.username, u.foto_profile,
@@ -36,11 +55,12 @@ router.get('/feed/global', async (req, res) => {
       JOIN Usuario u ON p.id_usuario = u.id_usuario
       LEFT JOIN Curtida c ON p.id_postagem = c.id_postagem
       LEFT JOIN Midia_Postagem m ON p.id_postagem = m.id_postagem
+      WHERE 1=1 ${filtroSQL}
       GROUP BY p.id_postagem, p.conteudo, p.data_envio, p.tipo, p.id_usuario, u.nome, u.username, u.foto_profile, m.imagem_anexada
       ORDER BY p.data_envio DESC
-      LIMIT ? OFFSET ?
+      LIMIT ${limiteItens} OFFSET ${deslocamentoOffset}
     `;
-    const [postagensBanco] = await conexao.query(querySQL, [limiteItens, deslocamentoOffset]);
+    const [postagensBanco] = await conexao.query(querySQL, parametrosQuery);
     const postagensProcessadas = [];
 
     for (const post of postagensBanco) {
