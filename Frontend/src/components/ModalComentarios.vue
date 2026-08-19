@@ -6,6 +6,7 @@ import likePreenchido from '@/icons/likePreenchido.svg';
 import likeInline from '@/icons/likeInline.svg';
 import dislikeInline from '@/icons/dislikeInline.svg';
 import dislikePreenchido from '@/icons/dislikePreenchido.svg';
+import lixeira from '@/icons/lixeira.svg';
 
 const props = defineProps({
   isOpen: { type: Boolean, required: true },
@@ -99,6 +100,32 @@ async function votarNoComentarioDoMural(idComentario, tipo) {
     console.error("Erro ao processar voto:", erro);
   }
 }
+async function deletarComentarioDoBanco(idComentario) {
+  if (!confirm("Tem certeza que deseja apagar este comentário?")) return;
+
+  try {
+    const resposta = await fetch(`http://localhost:3000/api/criar/comentarios/deletar/${idComentario}`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        idUsuarioLogado: meuIdLogado.value
+      })
+    });
+
+    const dados = await resposta.json();
+
+    if (resposta.ok) {
+      toast.success("Comentário removido com sucesso!");
+      carregarComentariosDoBanco();
+    } else {
+      toast.error(dados.erro || "Falha ao deletar comentário.");
+    }
+  } catch (erro) {
+    console.error("Erro ao deletar comentário:", erro);
+    toast.error("Erro de comunicação com o servidor.");
+  }
+}
+
 watch(
   () => [props.isOpen, props.post],
   ([novoIsOpen, novoPost]) => {
@@ -133,7 +160,7 @@ onUnmounted(() => {
   <div v-if="isOpen" class="overlay" @click.self="emit('fechar')">
     <div class="modal-comentarios-largura">
       <div class="cabecalho-modal-mural">
-        <h2 class="overlayFormTitulo">Respostas</h2>
+        <h2 class="overlayFormTitulo">Comentários</h2>
         <div class="filtros-mural-abas">
           <button type="button" @click="mudarFiltroMural('recente')" :class="{ ativo: filtroAtual === 'recente' }">Recentes</button>
           <button type="button" @click="mudarFiltroMural('relevante')" :class="{ ativo: filtroAtual === 'relevante' }">Relevantes</button>
@@ -152,7 +179,8 @@ onUnmounted(() => {
             </div>
             <p class="texto-mensagem-comentario">{{ c.conteudo_comentario }}</p>
             <div class="linha-votos-comentario-botoes">
-              <button type="button" :disabled="c.autor === meuIdLogado" @click="votarNoComentarioDoMural(c, 'like')" :class="{ 'comentario-votado-like': c.meu_voto === 'like' }" class="btn-mini-voto">
+              <div class="div-btn-like-dislike">
+                <button type="button" :disabled="c.autor === meuIdLogado" @click="votarNoComentarioDoMural(c, 'like')" :class="{ 'comentario-votado-like': c.meu_voto === 'like' }" class="btn-mini-voto">
                 <img v-if="c.meu_voto === 'like'" :src="likePreenchido" alt="">
                 <img v-else :src="likeInline" alt="não curtir">
                 {{ c.total_likes }}
@@ -162,6 +190,11 @@ onUnmounted(() => {
                 <img v-else :src="dislikeInline" alt="não curtir">
                 {{ c.total_dislikes }}
               </button>
+              </div>
+              <button
+                v-if="c.autor === meuIdLogado" type="button" @click="deletarComentarioDoBanco(c.id_comentario)" class="btn-mini-lixeira" title="Excluir meu comentário">
+                <img :src="lixeira" alt="Deletar" class="img-lixeira-mini">
+              </button>
             </div>
           </div>
         </div>
@@ -170,12 +203,12 @@ onUnmounted(() => {
         <input
           v-model="textoNovoComentario"
           type="text"
-          placeholder="Escreva sua resposta pública..."
+          placeholder="Escreva seu comentário..."
           @keyup.enter="enviarComentarioNoOverlay"
           class="inputFormEdit"
           autofocus
         >
-        <button type="button" @click="enviarComentarioNoOverlay" class="salvarAlteracoes btn-mural-enviar">Responder</button>
+        <button type="button" @click="enviarComentarioNoOverlay" class="salvarAlteracoes btn-mural-enviar">Enviar</button>
       </div>
       <div class="botoesDoFormEditPerfil borda-topo-modal-mural">
         <button type="button" @click="emit('fechar')" class="cancelarAlteracoes">Fechar</button>
@@ -196,6 +229,50 @@ onUnmounted(() => {
   padding: 2vw;
   border-radius: 7px;
 }
+.btn-mini-lixeira {
+  display: flex;
+  background-color: white;
+  width: 1.5vw;
+  height: 1.5vw;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+}
+.cancelarAlteracoes {
+  width: 100%;
+  padding: 0.5vw;
+  background-color: #fff;
+  border-radius: 10px;
+  border: 1px solid #000;
+  font-weight: bolder;
+  cursor: pointer;
+}
+.cancelarAlteracoes:hover {
+  border: 1px transparent #000;
+  background-color: #dc3545;
+  color: #fff;
+}
+.div-btn-like-dislike {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5vw;
+}
+.div-btn-like-dislike button {
+  border-radius: 50%;
+}
+.div-btn-like-dislike button:hover {
+  background-color: #f0f0f0;
+}
+.btn-mini-lixeira:hover {
+  background-color: #f0f0f0;
+}
+.btn-mini-lixeira img {
+  width: 1vw;
+  height: 1vw;
+}
 .cabecalho-modal-mural {
   display: flex;
   justify-content: space-between;
@@ -206,6 +283,8 @@ onUnmounted(() => {
 .inputFormEdit {
   padding: 0.7vw;
   width: 100%;
+  border: 1px solid #000;
+  border-radius: 10px 0 0 10px;
 }
 .filtros-mural-abas {
   display: flex;
@@ -214,9 +293,9 @@ onUnmounted(() => {
 .filtros-mural-abas button {
   background: none;
   border: 1px solid #000;
-  border-radius: 20px;
-  padding: 0.2vw 0.6vw;
-  font-size: 0.7vw;
+  border-radius: 15px;
+  padding: 0.8vw 0.6vw;
+  font-size: 0.8vw;
   font-weight: bold;
   cursor: pointer;
 }
@@ -260,6 +339,7 @@ cursor: pointer;
   padding: 0 1.2vw !important;
   font-size: 0.8vw !important;
   white-space: nowrap;
+  border-radius: 0 7px 7px 0;
 }
 .container-scroll-comentarios-mural {
   flex-grow: 1;
@@ -299,14 +379,16 @@ cursor: pointer;
 }
 .texto-mensagem-comentario {
   font-size: 0.85vw;
-  margin: 0.2vw 0;
   color: #222;
   width: 26vw;
+  padding: 0 1vw 0 0;
 }
 .linha-votos-comentario-botoes {
   display: flex;
+  align-items: center;
   gap: 0.6vw;
   margin-top: 0.2vw;
+  justify-content: space-between;
 }
 .btn-mini-voto {
   background: none;

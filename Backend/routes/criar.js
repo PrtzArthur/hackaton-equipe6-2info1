@@ -245,6 +245,39 @@ router.post('/enquetes/votar/opcao', async (req, res) => {
         if (conexao) conexao.release();
     }
 });
+router.delete('/comentarios/deletar/:idComentario', async (req, res) => {
+  const { idComentario } = req.params;
+  const { idUsuarioLogado } = req.body;
+
+  if (!idUsuarioLogado) {
+    return res.status(400).json({ erro: 'Usuário não identificado.' });
+  }
+
+  let conexao = null;
+  try {
+    conexao = await pool.getConnection();
+    const [comentario] = await conexao.query(
+      'SELECT id_usuario FROM Comentario WHERE id_comentario = ?',
+      [idComentario]
+    );
+
+    if (comentario.length === 0) {
+      return res.status(404).json({ erro: 'Comentário não encontrado.' });
+    }
+    if (comentario[0].id_usuario !== idUsuarioLogado) {
+      return res.status(403).json({ erro: 'Você não tem permissão para apagar o comentário de outra pessoa!' });
+    }
+    await conexao.query('DELETE FROM Comentario WHERE id_comentario = ?', [idComentario]);
+
+    return res.json({ mensagem: 'Comentário excluído com sucesso!' });
+
+  } catch (error) {
+    console.error('❌ Erro no MySQL ao deletar comentário:', error);
+    return res.status(500).json({ erro: 'Erro interno ao remover comentário.' });
+  } finally {
+    if (conexao) conexao.release();
+  }
+});
 router.post('/postagens/:id', upload.single('imagem_post'), async (req, res) => {
   const { id } = req.params;
   let conexao = null;

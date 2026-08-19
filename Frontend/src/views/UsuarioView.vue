@@ -159,7 +159,11 @@ async function curtirPost(postagemAlvo, idUsuarioLogado, tipoEscolhido) {
     console.error('Erro ao curtir post:', erro);
   }
 }
-
+function cancelarEdicao() {
+  editarPerfil.value = false;
+  removerBannerMarcado.value = false;
+  removerFotoMarcada.value = false;
+}
 const jaEFavorito = ref(false);
 
 function obterChaveFavoritos() {
@@ -680,7 +684,7 @@ onUnmounted(() => {
   :post="postSelecionado"
   @fechar="modalAberto = false"
 />
-    <div v-if="editarPerfil" class="overlay" @click.self="editarPerfil = false">
+    <div v-if="editarPerfil" class="overlay" @click.self="cancelarEdicao()">
         <div class="form">
           <h2 class="overlayFormTitulo">Editar Perfil</h2>
           <form @submit.prevent="edicaoDosDados" class="formularioDeEdicao">
@@ -717,7 +721,7 @@ onUnmounted(() => {
       </div>
           <div class="botoesDoFormEditPerfil">
             <button type="submit" class="salvarAlteracoes">Salvar</button>
-            <button type="button" @click="editarPerfil = false" class="cancelarAlteracoes">Cancelar</button>
+            <button type="button" @click="cancelarEdicao()" class="cancelarAlteracoes">Cancelar</button>
           </div>
         </form>
         </div>
@@ -858,6 +862,7 @@ main {
 .div-botoes-postagens {
   display: flex;
   align-items: center;
+
 }
 .marcado-para-manter-form:hover {
   background-color: #f9f9f9;
@@ -1100,7 +1105,9 @@ main {
   gap: 1.5vw;
 }
 .inputFormEdit {
-  padding: 0.4vw;
+  padding: 0.7vw;
+  border-radius: 10px;
+  border: 1px solid #000;
 }
 .divLogoutEDeleteAccount {
   display: flex !important;
@@ -1333,11 +1340,12 @@ section.configuracoes {
   display: block;
 }
 .textarea {
-  max-width: 27.87vw;
+  max-width: 37.89vw;
   min-width: 10vw;
   min-height: 3vw;
-  max-height: 12vw;
+  max-height: 20vw;
   padding: 0.5vw;
+  border-radius: 7px;
 }
 .divEditImage {
   margin-top: 0.5vw;
@@ -1421,7 +1429,7 @@ cursor: pointer;
 }
 .form {
   background-color: #fff;
-  width: 30vw;
+  width: 40vw;
   border: 0.8px solid #000;
   display: flex;
   flex-direction: column;
