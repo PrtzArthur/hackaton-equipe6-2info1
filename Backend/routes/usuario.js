@@ -246,77 +246,143 @@ router.get('/perfil/:id', async (req, res) => {
   }
 });
 router.get('/postagens/:id', async (req, res) => {
-  const { id } = req.params;
-  const meuIdLogado = req.query.meuId;
-  let conexao = null;
+  const idDoPerfilQueEstouOlhando = req.params.id;
+  const meuIdLogado = req.query.meuId || '';
 
+  let conexao = null;
   try {
     conexao = await pool.getConnection();
-    const [postagens] = await conexao.query(
-      'SELECT id_postagem, tipo, conteudo, data_envio FROM Postagem WHERE id_usuario = ? ORDER BY data_envio DESC',
-      [id]
-    );
+    
+    const querySQL = `
+      SELECT p.id_postagem, p.conteudo, p.data_envio, p.tipo,
+             m.imagem_anexada AS imagem,
+             COALESCE(SUM(CASE WHEN c.tipo_voto = 'like' THEN 1 ELSE 0 END), 0) AS total_likes,
+             COALESCE(SUM(CASE WHEN c.tipo_voto = 'dislike' THEN 1 ELSE 0 END), 0) AS total_dislikes
+      FROM Postagem p
+      LEFT JOIN Curtida c ON p.id_postagem = c.id_postagem
+      LEFT JOIN Midia_Postagem m ON p.id_postagem = m.id_postagem
+      WHERE p.id_usuario = ?
+      GROUP BY p.id_postagem, p.conteudo, p.data_envio, p.tipo, m.imagem_anexada
+      ORDER BY p.data_envio DESC
+    `;
 
-    const postagensCompletas = [];
+    const [postagensBanco] = await conexao.query(querySQL, [idDoPerfilQueEstouOlhando]);
+    const postagensProcessadas = [];
 
-    for (const post of postagens) {
-      const [midias] = await conexao.query('SELECT imagem_anexada FROM Midia_Postagem WHERE id_postagem = ?', [post.id_postagem]);
-      const [opcoesEnquete] = await conexao.query('SELECT id_opcao, texto_opcao FROM Opcao_enquete WHERE id_postagem = ?', [post.id_postagem]);
+    for (const post of postagensBanco) {
+      let meuVotoNoPost = null;
+      let tagsFormatadas = [];
+      let opcoesEnquete = [];
+      let jaVotouNaEnquete = false;
+      let totalVotosGeral = 0;
 
-      const [resultadoTotalPost] = await conexao.query(
-        `SELECT COUNT(*) as total FROM Voto v JOIN Opcao_enquete o ON v.id_opcao = o.id_opcao WHERE o.id_postagem = ?`, 
-        [post.id_postagem]
-      );
-      const totalVotosPost = resultadoTotalPost[0]?.total || 0;
-
-      const opcoesComVotos = [];
-      let usuarioJaVotouNestePost = false;
-
-      for (const o of opcoesEnquete) {
-        const [resultadoTotalOpcao] = await conexao.query('SELECT COUNT(*) as total FROM Voto WHERE id_opcao = ?', [o.id_opcao]);
-        const totalVotosOpcao = resultadoTotalOpcao[0]?.total || 0;
-
-        let votoDoLogado = false;
+      try {
         if (meuIdLogado) {
-          const [checaVoto] = await conexao.query('SELECT * FROM Voto WHERE id_usuario = ? AND id_opcao = ?', [meuIdLogado, o.id_opcao]);
-          if (checaVoto.length > 0) { votoDoLogado = true; usuarioJaVotouNestePost = true; }
+          const [checaVoto] = await conexao.query(
+            'SELECT tipo_voto FROM Curtida WHERE id_usuario = ? AND id_postagem = ?',
+            [meuIdLogado, post.id_postagem]
+          );
+          if (checaVoto && checaVoto.length > 0) {
+            meuVotoNoPost = checaVoto[0].tipo_voto;
+          }
         }
+      } catch (e) { console.warn("Aviso: Falha ao ler curtidas deste post.", e.message); }
+      try {
+        const [tagsBanco] = await conexao.query(
+          `SELECT t.nome_tag 
+           FROM postagem_tag pt 
+           JOIN Tag t ON pt.id_tag = t.id_tag 
+           WHERE pt.id_postagem = ?`,
+          [post.id_postagem]
+        );
+        tagsFormatadas = tagsBanco.map(t => `#${t.nome_tag}`);
+      } catch (e) { console.warn("Aviso: Falha ao ler tags do post.", e.message); }
+      try {
+        if (post.tipo === 'postagemComEnquete') {
+          // 1. Busca as opções criadas para o post
+          const [opcoes] = await conexao.query(
+            `SELECT id_opcao, texto_opcao FROM Opcao_enquete WHERE id_postagem = ?`,
+            [post.id_postagem]
+          );
 
-        opcoesComVotos.push({
-          id_opcao: o.id_opcao,
-          texto_opcao: o.texto_opcao,
-          votos: totalVotosOpcao,
-          porcentagem: totalVotosPost > 0 ? Math.round((totalVotosOpcao / totalVotosPost) * 100) : 0,
-          votadoPorMim: votoDoLogado
-        });
+          // 2. CORREGIDO: Faz o JOIN com Opcao_enquete para conseguir filtrar por id_postagem
+          const [totalVotosBanco] = await conexao.query(
+            `SELECT COUNT(*) AS total 
+             FROM Voto v
+             JOIN Opcao_enquete oe ON v.id_opcao = oe.id_opcao
+             WHERE oe.id_postagem = ?`,
+            [post.id_postagem]
+          );
+          totalVotosGeral = totalVotosBanco[0]?.total || 0;
+
+          // 3. CORREGIDO: Faz o JOIN também para checar se o usuário logado já votou nesse post
+          if (meuIdLogado) {
+            const [votoUsuarioEnquete] = await conexao.query(
+              `SELECT v.id_opcao 
+               FROM Voto v
+               JOIN Opcao_enquete oe ON v.id_opcao = oe.id_opcao
+               WHERE v.id_usuario = ? AND oe.id_postagem = ?`,
+              [meuIdLogado, post.id_postagem]
+            );
+            if (votoUsuarioEnquete && votoUsuarioEnquete.length > 0) {
+              jaVotouNaEnquete = true;
+            }
+          }
+
+          // 4. Varre cada opção calculando as porcentagens reativas
+          for (const op of opcoes) {
+            const [votosDaOpcao] = await conexao.query(
+              `SELECT COUNT(*) AS total FROM Voto WHERE id_opcao = ?`,
+              [op.id_opcao]
+            );
+            const totalVotosOpcao = votosDaOpcao[0]?.total || 0;
+            
+            // Impede a divisão por zero caso a enquete ainda tenha 0 votos
+            const porcentagemCalculada = totalVotosGeral > 0 
+              ? Math.round((totalVotosOpcao / totalVotosGeral) * 100) 
+              : 0;
+
+            let votadoPorMim = false;
+            if (meuIdLogado) {
+              const [checaOpcaoUnica] = await conexao.query(
+                `SELECT * FROM Voto WHERE id_usuario = ? AND id_opcao = ?`,
+                [meuIdLogado, op.id_opcao]
+              );
+              if (checaOpcaoUnica && checaOpcaoUnica.length > 0) votadoPorMim = true;
+            }
+
+            opcoesEnquete.push({
+              id_opcao: op.id_opcao,
+              texto_opcao: op.texto_opcao,
+              porcentagem: porcentagemCalculada,
+              votadoPorMim: votadoPorMim
+            });
+          }
+        }
+      } catch (e) { 
+        console.warn(`Aviso: Falha de estrutura de enquete no post ${post.id_postagem}:`, e.message); 
       }
-
-      const [tagsBanco] = await conexao.query(
-        `SELECT t.nome_tag FROM Postagem_Tag pt JOIN Tag t ON pt.id_tag = t.id_tag WHERE pt.id_postagem = ?`,
-        [post.id_postagem]
-      );
-      const listaDeTagsDoPost = tagsBanco.map(t => `#${t.nome_tag}`);
-
-      postagensCompletas.push({
-        id_postagem: post.id_postagem,
-        tipo: post.tipo,
-        conteudo: post.conteudo,
-        data_envio: post.data_envio,
-        imagem: (midias && midias.length > 0) ? midias[0].imagem_anexada : null, 
-        opcoes: opcoesComVotos,               
-        jaVotado: usuarioJaVotouNestePost,  
-        totalVotosGeral: totalVotosPost,
-        tags: listaDeTagsDoPost
+      postagensProcessadas.push({
+        ...post,
+        meu_voto_post: meuVotoNoPost,
+        tags: tagsFormatadas,
+        opcoes: opcoesEnquete,
+        jaVotado: jaVotouNaEnquete,
+        totalVotosGeral: totalVotosGeral
       });
     }
-    return res.json(postagensCompletas);
+    
+    return res.json(postagensProcessadas);
+
   } catch (error) {
-    console.error('Erro ao buscar postagens completas no MySQL:', error);
-    return res.status(500).json({ erro: 'Erro interno ao carregar a lista de postagens.' });
+    console.error("ERRO INTERNO AO COLETAR HISTÓRICO DE POSTS:", error);
+    return res.status(500).json({ erro: "Erro ao processar feed do usuário." });
   } finally {
     if (conexao) conexao.release();
   }
 });
+
+
 router.post('/seguir', async (req, res) => {
   const { idSeguidor, idSeguido } = req.body;
   if (idSeguidor === idSeguido) {

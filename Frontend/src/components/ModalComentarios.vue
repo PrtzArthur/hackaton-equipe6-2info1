@@ -189,6 +189,7 @@ onUnmounted(() => {
   width: 35vw !important;
   background-color: #fff;
   max-height: 85vh;
+  height: 30vw;
   display: flex;
   flex-direction: column;
   gap: 0.8vw;

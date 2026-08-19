@@ -315,6 +315,50 @@ router.get('/postagens/:idPostagem/comentarios', async (req, res) => {
     if (conexao) conexao.release();
   }
 });
+router.post('/curtir/postagem', async (req, res) => {
+  const { idDoUsuario, idDaPostagem, tipoVoto } = req.body;
+
+  if (!idDoUsuario || !idDaPostagem || !['like', 'dislike'].includes(tipoVoto)) {
+    return res.status(400).json({ erro: 'Dados inválidos ao curtir' });
+  }
+
+  let conexao = null;
+  try {
+    conexao = await pool.getConnection();
+    const [registros] = await conexao.query(
+      `SELECT tipo_voto FROM Curtida WHERE id_usuario = ? AND id_postagem = ?`,
+      [idDoUsuario, idDaPostagem]
+    );
+    if (registros.length > 0) {
+      const votoAntigo = registros[0].tipo_voto;
+
+      if (votoAntigo === tipoVoto) {
+        await conexao.query(
+          'DELETE FROM Curtida WHERE id_usuario = ? AND id_postagem = ?',
+          [idDoUsuario, idDaPostagem]
+        );
+        return res.json({ status: 'anulado', mensagem: 'Voto removido!', votoAtual: null });
+      } else {
+        await conexao.query(
+          'UPDATE Curtida SET tipo_voto = ? WHERE id_usuario = ? AND id_postagem = ?',
+          [tipoVoto, idDoUsuario, idDaPostagem]
+        );
+        return res.json({ status: 'invertido', mensagem: 'Voto atualizado!', votoAtual: tipoVoto });
+      }
+    } else {
+      await conexao.query(
+        'INSERT INTO Curtida (id_usuario, id_postagem, tipo_voto) VALUES (?, ?, ?)',
+        [idDoUsuario, idDaPostagem, tipoVoto]
+      );
+      return res.json({ status: 'computado', mensagem: 'Curtida computada bem sucedida', votoAtual: tipoVoto });
+    }
+  } catch(erro) {
+    console.error('Não foi possível curtir o post', erro);
+    return res.status(500).json({ erro: 'Erro interno no banco.' });
+  } finally {
+    if (conexao) conexao.release();
+  }
+});
 router.post('/postagens/comentarios/votar', async (req, res) => {
   const { idUsuario, idComentario, tipoVoto } = req.body;
 

@@ -105,8 +105,6 @@ const arquivoBanner = ref(null);
 const removerFotoMarcada = ref(false);
 const removerBannerMarcado = ref(false);
 
-const curtido = ref(false);
-const naoCurtido = ref(false);
 const naoSalvo = ref(false);
 
 const telaExibicao = ref(true);
@@ -131,6 +129,35 @@ const showWarningNome = ref(false);
 
 function adicionarNovasTags() {
  adicionarTag.value = !adicionarTag.value;
+}
+async function curtirPost(postagemAlvo, idUsuarioLogado, tipoEscolhido) {
+  if (!idUsuarioLogado) {
+    toast.warning("Você precisa estar logado para interagir!");
+    return;
+  }
+
+  try {
+    const resposta = await fetch('http://localhost:3000/api/criar/curtir/postagem', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        idDoUsuario: idUsuarioLogado,
+        idDaPostagem: postagemAlvo.id_postagem,
+        tipoVoto: tipoEscolhido
+      })
+    });
+
+    const dados = await resposta.json();
+
+    if (resposta.ok) {
+      postagemAlvo.meu_voto_post = dados.votoAtual;
+      carregarDadosDoPerfil();
+    } else {
+      toast.error(dados.erro || "Falha ao registrar interação.");
+    }
+  } catch(erro) {
+    console.error('Erro ao curtir post:', erro);
+  }
 }
 
 const jaEFavorito = ref(false);
@@ -588,11 +615,17 @@ onUnmounted(() => {
         </span>
       </div>
       <div class="div-botoes-postagens">
-        <button :disabled="idUsuarioDaURL === meuIdLogado" class="btn-post"><img v-if="curtido" :src="likePreenchido" alt=""><img v-else :src="likeInline" alt="curtir"></button>
-        <button :disabled="idUsuarioDaURL === meuIdLogado" class="btn-post"><img v-if="naoCurtido" :src="dislikePreenchido" alt=""><img v-else :src="dislikeInline" alt="não curtir"></button>
+       <button :disabled="idUsuarioDaURL === meuIdLogado" class="btn-post" @click="curtirPost(postagem, meuIdLogado, 'like')">
+         <img v-if="postagem.meu_voto_post === 'like'" :src="likePreenchido" alt="Curtido">
+         <img v-else :src="likeInline" alt="curtir">
+       </button>
+        <button :disabled="idUsuarioDaURL === meuIdLogado" class="btn-post" @click="curtirPost(postagem, meuIdLogado, 'dislike')">
+          <img v-if="postagem.meu_voto_post === 'dislike'" :src="dislikePreenchido" alt="Descurtido">
+          <img v-else :src="dislikeInline" alt="não curtir">
+        </button>
         <button class="btn-post" @click="abrirMural(postagem)"><img :src="comentarios" alt="comentar"></button>
         <button class="btn-post"><img :src="compartilhar" alt="compartilhar"></button>
-        <button class="btn-post"><img v-if="!naoSalvo" :src="marcadorInline" alt=""><img v-else :src="marcadorPreenchido" alt="não curtir"></button>
+        <button class="btn-post"><img v-if="!naoSalvo" :src="marcadorInline" alt=""><img v-else :src="marcadorPreenchido" alt="marcar"></button>
       </div>
       <div class="divDeleteEPublicacao">
         <span class="data-do-post">
@@ -617,7 +650,7 @@ onUnmounted(() => {
           </div>
         </div>
         <div class="favoritos">
-          <h3>Perfim favoritos</h3>
+          <h3>Perfis favoritos</h3>
           <div v-if="perfisFavoritos.length === 0" class="textoDeAviso info-vazio">
             Nenhum perfil favoritado encontrado nesta conta.
           </div>
@@ -1103,6 +1136,7 @@ main {
 .btnSeguir:hover {
   cursor: pointer;
   background-color: #37ad00;
+  transition: 0.2s;
 }
 .containerConfig div {
   display: flex;
