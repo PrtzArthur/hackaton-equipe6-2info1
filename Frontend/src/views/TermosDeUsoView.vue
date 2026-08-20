@@ -1,5 +1,7 @@
 <script setup>
 import { useRouter } from 'vue-router'
+import PolicySection from './PolicySection.vue'
+import { termsData } from './termsData.js'
 
 const router = useRouter()
 
@@ -28,90 +30,40 @@ function voltar() {
 
       <div class="scroll-content">
         
-        <p class="last-updated"> <strong>Última atualização:</strong> 11 de agosto de 2026</p>
+        <p class="last-updated">
+          <strong>Última atualização:</strong> {{ termsData.lastUpdated }}
+        </p>
 
         <p class="intro-text">
           Bem-vindo ao <strong>IFchat</strong>. Estes Termos de Uso ("Termos") regem o uso do nosso site localizado em 
-          <a href="https://hackaton-equipe6-2info1-4ot6.vercel.app/" target="_blank" rel="noopener">https://hackaton-equipe6-2info1-4ot6.vercel.app/</a> (o "Serviço") operado por <strong>Equipe6-2info1</strong>.
+          <a :href="termsData.url" target="_blank" rel="noopener">{{ termsData.url }}</a> (o "Serviço") operado por <strong>{{ termsData.team }}</strong>.
         </p>
 
         <hr class="divider" />
 
-        <section class="policy-section">
-          <h2> Aceitação dos Termos</h2>
-          <p>
-            Ao acessar e usar este site, você aceita e concorda em cumprir os termos e condições deste acordo. Se você não concordar com qualquer parte destes termos, não deve usar nosso Serviço.
-          </p>
-        </section>
+        <!-- Renderização dinâmica das seções -->
+        <PolicySection 
+          v-for="(section, index) in termsData.sections" 
+          :key="index"
+          :title="section.title"
+          :content="section.content"
+          :items="section.items"
+        />
 
-        <section class="policy-section">
-          <h2> Uso Permitido</h2>
-          <p>Você pode usar nosso site para:</p>
-          <ul>
-            <li>Visualizar e navegar pelo conteúdo;</li>
-            <li>Acessar informações públicas;</li>
-            <li>Interagir com recursos disponíveis;</li>
-            <li>Entrar em contato conosco através dos meios fornecidos.</li>
-          </ul>
-        </section>
+        <!-- Seção de Contato -->
+        <PolicySection 
+          title="Contato"
+          content="Se você tiver alguma dúvida sobre estes Termos de Uso, entre em contato conosco:"
+          :items="[
+            `<strong>E-mail:</strong> <a href='mailto:${termsData.email}'>${termsData.email}</a>`,
+            `<strong>Site:</strong> <a href='${termsData.url}' target='_blank' rel='noopener'>Acessar plataforma</a>`
+          ]"
+          :is-contact="true"
+        />
 
-        <section class="policy-section">
-          <h2> Uso Proibido</h2>
-          <p>Você concorda em <strong>NÃO</strong> usar o site para:</p>
-          <ul>
-            <li>Violar qualquer lei local, estadual, nacional ou internacional;</li>
-            <li>Transmitir material que seja difamatório, ofensivo ou inadequado;</li>
-            <li>Tentar obter acesso não autorizado ao site ou sistemas relacionados;</li>
-            <li>Interferir ou interromper o site ou servidores conectados;</li>
-            <li>Coletar informações sobre outros usuários.</li>
-          </ul>
-        </section>
-
-        <section class="policy-section">
-          <h2> Propriedade Intelectual</h2>
-          <p>
-            O conteúdo deste site, incluindo textos, gráficos, logotipos, imagens, clipes de áudio, downloads digitais e compilações de dados, é propriedade de <strong>Equipe6-2info1</strong> e está protegido por leis de direitos autorais.
-          </p>
-        </section>
-
-        <section class="policy-section">
-          <h2> Limitação de Responsabilidade</h2>
-          <p>
-            Em nenhuma circunstância Equipe6-2info1 será responsável por quaisquer danos diretos, indiretos, incidentais, especiais, consequenciais ou punitivos resultantes do uso ou incapacidade de usar o Serviço.
-          </p>
-        </section>
-
-        <section class="policy-section">
-          <h2> Modificações dos Termos</h2>
-          <p>
-            Reservamo-nos o direito, a nosso critério exclusivo, de modificar ou substituir estes Termos a qualquer momento. Se uma revisão for material, tentaremos fornecer pelo menos 30 dias de aviso antes de quaisquer novos termos entrarem em vigor.
-          </p>
-        </section>
-
-        <section class="policy-section">
-          <h2> Rescisão</h2>
-          <p>
-            Podemos encerrar ou suspender seu acesso imediatamente, sem aviso prévio ou responsabilidade, por qualquer motivo, incluindo, sem limitação, se você violar os Termos.
-          </p>
-        </section>
-
-        <section class="policy-section">
-          <h2> Lei Aplicável</h2>
-          <p>
-            Estes Termos serão interpretados e regidos de acordo com as leis do Brasil, sem levar em conta suas disposições sobre conflito de leis.
-          </p>
-        </section>
-
-        <section class="policy-section contact-box">
-          <h2> Contato</h2>
-          <p>Se você tiver alguma dúvida sobre estes Termos de Uso, entre em contato conosco:</p>
-          <ul>
-            <li><strong>E-mail:</strong> <a href="mailto:ifchat@gmail.com">ifchat@gmail.com</a></li>
-            <li><strong>Site:</strong> <a href="https://hackaton-equipe6-2info1-4ot6.vercel.app/" target="_blank" rel="noopener">Acessar plataforma</a></li>
-          </ul>
-        </section>
-
-        <p class="effective-date"><em>Estes termos são efetivos a partir de 11 de agosto de 2026.</em></p>
+        <p class="effective-date">
+          <em>Estes termos são efetivos a partir de {{ termsData.lastUpdated }}.</em>
+        </p>
 
       </div>
     </div>
@@ -119,7 +71,6 @@ function voltar() {
 </template>
 
 <style scoped>
-/* MAIN INTACTO */
 main {
   background-color: rgba(85, 255, 51, 0.14);
   height: 100vh;
@@ -136,7 +87,6 @@ main {
   overflow-x: hidden;
 }
 
-/* Card Principal */
 .policy-card {
   width: 100%;
   max-width: 580px;
@@ -226,7 +176,7 @@ main {
   margin: 0;
 }
 
-.intro-text a, .contact-box a {
+.intro-text a {
   color: #000000;
   text-decoration: underline;
   word-break: break-all;
@@ -236,41 +186,6 @@ main {
   border: none;
   border-top: 1px solid #e0e0e0;
   margin: 0;
-}
-
-.policy-section h2 {
-  font-size: 1rem;
-  font-weight: bold;
-  margin: 0 0 8px 0;
-  color: #000000;
-}
-
-.policy-section p {
-  font-size: 0.88rem;
-  color: #333333;
-  line-height: 1.5;
-  margin: 0 0 8px 0;
-}
-
-.policy-section ul {
-  margin: 0;
-  padding-left: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.policy-section li {
-  font-size: 0.85rem;
-  color: #333333;
-  line-height: 1.4;
-}
-
-.contact-box {
-  background-color: #f9f9f9;
-  border: 1px dashed #000000;
-  padding: 12px;
-  border-radius: 6px;
 }
 
 .effective-date {
