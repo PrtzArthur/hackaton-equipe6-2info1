@@ -110,6 +110,9 @@ header {
 }
 a {
   text-decoration: none;
+  height: 100%;
+  padding: 1vw 0;
+
 }
 header h1 {
   text-align: center;
@@ -127,7 +130,7 @@ header h1 {
   font-size: 2vw;
 }
 .divLink {
-  padding: 1vw 0 1vw 0;
+  padding: 0;
   border-left: 0.45vw solid transparent;
 }
 .divLink:hover {
@@ -155,6 +158,10 @@ header h1 {
 }
 .imgIcon.preenchido {
   display: none;
+}
+.divLink img {
+  width: 2.5vw;
+  height: auto;
 }
 .divLink.ativo {
   background-color: rgba(85, 255, 51, 0.14);
