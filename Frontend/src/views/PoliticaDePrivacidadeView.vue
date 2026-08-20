@@ -1,5 +1,7 @@
 <script setup>
 import { useRouter } from 'vue-router'
+import PolicySection from '../components/PolicySection.vue'
+import { privacyData } from '../data/termsData.js'
 
 const router = useRouter()
 
@@ -21,115 +23,45 @@ function voltar() {
           <button class="back-btn" @click="voltar" title="Voltar">
             ←
           </button>
-          <h1>Política de Privacidade</h1>
+          <h1>{{ privacyData.title }}</h1>
         </div>
         <span class="sub-title">IFCHAT</span>
       </header>
 
       <div class="scroll-content">
         
-        <p class="last-updated"> <strong>Última atualização:</strong> 11 de agosto de 2026</p>
+        <p class="last-updated">
+          <strong>Última atualização:</strong> {{ privacyData.lastUpdated }}
+        </p>
 
         <p class="intro-text">
           Esta Política de Privacidade descreve como <strong>IFchat</strong> ("nós", "nosso" ou "nossos") coleta, usa e protege as informações quando você visita nosso site 
-          <a href="https://hackaton-equipe6-2info1-4ot6.vercel.app/" target="_blank" rel="noopener">https://hackaton-equipe6-2info1-4ot6.vercel.app/</a> (o "Serviço") operado por <strong>Equipe6-2info1</strong>.
+          <a :href="privacyData.url" target="_blank" rel="noopener">{{ privacyData.url }}</a> (o "Serviço") operado por <strong>{{ privacyData.team }}</strong>.
         </p>
 
         <hr class="divider" />
 
-        <section class="policy-section">
-          <h2> Informações que Coletamos</h2>
-          <p>Coletamos informações que você nos fornece diretamente, como quando você:</p>
-          <ul>
-            <li>Preenche formulários em nosso site;</li>
-            <li>Entra em contato conosco;</li>
-            <li>Se inscreve em nossos serviços;</li>
-            <li>Navega pelo nosso site.</li>
-          </ul>
-        </section>
+        <PolicySection 
+          v-for="(section, index) in privacyData.sections" 
+          :key="index"
+          :title="section.title"
+          :content="section.content"
+          :items="section.items"
+        />
 
-        <section class="policy-section">
-          <h2> Tipos de Dados Coletados</h2>
-          <ul>
-            <li><strong>Dados Pessoais:</strong> nome, endereço de e-mail, telefone;</li>
-            <li><strong>Dados de Uso:</strong> informações sobre como você usa nosso site;</li>
-            <li><strong>Dados Técnicos:</strong> endereço IP, tipo de navegador, sistema operacional.</li>
-          </ul>
-        </section>
+        <PolicySection 
+          title="Contato"
+          content="Se você tiver dúvidas sobre esta Política de Privacidade, entre em contato conosco:"
+          :items="[
+            `<strong>E-mail:</strong> <a href='mailto:${privacyData.email}'>${privacyData.email}</a>`,
+            `<strong>Site:</strong> <a href='${privacyData.url}' target='_blank' rel='noopener'>Acessar plataforma</a>`
+          ]"
+          :is-contact="true"
+        />
 
-        <section class="policy-section">
-          <h2> Como Usamos suas Informações</h2>
-          <p>Utilizamos as informações coletadas para:</p>
-          <ul>
-            <li>Fornecer e manter nosso Serviço;</li>
-            <li>Notificá-lo sobre mudanças em nosso Serviço;</li>
-            <li>Permitir que você participe de recursos interativos;</li>
-            <li>Fornecer suporte ao cliente;</li>
-            <li>Coletar análises ou informações valiosas para melhorar o Serviço.</li>
-          </ul>
-        </section>
-
-        <section class="policy-section">
-          <h2> Uso de Cookies</h2>
-          <p>
-            Nosso site utiliza cookies para melhorar sua experiência. Cookies são pequenos arquivos de texto que são colocados no seu computador pelos sites que você visita.
-          </p>
-        </section>
-
-        <section class="policy-section">
-          <h2> Compartilhamento de Dados</h2>
-          <p>
-            Não vendemos, trocamos ou transferimos suas informações pessoais para terceiros sem seu consentimento, exceto quando necessário para fornecer nossos serviços ou quando exigido por lei.
-          </p>
-        </section>
-
-        <section class="policy-section">
-          <h2> Segurança dos Dados</h2>
-          <p>
-            Implementamos medidas de segurança adequadas para proteger suas informações pessoais contra acesso não autorizado, alteração, divulgação ou destruição.
-          </p>
-        </section>
-
-        <section class="policy-section">
-          <h2> Seus Direitos (LGPD)</h2>
-          <p>Você tem o direito de:</p>
-          <ul>
-            <li>Confirmar a existência de tratamento;</li>
-            <li>Acessar os dados;</li>
-            <li>Corrigir dados incompletos, inexatos ou desatualizados;</li>
-            <li>Anonimizar, bloquear ou eliminar dados desnecessários;</li>
-            <li>Solicitar a portabilidade dos dados;</li>
-            <li>Eliminar os dados pessoais tratados com o consentimento;</li>
-            <li>Obter informações sobre o compartilhamento;</li>
-            <li>Obter informações sobre a possibilidade de não fornecer consentimento;</li>
-            <li>Revogar o consentimento.</li>
-          </ul>
-        </section>
-
-        <section class="policy-section">
-          <h2> Retenção de Dados</h2>
-          <p>
-            Manteremos suas informações pessoais apenas pelo tempo necessário para os fins estabelecidos nesta Política de Privacidade.
-          </p>
-        </section>
-
-        <section class="policy-section">
-          <h2> Alterações nesta Política</h2>
-          <p>
-            Podemos atualizar nossa Política de Privacidade periodicamente. Notificaremos você sobre quaisquer mudanças publicando a nova Política de Privacidade nesta página.
-          </p>
-        </section>
-
-        <section class="policy-section contact-box">
-          <h2> Contato</h2>
-          <p>Se você tiver dúvidas sobre esta Política de Privacidade, entre em contato conosco:</p>
-          <ul>
-            <li><strong>E-mail:</strong> <a href="mailto:ifchatemail@gmail.com">ifchatemail@gmail.com</a></li>
-            <li><strong>Site:</strong> <a href="https://hackaton-equipe6-2info1-4ot6.vercel.app/" target="_blank" rel="noopener">Acessar plataforma</a></li>
-          </ul>
-        </section>
-
-        <p class="effective-date"><em>Esta política é efetiva a partir de 11 de agosto de 2026.</em></p>
+        <p class="effective-date">
+          <em>Esta política é efetiva a partir de {{ privacyData.lastUpdated }}.</em>
+        </p>
 
       </div>
     </div>
@@ -150,7 +82,6 @@ main {
   right: 0;
   box-sizing: border-box;
   overflow: hidden;
-  overflow-x: hidden;
 }
 
 .policy-card {
@@ -242,7 +173,7 @@ main {
   margin: 0;
 }
 
-.intro-text a, .contact-box a {
+.intro-text a {
   color: #000000;
   text-decoration: underline;
   word-break: break-all;
@@ -254,45 +185,36 @@ main {
   margin: 0;
 }
 
-.policy-section h2 {
-  font-size: 1rem;
-  font-weight: bold;
-  margin: 0 0 8px 0;
-  color: #000000;
-}
-
-.policy-section p {
-  font-size: 0.88rem;
-  color: #333333;
-  line-height: 1.5;
-  margin: 0 0 8px 0;
-}
-
-.policy-section ul {
-  margin: 0;
-  padding-left: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.policy-section li {
-  font-size: 0.85rem;
-  color: #333333;
-  line-height: 1.4;
-}
-
-.contact-box {
-  background-color: #f9f9f9;
-  border: 1px dashed #000000;
-  padding: 12px;
-  border-radius: 6px;
-}
-
 .effective-date {
   font-size: 0.8rem;
   color: #666666;
   text-align: center;
   margin-top: 8px;
+}
+
+@media (max-width: 768px) {
+  main {
+    margin-left: 0;
+    width: 100%;
+    padding: 12px;
+  }
+
+  .policy-card {
+    height: 90vh;
+    max-width: 100%;
+  }
+
+  .policy-header {
+    padding: 12px 14px;
+  }
+
+  .policy-header h1 {
+    font-size: 1.1rem;
+  }
+
+  .scroll-content {
+    padding: 14px;
+    gap: 12px;
+  }
 }
 </style>

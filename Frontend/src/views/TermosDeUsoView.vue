@@ -1,7 +1,7 @@
 <script setup>
 import { useRouter } from 'vue-router'
-import PolicySection from './PolicySection.vue'
-import { termsData } from './termsData.js'
+import PolicySection from '../components/PolicySection.vue'
+import { termsData } from '../data/termsData.js'
 
 const router = useRouter()
 
@@ -41,7 +41,6 @@ function voltar() {
 
         <hr class="divider" />
 
-        <!-- Renderização dinâmica das seções -->
         <PolicySection 
           v-for="(section, index) in termsData.sections" 
           :key="index"
@@ -50,7 +49,6 @@ function voltar() {
           :items="section.items"
         />
 
-        <!-- Seção de Contato -->
         <PolicySection 
           title="Contato"
           content="Se você tiver alguma dúvida sobre estes Termos de Uso, entre em contato conosco:"
@@ -84,7 +82,6 @@ main {
   right: 0;
   box-sizing: border-box;
   overflow: hidden;
-  overflow-x: hidden;
 }
 
 .policy-card {
@@ -193,5 +190,31 @@ main {
   color: #666666;
   text-align: center;
   margin-top: 8px;
+}
+
+@media (max-width: 768px) {
+  main {
+    margin-left: 0;
+    width: 100%;
+    padding: 12px;
+  }
+
+  .policy-card {
+    height: 90vh;
+    max-width: 100%;
+  }
+
+  .policy-header {
+    padding: 12px 14px;
+  }
+
+  .policy-header h1 {
+    font-size: 1.1rem;
+  }
+
+  .scroll-content {
+    padding: 14px;
+    gap: 12px;
+  }
 }
 </style>
