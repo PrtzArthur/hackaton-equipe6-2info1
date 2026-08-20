@@ -27,7 +27,7 @@ router.post('/cadastro', async (req, res) => {
     await pool.query(
       `INSERT INTO Usuario (id_usuario, username, nome, email, senha, status_online) 
        VALUES (?, ?, ?, ?, ?, ?)`,
-      [id_usuario, username.replace('@', ''), nome, email, senhaCriptografada, true]
+      [id_usuario, username.replace('@', ''), nome, email, senhaCriptografada, 1]
     );
 
     const token = jwt.sign({ id: id_usuario }, process.env.JWT_SECRET, { expiresIn: '7d' });
@@ -65,7 +65,7 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ erro: 'Usuário ou senha incorretos.' });
     }
 
-    await pool.query('UPDATE Usuario SET status_online = TRUE WHERE id_usuario = ?', [usuario.id_usuario]);
+    await pool.query('UPDATE Usuario SET status_online = 1 WHERE id_usuario = ?', [usuario.id_usuario]);
 
     const token = jwt.sign({ id: usuario.id_usuario }, process.env.JWT_SECRET, { expiresIn: '7d' });
 

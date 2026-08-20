@@ -12,6 +12,7 @@ import CriarView from '@/views/CriarView.vue'
 import UsuarioView from '@/views/UsuarioView.vue'
 import AvisosView from '@/views/AvisosView.vue'
 import RecSenhaView from '@/views/RecSenhaView.vue'
+import paginaErroView from '@/views/PaginaErroView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -44,43 +45,43 @@ const router = createRouter({
       path: '/salvar',
       name: 'Salvar',
       component: SalvarView,
-      meta: { requiresAuth: true }
+      meta: { requiresAuth: false }
     },
     {
       path: '/avisos',
       name: 'Avisos',
       component: AvisosView,
-      meta: { requiresAuth: true }
+      meta: { requiresAuth: false }
     },
     {
       path: '/criar/:id',
       name: 'Criar',
       component: CriarView,
-      meta: { requiresAuth: true }
+      meta: { requiresAuth: false }
     },
     {
       path: '/usuario/:id',
       name: 'Usuário',
       component: UsuarioView,
-      meta: { requiresAuth: true }
+      meta: { requiresAuth: false }
     },
     {
       path: '/chat',
       name: 'Chat',
       component: ChatView,
-      meta: { requiresAuth: true }
+      meta: { requiresAuth: false }
     },
     {
       path: '/eventos',
       name: 'Eventos',
       component: EventosView,
-      meta: { requiresAuth: true }
+      meta: { requiresAuth: false }
     },
     {
       path: '/explorar',
       name: 'Explorar',
       component: ExplorarView,
-      meta: { requiresAuth: true }
+      meta: { requiresAuth: false }
     },
     {
       path: '/politica-de-privacidade',
@@ -93,6 +94,13 @@ const router = createRouter({
       name: 'Home',
       component: HomeView,
       meta: { requiresAuth: true }
+    },
+    {
+      path: '/:pathMatch(.*)*',
+      name: 'PaginaErro',
+      component: paginaErroView,
+      meta: { ocultarHeader: true }
+      meta: { requiresAuth: false }
     }
   ],
 })
