@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import userBlackFull from '@/icons/userBlackFull.svg';
 import { useToast } from 'vue-toastification';
@@ -32,12 +32,15 @@ const paginaAtual = ref(1);
 const fimDoFeed = ref(false);
 const meuIdLogado = ref('');
 
+const textoBusca = ref('');
 async function carregarTimelineGlobal(novaPagina = 1) {
   if (novaPagina === 1) carregandoFeed.value = true;
   else carregandoMais.value = true;
 
   try {
-    const resposta = await fetch(`http://localhost:3000/api/criar/feed/global?page=${novaPagina}&meuId=${meuIdLogado.value}`);
+    const termo = encodeURIComponent(textoBusca.value.trim());
+    const url = `http://localhost:3000/api/criar/feed/global?page=${novaPagina}&meuId=${meuIdLogado.value}&busca=${termo}`;
+    const resposta = await fetch(url);
 
     if (resposta.ok) {
       const novosPosts = await resposta.json();
@@ -54,13 +57,70 @@ async function carregarTimelineGlobal(novaPagina = 1) {
       paginaAtual.value = novaPagina;
     }
   } catch (erro) {
-    console.error("Erro ao carregar a timeline do IFchat:", erro);
+    console.error("Erro ao filtrar a timeline:", erro);
   } finally {
     carregandoFeed.value = false;
     carregandoMais.value = false;
   }
 }
+let temporizadorBusca = null;
+watch(textoBusca, () => {
+  clearTimeout(temporizadorBusca);
 
+  temporizadorBusca = setTimeout(() => {
+    fimDoFeed.value = false;
+    carregandoFeed.value = true;
+    carregarTimelineGlobal(1);
+  }, 300);
+});
+async function curtirPost(postagemAlvo, idUsuarioLogado, tipoEscolhido) {
+  if (!idUsuarioLogado) {
+    toast.warning("Você precisa estar logado para interagir!");
+    return;
+  }
+
+  try {
+    const resposta = await fetch('http://localhost:3000/api/criar/curtir/postagem', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        idDoUsuario: idUsuarioLogado,
+        idDaPostagem: postagemAlvo.id_postagem,
+        tipoVoto: tipoEscolhido
+      })
+    });
+
+    const dados = await resposta.json();
+
+    if (resposta.ok) {
+      const votoAntigo = postagemAlvo.meu_voto_post;
+
+      postagemAlvo.meu_voto_post = dados.votoAtual;
+
+      if (dados.votoAtual === null) {
+        if (votoAntigo === 'like') postagemAlvo.total_likes--;
+        if (votoAntigo === 'dislike') postagemAlvo.total_dislikes--;
+      }
+      else if (!votoAntigo) {
+        if (dados.votoAtual === 'like') postagemAlvo.total_likes++;
+        if (dados.votoAtual === 'dislike') postagemAlvo.total_dislikes++;
+      }
+      else if (votoAntigo !== dados.votoAtual) {
+        if (dados.votoAtual === 'like') {
+          postagemAlvo.total_likes++;
+          postagemAlvo.total_dislikes--;
+        } else {
+          postagemAlvo.total_likes--;
+          postagemAlvo.total_dislikes++;
+        }
+      }
+    } else {
+      toast.error(dados.erro || "Falha ao registrar interação.");
+    }
+  } catch(erro) {
+    console.error('Erro ao curtir post:', erro);
+  }
+}
 async function votarNaEnquete(idOpcao, idPostagem) {
   try {
     const resposta = await fetch('http://localhost:3000/api/criar/enquetes/votar/opcao', {
@@ -76,44 +136,23 @@ async function votarNaEnquete(idOpcao, idPostagem) {
     const dados = await resposta.json();
 
     if (resposta.ok) {
+      toast.success(dados.mensagem || "Voto processado!");
+
       const postAlvo = postagensFeedGlobal.value.find(p => p.id_postagem === idPostagem);
 
       if (postAlvo) {
-        const opcaoAlvo = postAlvo.opcoes.find(o => o.id_opcao === idOpcao);
-
-        if (dados.status === 'votado') {
-          postAlvo.opcoes.forEach(o => {
-            if (o.votadoPorMim) {
-              o.votadoPorMim = false;
-              o.votos = Math.max(0, o.votos - 1);
-            }
-          });
-
-          opcaoAlvo.votadoPorMim = true;
-          opcaoAlvo.votos += 1;
-          postAlvo.jaVotado = true;
-        }
-        else if (dados.status === 'desmarcado') {
-          opcaoAlvo.votadoPorMim = false;
-          opcaoAlvo.votos = Math.max(0, opcaoAlvo.votos - 1);
-          postAlvo.jaVotado = postAlvo.opcoes.some(o => o.votadoPorMim);
-        }
-
-        const totalVotosPost = postAlvo.opcoes.reduce((acc, o) => acc + o.votos, 0);
-        postAlvo.totalVotosGeral = totalVotosPost;
-
-        postAlvo.opcoes.forEach(o => {
-          o.porcentagem = totalVotosPost > 0 ? Math.round((o.votos / totalVotosPost) * 100) : 0;
-        });
+        postAlvo.opcoes = dados.novasOpcoes;
+        postAlvo.totalVotosGeral = dados.totalVotosGeral;
+        postAlvo.jaVotado = dados.jaVotado;
       }
+
     } else {
       toast.error(dados.erro || 'Erro com o voto');
     }
   } catch (erro) {
     console.error('Erro ao votar', erro);
   }
-}
-
+};
 function irParaPerfilDoAutor(idAutor) {
   router.push(`/usuario/${idAutor}`);
 }
@@ -132,7 +171,7 @@ onMounted(() => {
 
 <template>
   <main>
-    <input  type="text" placeholder="Procurar por..." class="barra-de-pesquisa">
+    <input v-model.trim="textoBusca" type="text" placeholder="Procurar por..." class="barra-de-pesquisa">
     <section class="coluna-central-feed">
       <div v-if="carregandoFeed" class="aviso-carregando-home">
         <span class="texto-aviso">Buscando publicações do IFC...</span>
@@ -165,17 +204,16 @@ onMounted(() => {
 
                 <button
                   type="button"
-                  @click="votarNaEnquete(opcao.id_opcao, post.id_postagem)"
+                  @click.stop.prevent="votarNaEnquete(opcao.id_opcao, post.id_postagem)"
                   class="btn-enquete-dinamico"
                   :class="{ 'opcao-selecionada-local': opcao.votadoPorMim }"
-                  :disabled="post.autor.id === meuIdLogado"
-                >
+                  :disabled="post.autor.id === meuIdLogado">
                   <div v-if="post.jaVotado" class="fundo-progresso-verde" :style="{ width: opcao.porcentagem + '%' }"></div>
 
                   <div class="conteudo-resultado-linha">
                     <span class="texto-opcao-voto">
                       {{ opcao.texto_opcao }}
-                      <strong v-if="opcao.votadoPorMim">!</strong>
+                      <strong v-if="opcao.votadoPorMim" class="opcao-escolhida">★</strong>
                     </span>
                     <span v-if="post.jaVotado || post.autor.id === meuIdLogado" class="porcentagem-texto-voto">{{ opcao.porcentagem }}%</span>
                   </div>
@@ -190,8 +228,16 @@ onMounted(() => {
             </span>
           </div>
           <div class="div-botoes-postagens">
-            <button :disabled="post.autor.id === meuIdLogado" class="btn-post"><img v-if="curtido" :src="likePreenchido" alt=""><img v-else :src="likeInline" alt="curtir"></button>
-            <button :disabled="post.autor.id === meuIdLogado" class="btn-post"><img v-if="naoCurtido" :src="dislikePreenchido" alt=""><img v-else :src="dislikeInline" alt="não curtir"></button>
+            <button :disabled="post.autor.id === meuIdLogado" class="btn-post" @click.prevent="curtirPost(post, meuIdLogado, 'like')">
+              <img v-if="post?.meu_voto_post === 'like'" :src="likePreenchido" alt="Curtido">
+              <img v-else :src="likeInline" alt="curtir">
+            </button>
+            <span class="qnt-likes-dislikes">{{ post.total_likes }}</span>
+            <button :disabled="post.autor.id === meuIdLogado" class="btn-post" @click.prevent="curtirPost(post, meuIdLogado, 'dislike')">
+              <img v-if="post?.meu_voto_post === 'dislike'" :src="dislikePreenchido" alt="Descurtido">
+              <img v-else :src="dislikeInline" alt="não curtir">
+            </button>
+            <span class="qnt-likes-dislikes">{{ post.total_dislikes }}</span>
             <button class="btn-post" @click="abrirMural(post)"><img :src="comentarios" alt="comentar"></button>
             <button class="btn-post"><img :src="compartilhar" alt="compartilhar"></button>
             <button class="btn-post"><img v-if="!naoSalvo" :src="marcadorInline" alt=""><img v-else :src="marcadorPreenchido" alt="não curtir"></button>
@@ -210,7 +256,7 @@ onMounted(() => {
           >
             {{ carregandoMais ? 'Buscando mais posts...' : 'Carregar mais publicações' }}
           </button>
-          <span v-else class="texto-fim-feed">✨ Você chegou ao fim da timeline do IFchat! ✨</span>
+          <span v-else class="texto-fim-feed">Você chegou ao fim da timeline do IFchat!</span>
         </div>
       </div>
     </section>
@@ -224,7 +270,6 @@ onMounted(() => {
 
 <style scoped>
 main {
-  background-color: rgba(85, 255, 51, 0.14);
   height: 100vh;
   flex-grow: 1;
   padding: 1.5vw;
@@ -261,6 +306,14 @@ section {
   border-radius: 50%;
   background-color: #fff;
   border: none;
+}
+.opcao-escolhida {
+  color: #319e00;
+  font-size: 0.8vw;
+  margin-bottom: 0.7vw;
+}
+.texto-opcao-voto {
+  font-size: 1vw;
 }
 .btn-post:hover {
   background-color: #f9f9f9;
@@ -378,6 +431,10 @@ section {
   padding: 1.5vw 0;
   width: 100%;
 }
+.qnt-likes-dislikes {
+  font-size: 1vw;
+  color: #7a7a7a;
+}
 .btn-carregar-mais {
   background-color: #fff;
   border: 1px solid #3CBC00;
@@ -416,6 +473,8 @@ section {
   font-size: 1vw;
   color: #111;
   margin: 0;
+  overflow-wrap: break-word;
+  max-width: 32vw;
 }
 .data-do-post {
   font-size: 0.8vw;
