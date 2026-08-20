@@ -128,6 +128,22 @@ const nomeEdit = ref('');
 
 const showWarningNome = ref(false);
 
+const modoEscuroAtivo = ref(false);
+watch(modoEscuroAtivo, (novoEstado) => {
+  if (novoEstado) {
+    document.documentElement.setAttribute('data-theme', 'dark');
+    localStorage.setItem('ifchat_theme', 'dark');
+  } else {
+    document.documentElement.removeAttribute('data-theme');
+    localStorage.setItem('ifchat_theme', 'light');
+  }
+});
+onMounted(() => {
+  const temaSalvo = localStorage.getItem('ifchat_theme');
+  if (temaSalvo === 'dark') {
+    modoEscuroAtivo.value = true;
+  }
+});
 function adicionarNovasTags() {
  adicionarTag.value = !adicionarTag.value;
 }
@@ -136,7 +152,6 @@ async function curtirPost(postagemAlvo, idUsuarioLogado, tipoEscolhido) {
     toast.warning("Você precisa estar logado para interagir!");
     return;
   }
-
   try {
     const resposta = await fetch('http://localhost:3000/api/criar/curtir/postagem', {
       method: 'POST',
@@ -509,12 +524,12 @@ onUnmounted(() => {
         </div>
         <div v-if="idUsuarioDaURL === meuIdLogado" class="botoes">
           <button @click="mostrarTelaConfiguracao" class="btnPerfil">
-            <img :src="gear" alt="">
-            <span>Configurações</span>
+            <img :src="gear" alt="" class="gear">
+            <span class="span-config">Configurações</span>
           </button>
           <button @click="mostrarJanelaEditor" class="btnPerfil">
-            <img :src="canetaEdicao" alt="">
-            <span>Editar Perfil</span>
+            <img :src="canetaEdicao" alt="" class="btn-edit">
+            <span class="span-edit">Editar Perfil</span>
           </button>
         </div>
         <div v-else class="botoesU">
@@ -550,11 +565,11 @@ onUnmounted(() => {
           </button>
         </div>
         <div class="spanInfo">
-          <img :src="dataCriacao" alt="Data-de-Criacao">
+          <img :src="dataCriacao" alt="Data-de-Criacao" class="Data-de-Criacao">
           <span class="titulo">Data de Criação:</span><span class="creationDate">{{ dataDeCriacao }}</span>
         </div>
         <div class="spanInfo">
-          <img :src="local" alt="local">
+          <img :src="local" alt="local" class="Data-de-Criacao">
           <span class="titulo">Localização:</span><span v-if="localizacao" class="localization">{{ localizacao }}</span>
           <span v-else class="localization">
             Nenhuma localização mencionada
@@ -581,7 +596,7 @@ onUnmounted(() => {
           </div>
           <div v-if="idUsuarioDaURL === meuIdLogado">
             <button @click="adicionarNovasTags" class="tag">
-              <img :src="plus" alt="adicionar-tag">
+              <img :src="plus" alt="adicionar-tag" class="plus">
             </button>
           </div>
           </div>
@@ -602,7 +617,7 @@ onUnmounted(() => {
         <div class="postagens">
   <h3>Postagens</h3>
   <div v-if="postagens.length === 0" class="caixa-postagens-vazia">
-    <img :src="interrogacao" alt="Sem postagens">
+    <img :src="interrogacao" alt="Sem postagens" class="interrogacao">
     <span class="textoDeAviso">Ainda não há nenhuma postagem</span>
   </div>
   <div v-else class="lista-de-posts-real">
@@ -629,7 +644,7 @@ onUnmounted(() => {
               <div class="conteudo-resultado-linha">
                 <span class="texto-opcao-voto">
                   {{ opcao.texto_opcao }}
-                  <strong v-if="opcao.votadoPorMim" class="opcao-escolhida">!</strong>
+                  <strong v-if="opcao.votadoPorMim" class="opcao-escolhida">★</strong>
                 </span>
                 <span v-if="postagem.jaVotado || idUsuarioDaURL === meuIdLogado" class="porcentagem-texto-voto">{{ opcao.porcentagem }}%</span>
               </div>
@@ -645,18 +660,18 @@ onUnmounted(() => {
       </div>
       <div class="div-botoes-postagens">
        <button :disabled="idUsuarioDaURL === meuIdLogado" class="btn-post" @click="curtirPost(postagem, meuIdLogado, 'like')">
-         <img v-if="postagem.meu_voto_post === 'like'" :src="likePreenchido" alt="Curtido">
-         <img v-else :src="likeInline" alt="curtir">
+         <img v-if="postagem.meu_voto_post === 'like'" :src="likePreenchido" alt="Curtido" class="btn-preenchido">
+         <img v-else :src="likeInline" alt="curtir" class="btn-post-img">
        </button>
-        <span>{{ postagem.total_likes }}</span>
+        <span class="qnt-likes-dislikes">{{ postagem.total_likes }}</span>
         <button :disabled="idUsuarioDaURL === meuIdLogado" class="btn-post" @click="curtirPost(postagem, meuIdLogado, 'dislike')">
-          <img v-if="postagem.meu_voto_post === 'dislike'" :src="dislikePreenchido" alt="Descurtido">
-          <img v-else :src="dislikeInline" alt="não curtir">
+          <img v-if="postagem.meu_voto_post === 'dislike'" :src="dislikePreenchido" alt="Descurtido" class="btn-preenchido">
+          <img v-else :src="dislikeInline" alt="não curtir" class="btn-post-img">
         </button>
-        <span>{{ postagem.total_dislikes }}</span>
-        <button class="btn-post" @click="abrirMural(postagem)"><img :src="comentarios" alt="comentar"></button>
-        <button class="btn-post"><img :src="compartilhar" alt="compartilhar"></button>
-        <button class="btn-post"><img v-if="!naoSalvo" :src="marcadorInline" alt=""><img v-else :src="marcadorPreenchido" alt="marcar"></button>
+        <span class="qnt-likes-dislikes">{{ postagem.total_dislikes }}</span>
+        <button class="btn-post" @click="abrirMural(postagem)"><img :src="comentarios" alt="comentar" class="btn-post-img"></button>
+        <button class="btn-post"><img :src="compartilhar" alt="compartilhar" class="btn-post-img"></button>
+        <button class="btn-post"><img v-if="!naoSalvo" :src="marcadorInline" alt="" class="btn-post-img"><img v-else :src="marcadorPreenchido" alt="marcar" class="btn-preenchido"></button>
       </div>
       <div class="divDeleteEPublicacao">
         <span class="data-do-post">
@@ -672,7 +687,7 @@ onUnmounted(() => {
         <div class="mural">
           <h3>Mural</h3>
           <div v-if="comentariosMural.length === 0" class="caixa-mural-vazia">
-            <img :src="interrogacao" alt="Mural Vazio">
+            <img :src="interrogacao" alt="Mural Vazio" class="interrogacao">
             <span class="textoDeAviso">Ninguém comentou nada ainda</span>
           </div>
           <div v-else class="listaDasPostagens">
@@ -809,7 +824,7 @@ onUnmounted(() => {
               <label for="checkBoxToggle" class="labelME">
                 <span>Modo Escuro</span>
               <div class="switch-container">
-                <input type="checkbox" class="chekbox-Oculto" id="checkBoxToggle">
+                <input v-model="modoEscuroAtivo" type="checkbox" class="chekbox-Oculto" id="checkBoxToggle">
                 <span class="trilha">
                   <span class="circulo"></span>
                 </span>
@@ -847,7 +862,6 @@ onUnmounted(() => {
 
 <style scoped>
 main {
-  background-color: rgba(85, 255, 51, 0.14);
   height: 100vh;
   flex-grow: 1;
   padding: 1.5vw;
@@ -877,11 +891,12 @@ main {
   flex-wrap: wrap;
 }
 .marcado-para-manter-form {
-  background-color: #fff;
-  border: 1px solid #000;
+  background-color: var(--fundo-card);
+  border: var(--borda-padrao);
   width: 100%;
   font-size: 1vw;
   padding: 0.5vw;
+  color: var(--texto-principal);
   border-radius: 6px;
 }
 .div-botoes-postagens {
@@ -890,7 +905,7 @@ main {
 
 }
 .marcado-para-manter-form:hover {
-  background-color: #f9f9f9;
+  background-color: var(--hover-botoes);
   cursor: pointer;
   transition: 0.2s;
 }
@@ -918,11 +933,11 @@ main {
   width: 2.5vw;
   height: 2.5vw;
   border-radius: 50%;
-  background-color: #fff;
+  background-color: var(--fundo-card);
   border: none;
 }
 .btn-post:hover {
-  background-color: #f9f9f9;
+  background-color: var(--hover-botoes);
   cursor: pointer;
   transition: 0.2s;
 }
@@ -931,13 +946,17 @@ main {
   margin: 0.5vw auto;
   flex-wrap: wrap;
   gap: 0.4vw;
-  border-top: 0.8px solid #000;
+  border-top: var(--borda-padrao);
   padding-top: 0.5vw;
 }
 .btnLixeira {
-  background-color: #fff;
+  background-color: var(--fundo-card);
   border: none;
   cursor: pointer;
+  border-radius: 50%;
+}
+.btnLixeira:hover {
+  background-color: var(--hover-botoes);
 }
 .spanLogout {
   color: #cf0000;
@@ -961,7 +980,7 @@ main {
   width: 100%;
 }
 .btnPerfilFavorito {
-  background-color: #fff;
+  background-color: var(--fundo-card);
   border-radius: 50%;
   border: none;
 }
@@ -969,6 +988,7 @@ main {
   display: flex !important;
   align-items: center !important;
   justify-content: space-between;
+  width: 100%;
 }
 .chekbox-Oculto {
   opacity: 0;
@@ -1022,7 +1042,7 @@ main {
   font-weight: bold;
 }
 .tituloPrincipal {
-  border-bottom: 1px solid #000;
+  border-bottom: var(--borda-padrao);
   margin: -2px;
   padding: 1vw;
   font-size: 1.7vw;
@@ -1054,7 +1074,7 @@ main {
   width: 0.8vw;
   height: 0.8vw;
   border-radius: 50%;
-  border: 2px solid #fff;
+  border: var(--fundo-card);
   box-sizing: border-box;
 }
 .bolinha-status-favorito.online {
@@ -1066,7 +1086,7 @@ main {
 .lista-de-posts-real {
   display: flex;
   flex-direction: column;
-  border: 1px solid #000;
+  border: var(--borda-padrao);
   margin-top: 0.5vw;
   border-radius: 6px;
   padding: 1vw;
@@ -1094,7 +1114,7 @@ main {
 .card-favorito {
   display: flex;
   flex-direction: column;
-  border: 1px solid #000;
+  border: var(--borda-padrao);
   text-overflow: ellipsis;
   overflow: hidden;
   width: 6vw;
@@ -1105,7 +1125,7 @@ main {
   border-radius: 6px;
 }
 .card-favorito:hover {
-  background-color: #f9f9f9;
+  background-color: var(--hover-botoes);
   transition: 0.2s;
   cursor: pointer;
 }
@@ -1114,7 +1134,7 @@ main {
   flex-wrap: wrap;
   gap: 0.4vw;
   margin-top: 0.5vw;
-  border: 1px solid #000;
+  border: var(--borda-padrao);
   padding: 0.5vw;
   height: 9vw;
   border-radius: 6px;
@@ -1125,7 +1145,7 @@ main {
   font-weight: bolder;
 }
 .cartao-postagem-usuario {
-  border: 1px solid #000;
+  border: var(--borda-padrao);
   display: flex;
   flex-direction: column;
   padding: 1vw;
@@ -1138,12 +1158,14 @@ main {
 .inputFormEdit {
   padding: 0.7vw;
   border-radius: 10px;
-  border: 1px solid #000;
+  border: var(--borda-padrao);
+  background-color: var(--fundo-card);
+  color: var(--texto-principal);
 }
 .divLogoutEDeleteAccount {
   display: flex !important;
   flex-direction: row !important;
-  border-bottom: 1px solid #000;
+  border-bottom: var(--borda-padrao);
   padding: 0.5vw 0;
   align-items: center;
   gap: 0.2vw;
@@ -1151,7 +1173,7 @@ main {
 .divLogoutEDeleteAccount button {
   border: none !important;
   padding: 0 !important;
-  color: #cf0000;
+  color: #cf0000 !important;
   align-items: center !important;
   text-align: left;
   height: 100%;
@@ -1159,10 +1181,10 @@ main {
 }
 .divLogoutEDeleteAccount button:hover {
   cursor: pointer;
-  color: #ff0000;
+  color: #ff0000 !important;
 }
 .btnSeguir {
-  background-color: #3CBC00;
+  background-color: var(--fundo-card-va);
   color: #fff;
   border: none;
   display: flex;
@@ -1175,7 +1197,7 @@ main {
 }
 .btnSeguir:hover {
   cursor: pointer;
-  background-color: #37ad00;
+  background-color: var(--fundo-card-va-hover);
   transition: 0.2s;
 }
 .containerConfig div {
@@ -1184,7 +1206,7 @@ main {
 }
 .containerConfig div h3 {
   padding: 0.6vw 0;
-  border-bottom: 1px solid #000;
+  border-bottom: var(--borda-padrao);
   font-weight: bolder;
 }
 .imgLogout {
@@ -1196,19 +1218,20 @@ main {
   display: flex !important;
   flex-direction: row !important;
   justify-content: space-between;
-  border-bottom: 1px solid #000;
+  border-bottom: var(--borda-padrao);
   padding: 0.5vw 0;
   font-weight: bold;
   font-size: 0.9vw;
 }
 .containerConfig div button {
-  background-color: #fff;
+  background-color: var(--fundo-card);
   border: none;
-  border-bottom: 1px solid #000;
+  border-bottom: var(--borda-padrao);
   padding: 0.5vw 0;
   text-align: left;
   font-weight: bold;
   font-size: 0.9vw;
+  color: var(--texto-principal);
 }
 .containerConfig {
   padding: 0.25vw;
@@ -1241,7 +1264,7 @@ main {
   font-size: 1vw;
 }
 section.configuracoes {
-  background-color: #fff;
+  background-color: var(--fundo-card);
   position: fixed;
   width: 40%;
   top: 0;
@@ -1251,7 +1274,7 @@ section.configuracoes {
   margin-top: 4vw;
   margin-bottom: 3vw;
   border-radius: 9px;
-  border: 1px solid #000;
+  border: var(--borda-padrao);
   scrollbar-color: #ccc transparent;
   overflow-y: auto;
   scrollbar-width: thin;
@@ -1265,7 +1288,7 @@ section.configuracoes {
   height: auto;
   position: relative;
   border-radius: 10px;
-  border: 1px solid #000;
+  border: var(--borda-padrao);
   margin: 0.3vw 0;
 }
 .imagem-revelada-post {
@@ -1282,8 +1305,10 @@ section.configuracoes {
   box-sizing: border-box;
 }
 .opcao-escolhida {
-  color: #319e00;
+  color: var(--opcao-escolhida);
   font-weight: normal;
+  font-size: 1.3vw;
+  margin-bottom: 0.2vw;
 }
 .lista-opcoes-voto {
   display: flex;
@@ -1295,11 +1320,15 @@ section.configuracoes {
   width: 100%;
   position: relative;
 }
+.qnt-likes-dislikes {
+  font-size: 1vw;
+  color: var(--texto-suave);
+}
 .btn-enquete-dinamico {
   position: relative;
   width: 100%;
   height: 2.3vw;
-  background-color: #ffffff;
+  background-color: var(--fundo-card);
   border: 1px solid #ccc;
   border-radius: 6px;
   overflow: hidden;
@@ -1311,18 +1340,18 @@ section.configuracoes {
   transition: border-color 0.2s, background-color 0.2s;
 }
 .btn-enquete-dinamico:hover {
-  border-color: #3CBC00;
+  border-color: var(--fundo-card-va);
   background-color: rgba(60, 188, 0, 0.02);
 }
 .opcao-selecionada-local {
-  border: 1.5px solid #3CBC00 !important;
+  border: 1.5px solid var(--fundo-card-va) !important;
 }
 .fundo-progresso-verde {
   position: absolute;
   top: 0;
   left: 0;
   bottom: 0;
-  background-color: rgba(60, 188, 0, 0.22);
+  background-color: var(--fundo-opcao-enquete);
   transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
   z-index: 1;
 }
@@ -1336,7 +1365,7 @@ section.configuracoes {
   z-index: 2;
   font-family: inherit;
   font-size: 0.95vw;
-  color: #000;
+  color: var(--texto-principal);
   font-weight: 500;
   pointer-events: none;
 }
@@ -1344,14 +1373,15 @@ section.configuracoes {
   display: flex;
   align-items: center;
   gap: 0.3vw;
+  color: var(--texto-principal);
 }
 .porcentagem-texto-voto {
   font-weight: bold;
-  color: #3CBC00;
+  color: var(--fundo-card-va);
 }
 .total-votos-legenda {
   font-size: 0.8vw;
-  color: #7a7a7a;
+  color: var(--texto-suave);
   margin-top: 0.2vw;
   font-style: italic;
 }
@@ -1363,6 +1393,9 @@ section.configuracoes {
   width: 100%;
   text-overflow: ellipsis;
   display: block;
+}
+.span-edit {
+  color: var(--texto-principal);
 }
 .textarea {
   max-width: 37.89vw;
@@ -1381,19 +1414,19 @@ section.configuracoes {
   width: 100%;
 }
 .imageInput::-webkit-file-upload-button:hover {
-  background-color: #37ad00;
+  background-color: var(--fundo-card-va-hover);
   border-color: #b5b5b5;
 }
 .imageInput {
   font-size: 0.9vw;
-  color: #333;
+  color: var(--texto-suave);
   font-family: inherit;
   cursor: pointer;
 }
 .labelMidiPerfil {
   font-weight: bold;
   font-size: 1vw;
-  color: #000;
+  color: var(--texto-principal);
   text-align: left;
 }
 .linha-controle-midia-edit {
@@ -1402,7 +1435,7 @@ section.configuracoes {
   gap: 0.7vw;
 }
 .imageInput::-webkit-file-upload-button {
-  background-color: #3CBC00;
+  background-color: var(--fundo-card-va);
   border: 1px solid #ccc;
   border-radius: 6px;
   padding: 0.4vw 0.8vw;
@@ -1415,7 +1448,7 @@ section.configuracoes {
 }
 .overlayFormTitulo {
   width: 100%;
-  background-color: #3CBC00;
+  background-color: var(--fundo-card-va);
   color: #fff;
   height: 100%;
   padding: 1vw;
@@ -1426,12 +1459,12 @@ section.configuracoes {
   border-radius: 10px;
   font-size: 1vw;
   border: none;
-  background-color: #3CBC00;
+  background-color: var(--fundo-card-va);
   font-weight: bold;
   color: #fff;
 }
 .salvarAlteracoes:hover {
-background-color: #37ad00;
+background-color: var(--fundo-card-va-hover);
 cursor: pointer;
 }
 .cancelarAlteracoes {
@@ -1439,11 +1472,11 @@ cursor: pointer;
   width: 7.2vw;
   border-radius: 10px;
   font-size: 1vw;
-  border: 1px solid #000;
-  background-color: #fff;
+  border: var(--borda-padrao);
+  background-color: var(--fundo-card);
 }
 .cancelarAlteracoes:hover {
-  background-color: #e7e7e7;
+  background-color: var(--hover-botoes);
   cursor: pointer;
 }
 .formularioDeEdicao {
@@ -1453,9 +1486,9 @@ cursor: pointer;
   color: #cf0000;
 }
 .form {
-  background-color: #fff;
+  background-color: var(--fundo-card);
   width: 40vw;
-  border: 0.8px solid #000;
+  border: var(--borda-padrao);
   display: flex;
   flex-direction: column;
   border-radius: 10px;
@@ -1474,6 +1507,9 @@ cursor: pointer;
   width: 100%;
   gap: 0.5vw;
   margin: 0.5vw;
+}
+.span-config {
+  color: var(--texto-principal);
 }
 .overlay {
   position: fixed;
@@ -1506,13 +1542,13 @@ cursor: pointer;
   cursor: pointer;
 }
 .tag {
-  border: 0.8px solid #000;
-  background-color: #fff;
+  border: var(--borda-padrao);
+  background-color: var(--fundo-card);
   border-radius: 100px;
   padding: 0.3vw 0.3vw;
   display: flex;
   align-items: center;
-  color: #000;
+  color: var(--texto-principal);
   justify-content: center;
 }
 .texto-do-post {
@@ -1521,12 +1557,12 @@ cursor: pointer;
   max-width: 32vw;
 }
 .tag:hover {
-  background-color: #e7e7e7;
+  background-color: var(--hover-botoes);
   transition: 0.2s;
   cursor: pointer;
 }
 .indicadorDeLimite {
-  color: #8b8b8b;
+  color: var(--texto-suave);
   position: absolute;
   bottom: 0;
   right: 0.2vw;
@@ -1534,7 +1570,7 @@ cursor: pointer;
 }
 .biografiaFieldset {
   display: flex;
-  border: 1px dashed #000;
+  border: var(--borda-dashed);
   margin-top: 0.5vw;
   border-radius: 6px;
   padding: 0.7vw;
@@ -1548,7 +1584,7 @@ cursor: pointer;
   width: 100%;
   max-width: 100%;
   font-size: 1vw;
-  color: #333;
+  color: var(--texto-suave);
   margin: 0;
   line-height: 1.4;
   text-align: left;
@@ -1556,7 +1592,7 @@ cursor: pointer;
   top: 0;
 }
 .textoDeAviso {
-  color: #8b8b8b;
+  color: var(--texto-suave);
 }
 .semBiografia {
   display: flex;
@@ -1576,7 +1612,7 @@ cursor: pointer;
   width: 1.45vw;
 }
 .btnChat {
-  background-color: #3CBC00;
+  background-color: var(--fundo-card-va);
   color: #fff;
   border: none;
   display: flex;
@@ -1589,15 +1625,15 @@ cursor: pointer;
 }
 .btnChat:hover {
   cursor: pointer;
-  background-color: #37ad00;
+  background-color: var(--fundo-card-va-hover);
 }
 .btn-notificacoes {
   width: 4vw;
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #fff;
-  border: 1px solid #000;
+  background-color: var(--fundo-card);
+  border: var(--borda-padrao);
   border-radius: 20px;
 }
 .botoesU {
@@ -1610,17 +1646,17 @@ cursor: pointer;
   justify-content: space-between;
 }
 .btnPerfil {
-  background-color: #fff;
+  background-color: var(--fundo-card);
   border-radius: 100px;
   display: flex;
   align-items: center;
   align-items: center;
   gap: 5px;
   padding: 1px 7px;
-  border: 0.8px solid #000;
+  border: var(--borda-padrao);
 }
 .localization , .creationDate {
-  color: #8b8b8b
+  color: var(--texto-suave);
 }
 .spanInfo {
   display: flex;
@@ -1629,11 +1665,11 @@ cursor: pointer;
   gap: 0.4vw;
 }
 .btnPerfil:hover {
-  background-color: #e7e7e7;
+  background-color: var(--hover-botoes);
   cursor: pointer;
 }
 section.telaDeExibicao {
-  background-color: #fff;
+  background-color: var(--fundo-card);
   position: fixed;
   width: 40%;
   top: 0;
@@ -1643,17 +1679,73 @@ section.telaDeExibicao {
   margin-top: 4vw;
   margin-bottom: 3vw;
   border-radius: 9px;
-  border: 1px solid #000;
+  border: var(--borda-padrao);
   scrollbar-color: #ccc transparent;
   overflow-y: auto;
   scrollbar-width: thin;
   padding: 2px;
 }
+[data-theme="dark"] .imgDelete {
+  filter: invert(1);
+  transition: filter 0.3s ease;
+}
+[data-theme="dark"] .gear {
+  filter: invert(1);
+  transition: filter 0.3s ease;
+}
+[data-theme="dark"] .Data-de-Criacao {
+  filter: invert(1);
+  transition: filter 0.3s ease;
+}
+[data-theme="dark"] .setaVoltar {
+  filter: invert(1);
+  transition: filter 0.3s ease;
+}
+[data-theme="dark"] .btn-post-img {
+  filter: invert(1);
+  transition: filter 0.3s ease;
+}
+[data-theme="dark"] .btn-edit {
+  filter: invert(1);
+  transition: filter 0.3s ease;
+}
+[data-theme="dark"] .plus {
+  filter: invert(1);
+  transition: filter 0.3s ease;
+}
+[data-theme="dark"] .btn-preenchido {
+  filter: hue-rotate(135deg) saturate(1.8) brightness(1.1);
+  transition: filter 0.3s ease;
+}
+[data-theme="dark"] .favoritarPerfilDeUsuario {
+  filter: hue-rotate(135deg) saturate(1.8) brightness(1.1);
+  transition: filter 0.3s ease;
+}
+[data-theme="dark"] .fotoPerfilDefault {
+  filter: invert(1);
+  transition: filter 0.3s ease;
+}
+[data-theme="dark"] .sininhoNotificacao {
+  filter: invert(1);
+  transition: filter 0.3s ease;
+}
+[data-theme="dark"] .fotoPerfilDefault-favorito {
+  filter: invert(1);
+  transition: filter 0.3s ease;
+}
+[data-theme="dark"] .interrogacao {
+  filter: invert(1) brightness(100);
+  transition: filter 0.3s ease;
+}
+.setaVoltar {
+  width: 2vw;
+  height: 2vw;
+}
 .botaoVoltar {
   width: 3vw;
   height: 3vw;
-  background-color: #fff;
-  border: 1px solid #000;
+  background-color: var(--fundo-card);
+  border: var(--borda-padrao);
   border-radius: 5px;
   position: absolute;
   top: 0;
@@ -1661,16 +1753,12 @@ section.telaDeExibicao {
   margin-left: 13vw;
 }
 .botaoVoltar:hover {
-  background-color: #e7e7e7;
+  background-color: var(--hover-botoes);
   cursor: pointer;
-}
-.setaVoltar {
-  width: 2vw;
-  height: 2vw;
 }
 .bannerPerfil {
   height: 11vw;
-  background-color: #55ff3389;
+  background-color: var(--banner-default);
   margin: 0.5vw 0.5vw;
   border-radius: 5px;
   overflow: hidden;
@@ -1688,7 +1776,7 @@ section.telaDeExibicao {
   justify-content: center;
 }
 .fotoDePerfil {
-  background-color: #fff;
+  background-color: var(--fundo-card);
   margin-top: -3vw;
   margin-left: 1vw;
   margin-right: 0.5vw;
@@ -1719,10 +1807,10 @@ section.telaDeExibicao {
   opacity: 1 !important;
 }
 .spanSeguidores {
-  color: #8b8b8b;
+  color: var(--texto-suave);
 }
 .OnlineTexto , .OfflineTexto {
-  color: #8b8b8b;
+  color: var(--texto-suave);
   font-size: 0.95vw;
 }
 section::-webkit-scrollbar-track {
@@ -1765,7 +1853,7 @@ section::-webkit-scrollbar-thumb:hover {
 .caixa-postagens-vazia, .caixa-mural-vazia {
   display: flex;
   flex-direction: column;
-  border: 1px solid #000;
+  border: var(--borda-padrao);
   margin-top: 0.5vw;
   border-radius: 6px;
   padding: 1.5vw;
@@ -1778,7 +1866,7 @@ section::-webkit-scrollbar-thumb:hover {
   margin: 0 1vw 0.7vw 1vw;
   margin-top: 2vw;
   padding-top: 1vw;
-  border-top: 1px solid #000;
+  border-top: var(--borda-padrao);
 }
 .link-suporte {
   color: #00d2ff;

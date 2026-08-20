@@ -74,7 +74,6 @@ main {
   display: flex;
   justify-content: center;
   align-items: center;
-  background-color: rgba(85, 255, 51, 0.14);
   padding: 1vw;
   width: 100%;
   height: 100%;

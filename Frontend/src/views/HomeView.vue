@@ -207,14 +207,13 @@ onMounted(() => {
                   @click.stop.prevent="votarNaEnquete(opcao.id_opcao, post.id_postagem)"
                   class="btn-enquete-dinamico"
                   :class="{ 'opcao-selecionada-local': opcao.votadoPorMim }"
-                  :disabled="post.autor.id === meuIdLogado"
-                >
+                  :disabled="post.autor.id === meuIdLogado">
                   <div v-if="post.jaVotado" class="fundo-progresso-verde" :style="{ width: opcao.porcentagem + '%' }"></div>
 
                   <div class="conteudo-resultado-linha">
                     <span class="texto-opcao-voto">
                       {{ opcao.texto_opcao }}
-                      <strong v-if="opcao.votadoPorMim">!</strong>
+                      <strong v-if="opcao.votadoPorMim" class="opcao-escolhida">★</strong>
                     </span>
                     <span v-if="post.jaVotado || post.autor.id === meuIdLogado" class="porcentagem-texto-voto">{{ opcao.porcentagem }}%</span>
                   </div>
@@ -233,12 +232,12 @@ onMounted(() => {
               <img v-if="post?.meu_voto_post === 'like'" :src="likePreenchido" alt="Curtido">
               <img v-else :src="likeInline" alt="curtir">
             </button>
-            <span>{{ post.total_likes }}</span>
+            <span class="qnt-likes-dislikes">{{ post.total_likes }}</span>
             <button :disabled="post.autor.id === meuIdLogado" class="btn-post" @click.prevent="curtirPost(post, meuIdLogado, 'dislike')">
               <img v-if="post?.meu_voto_post === 'dislike'" :src="dislikePreenchido" alt="Descurtido">
               <img v-else :src="dislikeInline" alt="não curtir">
             </button>
-            <span>{{ post.total_dislikes }}</span>
+            <span class="qnt-likes-dislikes">{{ post.total_dislikes }}</span>
             <button class="btn-post" @click="abrirMural(post)"><img :src="comentarios" alt="comentar"></button>
             <button class="btn-post"><img :src="compartilhar" alt="compartilhar"></button>
             <button class="btn-post"><img v-if="!naoSalvo" :src="marcadorInline" alt=""><img v-else :src="marcadorPreenchido" alt="não curtir"></button>
@@ -257,7 +256,7 @@ onMounted(() => {
           >
             {{ carregandoMais ? 'Buscando mais posts...' : 'Carregar mais publicações' }}
           </button>
-          <span v-else class="texto-fim-feed">✨ Você chegou ao fim da timeline do IFchat! ✨</span>
+          <span v-else class="texto-fim-feed">Você chegou ao fim da timeline do IFchat!</span>
         </div>
       </div>
     </section>
@@ -271,7 +270,6 @@ onMounted(() => {
 
 <style scoped>
 main {
-  background-color: rgba(85, 255, 51, 0.14);
   height: 100vh;
   flex-grow: 1;
   padding: 1.5vw;
@@ -308,6 +306,14 @@ section {
   border-radius: 50%;
   background-color: #fff;
   border: none;
+}
+.opcao-escolhida {
+  color: #319e00;
+  font-size: 0.8vw;
+  margin-bottom: 0.7vw;
+}
+.texto-opcao-voto {
+  font-size: 1vw;
 }
 .btn-post:hover {
   background-color: #f9f9f9;
@@ -424,6 +430,10 @@ section {
   justify-content: center;
   padding: 1.5vw 0;
   width: 100%;
+}
+.qnt-likes-dislikes {
+  font-size: 1vw;
+  color: #7a7a7a;
 }
 .btn-carregar-mais {
   background-color: #fff;
