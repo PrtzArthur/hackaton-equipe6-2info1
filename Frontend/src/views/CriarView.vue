@@ -123,7 +123,7 @@ const enviarPost = async () => {
     </section>
     <section v-if="mostrarPostTela" class="criarPost">
       <h2 class="tituloPrincipal">Painel de criação</h2>
-      <form @submit.prevent="enviarPost">
+      <form @submit.prevent="enviarPost" class="form-posts">
         <div class="areaDescricaoPost">
           <label for="descPost" class="titulos-Da-tela-Postagem">Descrição da postagem*</label>
           <textarea v-model="descricaoDaPostagem" placeholder="O que você está pensando?" maxlength="3500" id="descPost" required rows="10" class="textarea"></textarea>
@@ -208,6 +208,11 @@ main {
   overflow: hidden;
   overflow-x: hidden;
 }
+.form-posts {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5vw;
+}
 .divDasTagsDoUsuario {
   display: flex;
   margin-top: 0.5vw;
@@ -236,6 +241,18 @@ main {
   border-radius: 12px;
 }
 .deFatoOBotaoPostar:hover {
+  background-color: #37ad00;
+}
+.campo-form input::-webkit-file-upload-button {
+  background-color: #3CBC00;
+  border: none;
+  padding: 1vw;
+  border-radius: 10px;
+  color: #fff;
+  cursor: pointer;
+  font-weight: bolder;
+}
+.campo-form input::-webkit-file-upload-button:hover {
   background-color: #37ad00;
 }
 .lista-inputs-enquete {
@@ -301,6 +318,9 @@ main {
 }
 .secao-enquete {
   margin: 0.5vw;
+  gap: 0.5vw;
+  display: flex;
+  flex-direction: column;
 }
 .titulos-Da-tela-Postagem, .tituloTags {
   font-size: 1.2vw;

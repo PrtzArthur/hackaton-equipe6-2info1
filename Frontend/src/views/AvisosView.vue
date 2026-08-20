@@ -35,18 +35,14 @@ onMounted(() => {
         <div v-else class="notifications-list-container">
           <div v-for="item in notificacoes" :key="item.id" class="card-notificacao-item">
           <div class="notificacao-icone-container">
-            <img
-              :src="item.autor_foto || '/src/icons/userBlackFull.svg'"
-              alt="Avatar"
-              class="avatar-notificacao-autor"
-            >
+            <img :src="item.autor_foto || '/src/icons/userBlackFull.svg'" alt="Avatar" class="avatar-notificacao-autor">
           </div>
           <div class="notificacao-conteudo-bloco">
             <p class="notificacao-texto-usuario">
               <strong>{{ item.autor_nome }}</strong>
               <span class="handle-mini">@{{ item.autor_username }}</span> publicou um novo post:
             </p>
-            <p class="notificacao-texto-conteudo-post">"${{ item.post_conteudo }}"</p>
+            <p class="notificacao-texto-conteudo-post">"{{ item.post_conteudo }}"</p>
             <span class="notificacao-data-legenda">
               {{ new Date(item.data_notificacao).toLocaleDateString('pt-BR') }} às
               {{ new Date(item.data_notificacao).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) }}
@@ -86,18 +82,15 @@ main {
   object-fit: cover;
   border: 1px solid #cbd5e1;
 }
-
 .notificacao-texto-usuario {
   margin: 0;
   font-size: 0.95rem;
   color: #1e293b;
 }
-
 .handle-mini {
   color: #64748b;
   font-size: 0.85rem;
 }
-
 .notificacao-texto-conteudo-post {
   margin: 4px 0 0 0;
   font-size: 0.9rem;
@@ -107,6 +100,8 @@ main {
   padding: 8px 12px;
   border-radius: 6px;
   border-left: 2px solid #cbd5e1;
+  overflow-wrap: break-word;
+  max-width: 31.6vw;
 }
 .notifications-card {
   background-color: #fff;
@@ -146,6 +141,7 @@ main {
   position: relative;
   transition: all 0.2s ease-in-out;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+  overflow: hidden;
 }
 .card-notificacao-item:hover {
   transform: translateY(-1px);
@@ -170,6 +166,7 @@ main {
   flex-direction: column;
   gap: 4px;
   flex-grow: 1;
+  overflow-wrap: break-word;
 }
 .notificacao-texto-titulo {
   margin: 0;
@@ -186,10 +183,10 @@ main {
 .marcador-novidade-linha {
   position: absolute;
   left: 0;
-  top: 15%;
-  bottom: 15%;
+  top: 0%;
+  bottom: 0%;
   width: 4px;
-  background-color: #55ff33;
+  background-color: #3CBC00;
   border-radius: 0 4px 4px 0;
 }
 .notifications-header h2 {
@@ -202,6 +199,8 @@ main {
   padding: 16px;
   flex: 1;
   overflow-y: auto;
+  box-sizing: border-box;
+  overflow-wrap: break-word;
 }
 .empty-text {
   color: #666666;

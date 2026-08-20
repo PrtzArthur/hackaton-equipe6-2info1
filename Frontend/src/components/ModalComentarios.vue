@@ -359,7 +359,6 @@ cursor: pointer;
   width: 100%;
   box-sizing: border-box;
   word-wrap: break-word;
-  box-sizing: border-box;
 }
 .avatar-mural-mini {
   width: 2.2vw;

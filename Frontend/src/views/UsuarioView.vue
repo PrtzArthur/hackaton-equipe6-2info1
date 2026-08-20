@@ -616,7 +616,6 @@ onUnmounted(() => {
         <img :src="postagem.imagem" alt="Imagem da postagem" class="imagem-revelada-post">
       </div>
       <div v-if="postagem.tipo === 'postagemComEnquete' && postagem.opcoes && postagem.opcoes.length > 0" class="render-enquete-post">
-        <p class="titulo-mini-enquete">Enquete:</p>
         <div class="lista-opcoes-voto">
           <div v-for="opcao in postagem.opcoes" :key="opcao.id_opcao" class="card-opcao-container">
             <button
@@ -1079,6 +1078,10 @@ main {
   gap: 0.5vw;
   max-height: 40vw;
   overflow-y: auto;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  box-sizing: border-box;
+  word-break: normal;
 }
 .dados-Cabecalho {
   display: flex;
@@ -1129,6 +1132,8 @@ main {
   min-width: 100%;
   border-radius: 6px;
   gap: 1.5vw;
+  box-sizing: border-box;
+  overflow-wrap: break-word;
 }
 .inputFormEdit {
   padding: 0.7vw;
@@ -1279,12 +1284,6 @@ section.configuracoes {
 .opcao-escolhida {
   color: #319e00;
   font-weight: normal;
-}
-.titulo-mini-enquete {
-  font-size: 0.95vw;
-  font-weight: bold;
-  color: #000;
-  margin: 0 0 0.2vw 0;
 }
 .lista-opcoes-voto {
   display: flex;
@@ -1515,6 +1514,11 @@ cursor: pointer;
   align-items: center;
   color: #000;
   justify-content: center;
+}
+.texto-do-post {
+  overflow-wrap: break-word;
+  box-sizing: border-box;
+  max-width: 32vw;
 }
 .tag:hover {
   background-color: #e7e7e7;

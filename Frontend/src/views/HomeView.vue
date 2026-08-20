@@ -463,6 +463,8 @@ section {
   font-size: 1vw;
   color: #111;
   margin: 0;
+  overflow-wrap: break-word;
+  max-width: 32vw;
 }
 .data-do-post {
   font-size: 0.8vw;
