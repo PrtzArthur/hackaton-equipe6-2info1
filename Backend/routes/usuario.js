@@ -222,6 +222,18 @@ router.get('/perfil/:id', async (req, res) => {
         jaSegue = true;
       }
     }
+
+    let jaAtivouSino = false;
+
+if (meuIdLogado) {
+      const [checaSino] = await conexao.query(
+        'SELECT * FROM notificacao_ativada WHERE id_usuario_seguidor = ? AND id_usuario_criador = ?',
+        [meuIdLogado, idPerfilVisitado] 
+      );
+      if (checaSino && checaSino.length > 0) {
+        jaAtivouSino = true;
+      }
+    }
     return res.json({
       id_usuario: usuarioTarget.id_usuario,
       nome: usuarioTarget.nome,
@@ -235,12 +247,84 @@ router.get('/perfil/:id', async (req, res) => {
       seguidores: totalVotosSeguidores,
       seguindo: totalVotosSeguindo,
       jaSeguindo: jaSegue,
-      tags: listaDeTagsDoUsuario
+      tags: listaDeTagsDoUsuario,
+      jaSino: jaAtivouSino 
     });
 
   } catch (error) {
     console.error('Erro ao carregar cabeçalho do perfil:', error);
     return res.status(500).json({ erro: 'Erro interno ao processar dados do perfil.' });
+  } finally {
+    if (conexao) conexao.release();
+  }
+});
+router.post('/perfil/sino', async (req, res) => {
+  const { idSeguidor, idCriador } = req.body;
+
+  if (!idSeguidor || !idCriador) {
+    return res.status(400).json({ erro: 'IDs inválidos para alternar o sino.' });
+  }
+
+  let conexao = null;
+  try {
+    conexao = await pool.getConnection();
+
+    const [registro] = await conexao.query(
+      'SELECT * FROM notificacao_ativada WHERE id_usuario_seguidor = ? AND id_usuario_criador = ?',
+      [idSeguidor, idCriador]
+    );
+
+    if (registro.length > 0) {
+      await conexao.query(
+        'DELETE FROM notificacao_ativada WHERE id_usuario_seguidor = ? AND id_usuario_criador = ?',
+        [idSeguidor, idCriador]
+      );
+      return res.json({ status: 'desativado', mensagem: 'Notificações desativadas para este perfil.' });
+    } 
+    else {
+      await conexao.query(
+        'INSERT INTO notificacao_ativada (id_usuario_seguidor, id_usuario_criador) VALUES (?, ?)',
+        [idSeguidor, idCriador]
+      );
+      return res.json({ 
+        status: 'ativado', 
+        mensagem: 'Notificações ativadas com sucesso!' 
+      });
+    }
+
+  } catch (error) {
+    console.error('Erro no MySQL ao alternar registros do sino:', error);
+    return res.status(500).json({ erro: 'Erro interno ao processar clique do sino.' });
+  } finally {
+    if (conexao) conexao.release();
+  }
+});
+router.get('/notificacoes/:idUsuario', async (req, res) => {
+  const { idUsuario } = req.params;
+
+  let conexao = null;
+  try {
+    conexao = await pool.getConnection();
+    const querySQL = `
+      SELECT n.id_notificacao AS id, 
+             n.data_notificacao,
+             u.nome AS autor_nome,
+             u.username AS autor_username,
+             u.foto_profile AS autor_foto,
+             p.conteudo AS post_conteudo
+      FROM Notificacao n
+      JOIN Postagem p ON n.texto_notificacao = p.id_postagem
+      JOIN Usuario u ON p.id_usuario = u.id_usuario
+      WHERE n.id_usuario = ? AND n.tipo_notificacao = 'novo_post'
+      ORDER BY n.data_notificacao DESC
+    `;
+    
+    const [alertas] = await conexao.query(querySQL, [idUsuario]);
+    return res.json(alertas);
+
+  } catch (error) {
+    console.error('Erro no MySQL ao ler lista de notificações avançadas:', error);
+    return res.status(500).json({ erro: 'Erro interno ao processar aba de avisos.' });
   } finally {
     if (conexao) conexao.release();
   }

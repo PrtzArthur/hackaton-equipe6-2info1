@@ -310,9 +310,7 @@ router.post('/postagens/:id', upload.single('imagem_post'), async (req, res) => 
     
     const opcoes = req.body.opcoes ? JSON.parse(req.body.opcoes) : [];
     const tags = req.body.tags ? JSON.parse(req.body.tags) : [];
-
     const idPostagem = crypto.randomUUID();
-    
     await conexao.query(
       `INSERT INTO Postagem (id_postagem, tipo, conteudo, id_usuario) VALUES (?, ?, ?, ?)`,
       [idPostagem, tipo, descricao, id]
@@ -336,25 +334,40 @@ router.post('/postagens/:id', upload.single('imagem_post'), async (req, res) => 
     }
     if (tags && tags.length > 0) {
       for (const nomeTag of tags) {
-        
         const tagLimpa = nomeTag.replace('#','').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-
         const [linhasBanco] = await conexao.query(`SELECT id_tag FROM Tag WHERE nome_tag = ?`, [tagLimpa]);
-
         if (linhasBanco && linhasBanco.length > 0) {
-            
             const idTagReal = linhasBanco[0].id_tag;
-
             await conexao.query(`INSERT INTO Postagem_Tag (id_postagem, id_tag) VALUES (?, ?)`, [idPostagem, idTagReal]);
-        }else {
+        } else {
           console.warn(`Aviso: A tag "${tagLimpa}" não foi encontrada na tabela global Tag.`);
         }
       }
     }
+    try {
+      const [seguidoresComSino] = await conexao.query(
+        'SELECT id_usuario_seguidor FROM notificacao_ativada WHERE id_usuario_criador = ?',
+        [id]
+      );
 
+      if (seguidoresComSino && seguidoresComSino.length > 0) {
+        for (const seguidor of seguidoresComSino) {
+          const idNotificacaoNova = crypto.randomUUID(); 
+          const textoAlerta = idPostagem; 
+
+          await conexao.query(
+            `INSERT INTO Notificacao (id_notificacao, lido, tipo_notificacao, texto_notificacao, id_usuario) 
+             VALUES (?, ?, ?, ?, ?)`,
+            [idNotificacaoNova, false, 'novo_post', textoAlerta, seguidor.id_usuario_seguidor]
+          );
+        }
+        console.log(`Notificações do sino disparadas com sucesso para ${seguidoresComSino.length} usuários!`);
+      }
+    } catch (erroSino) {
+      console.warn("Aviso: Falha no processamento secundário do sino:", erroSino.message);
+    }
     await conexao.commit();
     return res.status(201).json({ mensagem: 'Postagem completa publicada com sucesso no IFchat!' });
-
   } catch (error) { 
     if (conexao) await conexao.rollback();
     console.error('Erro ao processar postagem complexa:', error);

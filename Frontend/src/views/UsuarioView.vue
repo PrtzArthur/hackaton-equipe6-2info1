@@ -25,6 +25,7 @@ import notificacoesAtivo from '@/icons/notificacoesAtivo.svg';
 import favoritarInline from '@/icons/favoritarInline.svg';
 import favoritarPreenchido from '@/icons/favoritarPreenchido.svg';
 import logoutRED from '@/icons/logoutRED.svg'
+import sinoOFF from '@/icons/sinoOFF.svg'
 import { useRouter } from 'vue-router';
 import lixeira from '@/icons/lixeira.svg'
 import { useToast } from 'vue-toastification';
@@ -217,6 +218,27 @@ async function carregarGradeDeFavoritosVisuais() {
     console.error("Erro ao traduzir favoritos:", erro);
   }
 }
+const sinoAtivado = ref(false);
+async function alternarSinoNotificacao() {
+  try {
+    const resposta = await fetch('http://localhost:3000/api/usuario/perfil/sino', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        idSeguidor: meuIdLogado.value,
+        idCriador: idUsuarioDaURL.value
+      })
+    });
+
+    const dados = await resposta.json();
+    if (resposta.ok) {
+      sinoAtivado.value = dados.status === 'ativado';
+      toast.success(dados.mensagem);
+    }
+  } catch (erro) {
+    console.error("Erro ao alternar sino:", erro);
+  }
+}
 const deletarPostagemDoBanco = async (idPostagem) => {
   const confirmou = confirm("Você tem certeza absoluta que deseja excluir de forma permanente esta postagem?");
 
@@ -346,6 +368,7 @@ const carregarDadosDoPerfil = async () => {
       seguidoresUsuario.value = dadosPerfil.seguidores || 0;
       usiarioSeguindo.value = dadosPerfil.seguindo || 0;
       jaEstouSeguindo.value = dadosPerfil.jaSeguindo || false;
+      sinoAtivado.value = dadosPerfil.jaSino || false;
 
       if (dadosPerfil.data_criacao) {
         dataDeCriacao.value = new Date(dadosPerfil.data_criacao).toLocaleDateString('pt-BR');
@@ -503,7 +526,10 @@ onUnmounted(() => {
           >
             <span>{{ jaEstouSeguindo ? 'Seguindo' : 'Seguir' }}</span>
           </button>
-            <button class="btn-notificacoes"><img :src="notificacoesAtivo" alt="" class="sininhoNotificacao"></button>
+            <button type="button" @click="alternarSinoNotificacao()" class="btn-notificacoes">
+              <img v-if="sinoAtivado" :src="sinoOFF" alt="" class="sininhoNotificacao">
+              <img v-else :src="notificacoesAtivo" alt="" class="sininhoNotificacao">
+            </button>
             <button class="btnChat">Chat</button>
           </div>
           <button
