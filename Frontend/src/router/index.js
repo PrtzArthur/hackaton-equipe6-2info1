@@ -52,7 +52,7 @@ const router = createRouter({
       path: '/usuario/:id',
       name: 'Usuário',
       component: UsuarioView,
-      meta: { requiresAuth: true }
+      meta: { requiresAuth: false }
     },
     {
       path: '/chat',
@@ -79,7 +79,7 @@ const router = createRouter({
       path: '/home',
       name: 'Home',
       component: HomeView,
-      meta: { requiresAuth: true }
+      meta: { requiresAuth: false }
     }
   ],
 })
