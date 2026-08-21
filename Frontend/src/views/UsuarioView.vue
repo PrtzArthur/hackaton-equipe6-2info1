@@ -1,5 +1,7 @@
 <script setup>
-import { ref, onMounted, watch } from 'vue';
+import { ref, onMounted, onUnmounted, watch } from 'vue';
+import ModalComentarios from '@/components/ModalComentarios.vue';
+import { io } from 'socket.io-client';
 import { useRoute } from 'vue-router';
 import userBlackFull from '@/icons/userBlackFull.svg';
 import canetaEdicao from '@/icons/canetaEdicao.svg';
@@ -10,23 +12,79 @@ import interrogacao from '@/icons/interrogacao.svg';
 import tagsTotais from '@/data/tags';
 import plus from '@/icons/plus.svg';
 import setinha from '@/icons/setinha.svg';
-import voltar from '@/icons/voltar.png';
+import voltar from '@/icons/voltar.svg';
+import marcadorInline from '@/icons/marcadorInline.svg';
+import marcadorPreenchido from '@/icons/marcadorPreenchido.svg';
+import likePreenchido from '@/icons/likePreenchido.svg';
+import likeInline from '@/icons/likeInline.svg';
+import compartilhar from '@/icons/compartilhar.svg';
+import comentarios from '@/icons/comentarios.svg';
+import dislikeInline from '@/icons/dislikeInline.svg';
+import dislikePreenchido from '@/icons/dislikePreenchido.svg';
 import notificacoesAtivo from '@/icons/notificacoesAtivo.svg';
 import favoritarInline from '@/icons/favoritarInline.svg';
+import favoritarPreenchido from '@/icons/favoritarPreenchido.svg';
 import logoutRED from '@/icons/logoutRED.svg'
+import sinoOFF from '@/icons/sinoOFF.svg'
 import { useRouter } from 'vue-router';
 import lixeira from '@/icons/lixeira.svg'
+import { useToast } from 'vue-toastification';
+
 const router = useRouter();
+const toast = useToast();
 
-const logout = () => {
-  localStorage.removeItem('ifchat_token')
-  alert('Você saiu da conta!')
-  router.push('/')
+async function logout() {
+  const idLogado = localStorage.getItem('ifchat_user_id');
+
+  const faxinaSessaoLocal = () => {
+    localStorage.removeItem('ifchat_user_id');
+    localStorage.removeItem('ifchat_user_name');
+    localStorage.removeItem('ifchat_user_username');
+    localStorage.removeItem('ifchat_user_foto');
+    localStorage.removeItem('ifchat_user_token');
+    localStorage.removeItem('ifchat_token');
+  };
+
+  if (!idLogado) {
+    faxinaSessaoLocal();
+    router.push('/');
+    return;
+  }
+
+  try {
+    const resposta = await fetch('http://localhost:3000/api/usuario/logout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idUsuario: idLogado })
+    });
+
+    if (resposta.ok) {
+      faxinaSessaoLocal();
+      toast.info('Você saiu da conta com sucesso!');
+      router.push('/');
+    } else {
+      console.error("O servidor rejeitou o pedido de desconexão.");
+      faxinaSessaoLocal();
+      router.push('/');
+    }
+  } catch (erro) {
+    console.error("Erro de conexão ao tentar fazer logout:", erro);
+    faxinaSessaoLocal();
+    router.push('/');
+  }
 }
-
 const route = useRoute();
 
+const socket = io('http://localhost:3000');
+
 const editarPerfil = ref(false);
+const modalAberto = ref(false);
+const postSelecionado = ref(null);
+
+function abrirMural(post) {
+  postSelecionado.value = post;
+  modalAberto.value = true;
+}
 
 const nomeUsuario = ref('Carregando...');
 const statusOnline = ref(false);
@@ -45,9 +103,70 @@ const adicionarTag = ref(false);
 const listaTagsTotais = ref(tagsTotais);
 const arquivoFoto = ref(null);
 const arquivoBanner = ref(null);
+const removerFotoMarcada = ref(false);
+const removerBannerMarcado = ref(false);
+
+const naoSalvo = ref(false);
 
 const telaExibicao = ref(true);
 const telaConfig = ref(false);
+
+// --- Bloquear usuário ---
+const usuarioBloqueado = ref(false);
+const mostrarConfirmacaoBloqueio = ref(false);
+
+function abrirConfirmacaoBloqueio() {
+  mostrarConfirmacaoBloqueio.value = true;
+}
+
+function cancelarBloqueio() {
+  mostrarConfirmacaoBloqueio.value = false;
+}
+
+async function confirmarBloqueio() {
+  try {
+    const resposta = await fetch(`http://localhost:3000/api/usuario/bloquear/${idUsuarioDaURL}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idUsuarioLogado: meuIdLogado.value })
+    });
+
+    const dados = await resposta.json();
+
+    if (resposta.ok) {
+      usuarioBloqueado.value = true;
+      mostrarConfirmacaoBloqueio.value = false;
+      alert('Usuário bloqueado com sucesso!');
+    } else {
+      alert(dados.erro || 'Não foi possível bloquear o usuário.');
+    }
+  } catch (erro) {
+    console.error('Erro ao bloquear usuário:', erro);
+    alert('Erro de comunicação com o servidor.');
+  }
+}
+
+async function desbloquearUsuario() {
+  try {
+    const resposta = await fetch(`http://localhost:3000/api/usuario/bloquear/${idUsuarioDaURL}`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idUsuarioLogado: meuIdLogado.value })
+    });
+
+    if (resposta.ok) {
+      usuarioBloqueado.value = false;
+      alert('Usuário desbloqueado.');
+    } else {
+      const dados = await resposta.json();
+      alert(dados.erro || 'Não foi possível desbloquear o usuário.');
+    }
+  } catch (erro) {
+    console.error('Erro ao desbloquear usuário:', erro);
+    alert('Erro de comunicação com o servidor.');
+  }
+}
+// --- Fim bloquear usuário ---
 
 function mostrarTelaConfiguracao() {
   telaConfig.value = !telaConfig.value;
@@ -56,7 +175,6 @@ function mostrarTelaConfiguracao() {
 function capturarFoto(event) {
   arquivoFoto.value = event.target.files[0];
 }
-
 function capturarBanner(event) {
   arquivoBanner.value = event.target.files[0];
 }
@@ -67,10 +185,132 @@ const nomeEdit = ref('');
 
 const showWarningNome = ref(false);
 
+const modoEscuroAtivo = ref(false);
+watch(modoEscuroAtivo, (novoEstado) => {
+  if (novoEstado) {
+    document.documentElement.setAttribute('data-theme', 'dark');
+    localStorage.setItem('ifchat_theme', 'dark');
+  } else {
+    document.documentElement.removeAttribute('data-theme');
+    localStorage.setItem('ifchat_theme', 'light');
+  }
+});
+onMounted(() => {
+  const temaSalvo = localStorage.getItem('ifchat_theme');
+  if (temaSalvo === 'dark') {
+    modoEscuroAtivo.value = true;
+  }
+});
 function adicionarNovasTags() {
  adicionarTag.value = !adicionarTag.value;
 }
+async function curtirPost(postagemAlvo, idUsuarioLogado, tipoEscolhido) {
+  if (!idUsuarioLogado) {
+    toast.warning("Você precisa estar logado para interagir!");
+    return;
+  }
+  try {
+    const resposta = await fetch('http://localhost:3000/api/criar/curtir/postagem', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        idDoUsuario: idUsuarioLogado,
+        idDaPostagem: postagemAlvo.id_postagem,
+        tipoVoto: tipoEscolhido
+      })
+    });
 
+    const dados = await resposta.json();
+
+    if (resposta.ok) {
+      postagemAlvo.meu_voto_post = dados.votoAtual;
+      carregarDadosDoPerfil();
+    } else {
+      toast.error(dados.erro || "Falha ao registrar interação.");
+    }
+  } catch(erro) {
+    console.error('Erro ao curtir post:', erro);
+  }
+}
+function cancelarEdicao() {
+  editarPerfil.value = false;
+  removerBannerMarcado.value = false;
+  removerFotoMarcada.value = false;
+}
+const jaEFavorito = ref(false);
+
+function obterChaveFavoritos() {
+  return `ifchat_favoritos_${meuIdLogado.value}`;
+}
+function verificarStatusFavorito() {
+  const idAtualDaBarra = route.params.id;
+
+  const favoritosSalvos = JSON.parse(localStorage.getItem(obterChaveFavoritos()) || '[]');
+  jaEFavorito.value = favoritosSalvos.includes(idAtualDaBarra);
+}
+function alternarFavorito() {
+  const idAtualDaBarra = route.params.id;
+  const chaveConta = obterChaveFavoritos();
+  let favoritosSalvos = JSON.parse(localStorage.getItem(chaveConta) || '[]');
+
+  if (jaEFavorito.value) {
+    favoritosSalvos = favoritosSalvos.filter(id => id !== idAtualDaBarra);
+    jaEFavorito.value = false;
+  } else {
+    favoritosSalvos.push(idAtualDaBarra);
+    jaEFavorito.value = true;
+  }
+
+  localStorage.setItem(chaveConta, JSON.stringify(favoritosSalvos));
+  carregarGradeDeFavoritosVisuais();
+}
+async function carregarGradeDeFavoritosVisuais() {
+  const idAtualDaBarra = route.params.id;
+  const donoDoPerfilExibido = idAtualDaBarra;
+
+  const chaveFavoritosDonoDaTela = `ifchat_favoritos_${donoDoPerfilExibido}`;
+  const favoritosIds = JSON.parse(localStorage.getItem(chaveFavoritosDonoDaTela) || '[]');
+
+  if (favoritosIds.length === 0) {
+    perfisFavoritos.value = [];
+    return;
+  }
+
+  try {
+    const resposta = await fetch('http://localhost:3000/api/usuario/favoritos/detalhes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids: favoritosIds })
+    });
+
+    if (resposta.ok) {
+      perfisFavoritos.value = await resposta.json();
+    }
+  } catch (erro) {
+    console.error("Erro ao traduzir favoritos:", erro);
+  }
+}
+const sinoAtivado = ref(false);
+async function alternarSinoNotificacao() {
+  try {
+    const resposta = await fetch('http://localhost:3000/api/usuario/perfil/sino', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        idSeguidor: meuIdLogado.value,
+        idCriador: idUsuarioDaURL.value
+      })
+    });
+
+    const dados = await resposta.json();
+    if (resposta.ok) {
+      sinoAtivado.value = dados.status === 'ativado';
+      toast.success(dados.mensagem);
+    }
+  } catch (erro) {
+    console.error("Erro ao alternar sino:", erro);
+  }
+}
 const deletarPostagemDoBanco = async (idPostagem) => {
   const confirmou = confirm("Você tem certeza absoluta que deseja excluir de forma permanente esta postagem?");
 
@@ -88,18 +328,17 @@ const deletarPostagemDoBanco = async (idPostagem) => {
     const dados = await resposta.json();
 
     if (resposta.ok) {
-      alert("Postagem excluída com sucesso!");
+      toast.success("Postagem excluída com sucesso!");
       postagens.value = postagens.value.filter(post => post.id_postagem !== idPostagem);
     } else {
-      alert(dados.erro || "Não foi possível deletar a postagem.");
+      toast.warning(dados.erro || "Não foi possível deletar a postagem.");
     }
 
   } catch (erro) {
     console.error("Erro de conexão ao deletar post:", erro);
-    alert("Erro de comunicação com o servidor.");
+    toast.error("Erro de comunicação com o servidor.");
   }
 };
-
 const edicaoDosDados = async () => {
   const idAtualDaBarra = route.params.id;
 
@@ -126,42 +365,50 @@ const edicaoDosDados = async () => {
       const dados = await resposta.json();
 
       if (!resposta.ok) {
-        alert(dados.erro || "Erro ao atualizar dados.");
+        toast.error(dados.erro || "Erro ao atualizar dados.");
         return;
       }
-      if (arquivoFoto.value || arquivoBanner.value) {
+      if (arquivoFoto.value || arquivoBanner.value || removerFotoMarcada.value || removerBannerMarcado.value) {
         const dadosMidia = new FormData();
 
-        if (arquivoFoto.value) dadosMidia.append('foto', arquivoFoto.value);
-        if (arquivoBanner.value) dadosMidia.append('banner', arquivoBanner.value);
+        if (arquivoFoto.value && !removerFotoMarcada.value) dadosMidia.append('foto', arquivoFoto.value);
+        if (arquivoBanner.value && !removerBannerMarcado.value) dadosMidia.append('banner', arquivoBanner.value);
+
+        dadosMidia.append('removerFoto', removerFotoMarcada.value);
+        dadosMidia.append('removerBanner', removerBannerMarcado.value);
 
         const respostaMidia = await fetch(`http://localhost:3000/api/usuario/perfil/${idAtualDaBarra}/midias`, {
           method: 'PUT',
           body: dadosMidia
         });
         const resultadoMidia = await respostaMidia.json();
+
         if (respostaMidia.ok) {
-          fotoPerfil.value = resultadoMidia.foto_profile;
-          bannerUrl.value = resultadoMidia.banner_fundo;
+          fotoPerfil.value = resultadoMidia.foto_profile || '';
+          bannerUrl.value = resultadoMidia.banner_fundo || '';
         } else {
-          alert(resultadoMidia.erro || "Erro ao processar imagens.");
+          toast.error(resultadoMidia.erro || "Erro ao processar imagens.");
         }
       }
       nomeUsuario.value = nomeEdit.value;
       biografia.value = biografiaEdit.value;
       localizacao.value = localizacaoEdit.value;
+      removerFotoMarcada.value = false;
+      removerBannerMarcado.value = false;
+      arquivoFoto.value = null;
+      arquivoBanner.value = null;
       editarPerfil.value = false;
+      toast.success("Perfil atualizado com sucesso!");
     } catch(erro) {
       console.error('Não foi possível adicionar os dados', erro);
     }
   }
 };
-
 function moverTagParaListaUsuario(tagUniversal) {
   if (!tagsDoUsuario.value.includes(tagUniversal)) {
     tagsDoUsuario.value.push(tagUniversal);
   } else {
-    alert('Você já adicionou esta tag ao seu perfil!');
+    toast.warning('Você já adicionou esta tag ao seu perfil!');
   }
 }
 function mostrarJanelaEditor() {
@@ -172,15 +419,14 @@ function mostrarJanelaEditor() {
 function deletarTag(index) {
   tagsDoUsuario.value.splice(index, 1);
 }
-
-const idUsuarioDaURL = route.params.id;
+const idUsuarioDaURL = ref('');
 const meuIdLogado = ref('');
-
+const jaEstouSeguindo = ref(false);
 const carregarDadosDoPerfil = async () => {
   try {
     const idAtualDaBarra = route.params.id;
 
-    const respostaPerfil = await fetch(`http://localhost:3000/api/usuario/perfil/${idAtualDaBarra}`);
+    const respostaPerfil = await fetch(`http://localhost:3000/api/usuario/perfil/${idAtualDaBarra}?meuId=${meuIdLogado.value}`);
     const dadosPerfil = await respostaPerfil.json();
 
     if (respostaPerfil.ok) {
@@ -191,30 +437,117 @@ const carregarDadosDoPerfil = async () => {
       fotoPerfil.value = dadosPerfil.foto_profile || '';
       bannerUrl.value = dadosPerfil.banner_fundo || '';
       tagsDoUsuario.value = dadosPerfil.tags || [];
+      seguidoresUsuario.value = dadosPerfil.seguidores || 0;
+      usiarioSeguindo.value = dadosPerfil.seguindo || 0;
+      jaEstouSeguindo.value = dadosPerfil.jaSeguindo || false;
+      sinoAtivado.value = dadosPerfil.jaSino || false;
+
       if (dadosPerfil.data_criacao) {
         dataDeCriacao.value = new Date(dadosPerfil.data_criacao).toLocaleDateString('pt-BR');
       }
     }
-    const respostaPosts = await fetch(`http://localhost:3000/api/usuario/postagens/${idAtualDaBarra}`);
+    const respostaPosts = await fetch(`http://localhost:3000/api/usuario/postagens/${idAtualDaBarra}?meuId=${meuIdLogado.value}`);
+
     postagens.value = await respostaPosts.json();
+
   } catch (erro) {
     console.error("Erro ao buscar dados do perfil:", erro);
   }
 };
+async function votarNaEnquete(idOpcao, idPostagem) {
+  try {
+    const resposta = await fetch('http://localhost:3000/api/criar/enquetes/votar/opcao', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        idUsuario: meuIdLogado.value,
+        idOpcao: idOpcao,
+        idPostagem: idPostagem
+      })
+    });
 
-onMounted(() => {
+    const dados = await resposta.json();
+
+    if (resposta.ok) {
+      if (typeof carregarDadosDoPerfil === 'function') carregarDadosDoPerfil();
+    } else {
+      toast.error(dados.erro || 'Erro com o voto');
+    }
+  } catch (erro) {
+    console.error('Erro ao votar', erro);
+  }
+};
+function irParaPerfilDoAmigo(idAmigo) {
+  router.push(`/usuario/${idAmigo}`);
+}
+async function alternarSeguirUsuario() {
+  const idAtualDaBarra = route.params.id;
+
+  try {
+    const resposta = await fetch('http://localhost:3000/api/usuario/seguir', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        idSeguidor: meuIdLogado.value,
+        idSeguido: idAtualDaBarra
+      })
+    });
+
+    const dados = await resposta.json();
+
+    if (resposta.ok) {
+      jaEstouSeguindo.value = (dados.status === 'seguiu');
+      seguidoresUsuario.value = dados.contadorSeguidoresDoPerfil;
+    } else {
+      toast.error(dados.erro || "Erro ao processar ação.");
+    }
+  } catch (erro) {
+    console.error("Erro de conexão ao seguir:", erro);
+  }
+};
+const eMeuPerfil = ref(false);
+function gerenciarPermissoesDeVisualizacao() {
+  const idAtualDaBarra = route.params.id;
   meuIdLogado.value = localStorage.getItem('ifchat_user_id') || '';
-  carregarDadosDoPerfil();
-});
-
+  if (idAtualDaBarra === meuIdLogado.value) {
+    eMeuPerfil.value = true;
+  } else {
+    eMeuPerfil.value = false;
+  }
+}
 watch(
   () => route.params.id,
   (novoId) => {
     if (novoId) {
+      idUsuarioDaURL.value = novoId;
+      gerenciarPermissoesDeVisualizacao();
       carregarDadosDoPerfil();
+      verificarStatusFavorito();
+      carregarGradeDeFavoritosVisuais();
     }
   }
 );
+onMounted(() => {
+  meuIdLogado.value = localStorage.getItem('ifchat_user_id') || '';
+  idUsuarioDaURL.value = route.params.id;
+  gerenciarPermissoesDeVisualizacao();
+  carregarDadosDoPerfil();
+  verificarStatusFavorito();
+  carregarGradeDeFavoritosVisuais();
+
+   socket.on('usuario_status_mudou', (dadosRecebidos) => {
+    if (route.params.id === dadosRecebidos.id_usuario) {
+      statusOnline.value = dadosRecebidos.status_online;
+    }
+     const amigoNaLista = perfisFavoritos.value.find(p => p.id_usuario === dadosRecebidos.id_usuario);
+    if (amigoNaLista) {
+      amigoNaLista.status_online = dadosRecebidos.status_online;
+    }
+  });
+});
+onUnmounted(() => {
+  socket.off('usuario_status_mudou');
+});
 </script>
 
 <template>
@@ -231,7 +564,7 @@ watch(
               <img v-else :src="userBlackFull" alt="Default-foto-perfil" class="fotoPerfilDefault">
             </div>
           </div>
-          <div class="dadosCabecalho">
+          <div class="dados-Cabecalho">
             <h2 class="nomeDeUsuario">{{ nomeUsuario }}</h2>
             <div v-if="statusOnline" class="statusUsuarioOnline">
               <div class="IndicadorOnline"></div>
@@ -248,31 +581,52 @@ watch(
         </div>
         <div v-if="idUsuarioDaURL === meuIdLogado" class="botoes">
           <button @click="mostrarTelaConfiguracao" class="btnPerfil">
-            <img :src="gear" alt="">
-            <span>Configurações</span>
+            <img :src="gear" alt="" class="gear">
+            <span class="span-config">Configurações</span>
           </button>
           <button @click="mostrarJanelaEditor" class="btnPerfil">
-            <img :src="canetaEdicao" alt="">
-            <span>Editar Perfil</span>
+            <img :src="canetaEdicao" alt="" class="btn-edit">
+            <span class="span-edit">Editar Perfil</span>
           </button>
         </div>
         <div v-else class="botoesU">
           <div class="btnParaUsuariosEstrangeiros">
-            <div>
-              <button class="btnSeguir">Seguir</button>
-              <button class="btnSeguindo">Seguindo</button>
-            </div>
-            <button class="btn-notificacoes"><img :src="notificacoesAtivo" alt="" class="sininhoNotificacao"></button>
+            <button
+            type="button"
+            @click="alternarSeguirUsuario"
+            :class="jaEstouSeguindo ? 'btnSeguindo' : 'btnSeguir' "
+          >
+            <span>{{ jaEstouSeguindo ? 'Seguindo' : 'Seguir' }}</span>
+          </button>
+            <button type="button" @click="alternarSinoNotificacao()" class="btn-notificacoes">
+              <img v-if="sinoAtivado" :src="sinoOFF" alt="" class="sininhoNotificacao">
+              <img v-else :src="notificacoesAtivo" alt="" class="sininhoNotificacao">
+            </button>
             <button class="btnChat">Chat</button>
           </div>
-          <img :src="favoritarInline" alt="" class="favoritarPerfilDeUsuario">
+          <button
+            v-if="jaEFavorito"
+            type="button"
+            @click="alternarFavorito"
+            class="btnPerfilFavorito"
+          >
+            <img :src="favoritarPreenchido" alt="" class="favoritarPerfilDeUsuario">
+          </button>
+          <button
+            v-else
+            type="button"
+            @click="alternarFavorito"
+            class="btnPerfilFavorito"
+          >
+            <img :src="favoritarInline" alt="" class="favoritarPerfilDeUsuario">
+          </button>
         </div>
         <div class="spanInfo">
-          <img :src="dataCriacao" alt="Data-de-Criacao">
+          <img :src="dataCriacao" alt="Data-de-Criacao" class="Data-de-Criacao">
           <span class="titulo">Data de Criação:</span><span class="creationDate">{{ dataDeCriacao }}</span>
         </div>
         <div class="spanInfo">
-          <img :src="local" alt="local">
+          <img :src="local" alt="local" class="Data-de-Criacao">
           <span class="titulo">Localização:</span><span v-if="localizacao" class="localization">{{ localizacao }}</span>
           <span v-else class="localization">
             Nenhuma localização mencionada
@@ -293,13 +647,13 @@ watch(
           <h3 class="tituloTags">Tags</h3>
           <div class="divDasTagsDoUsuario">
             <div v-for="(tag, index) in tagsDoUsuario" :key="index">
-            <button class="tag" @click="deletarTag(index)">
+            <button class="tag" :disabled="meuIdLogado !== idUsuarioDaURL" @click="deletarTag(index)">
               {{ tag }}
             </button>
           </div>
           <div v-if="idUsuarioDaURL === meuIdLogado">
             <button @click="adicionarNovasTags" class="tag">
-              <img :src="plus" alt="adicionar-tag">
+              <img :src="plus" alt="adicionar-tag" class="plus">
             </button>
           </div>
           </div>
@@ -320,7 +674,7 @@ watch(
         <div class="postagens">
   <h3>Postagens</h3>
   <div v-if="postagens.length === 0" class="caixa-postagens-vazia">
-    <img :src="interrogacao" alt="Sem postagens">
+    <img :src="interrogacao" alt="Sem postagens" class="interrogacao">
     <span class="textoDeAviso">Ainda não há nenhuma postagem</span>
   </div>
   <div v-else class="lista-de-posts-real">
@@ -334,30 +688,63 @@ watch(
         <img :src="postagem.imagem" alt="Imagem da postagem" class="imagem-revelada-post">
       </div>
       <div v-if="postagem.tipo === 'postagemComEnquete' && postagem.opcoes && postagem.opcoes.length > 0" class="render-enquete-post">
-        <p class="titulo-mini-enquete">Enquete:</p>
         <div class="lista-opcoes-voto">
-          <div v-for="opcao in postagem.opcoes" :key="opcao.id_opcao" class="opcao-voto-card">
-            <p class="btn-votar-enquete">
-              {{ opcao.texto_opcao }}
-             </p>
-           </div>
-         </div>
-       </div>
-        <div class="divDeleteEPublicacao">
-          <span class="data-do-post">
+          <div v-for="opcao in postagem.opcoes" :key="opcao.id_opcao" class="card-opcao-container">
+            <button
+              type="button"
+              :disabled="meuIdLogado === idUsuarioDaURL"
+              @click="votarNaEnquete(opcao.id_opcao, postagem.id_postagem)"
+              class="btn-enquete-dinamico"
+              :class="{ 'opcao-selecionada-local': opcao.votadoPorMim }"
+            >
+              <div v-if="postagem.jaVotado" class="fundo-progresso-verde" :style="{ width: opcao.porcentagem + '%' }"></div>
+              <div class="conteudo-resultado-linha">
+                <span class="texto-opcao-voto">
+                  {{ opcao.texto_opcao }}
+                  <strong v-if="opcao.votadoPorMim" class="opcao-escolhida">★</strong>
+                </span>
+                <span v-if="postagem.jaVotado || idUsuarioDaURL === meuIdLogado" class="porcentagem-texto-voto">{{ opcao.porcentagem }}%</span>
+              </div>
+            </button>
+          </div>
+        </div>
+        <span class="total-votos-legenda">{{ postagem.totalVotosGeral || 0 }} votos no total</span>
+      </div>
+        <div v-if="postagem.tags && postagem.tags.length > 0" class="container-tags-postagem">
+        <span v-for="(tag, index) in postagem.tags" :key="index" class="pilula-tag-post">
+          {{ tag }}
+        </span>
+      </div>
+      <div class="div-botoes-postagens">
+       <button :disabled="idUsuarioDaURL === meuIdLogado" class="btn-post" @click="curtirPost(postagem, meuIdLogado, 'like')">
+         <img v-if="postagem.meu_voto_post === 'like'" :src="likePreenchido" alt="Curtido" class="btn-preenchido">
+         <img v-else :src="likeInline" alt="curtir" class="btn-post-img">
+       </button>
+        <span class="qnt-likes-dislikes">{{ postagem.total_likes }}</span>
+        <button :disabled="idUsuarioDaURL === meuIdLogado" class="btn-post" @click="curtirPost(postagem, meuIdLogado, 'dislike')">
+          <img v-if="postagem.meu_voto_post === 'dislike'" :src="dislikePreenchido" alt="Descurtido" class="btn-preenchido">
+          <img v-else :src="dislikeInline" alt="não curtir" class="btn-post-img">
+        </button>
+        <span class="qnt-likes-dislikes">{{ postagem.total_dislikes }}</span>
+        <button class="btn-post" @click="abrirMural(postagem)"><img :src="comentarios" alt="comentar" class="btn-post-img"></button>
+        <button class="btn-post"><img :src="compartilhar" alt="compartilhar" class="btn-post-img"></button>
+        <button class="btn-post"><img v-if="!naoSalvo" :src="marcadorInline" alt="" class="btn-post-img"><img v-else :src="marcadorPreenchido" alt="marcar" class="btn-preenchido"></button>
+      </div>
+      <div class="divDeleteEPublicacao">
+        <span class="data-do-post">
           Publicado em: {{ new Date(postagem.data_envio).toLocaleDateString('pt-BR') }}
         </span>
-        <button v-if="idUsuarioDaURL === meuIdLogado" @click="deletarPostagemDoBanco(postagem.id_postagem)" class="btnLixeira">
+        <button v-if="route.params.id === meuIdLogado" @click="deletarPostagemDoBanco(postagem.id_postagem)" class="btnLixeira">
           <img :src="lixeira" alt="deletar post" class="imgDelete">
         </button>
-        </div>
+      </div>
       </div>
       </div>
     </div>
         <div class="mural">
           <h3>Mural</h3>
           <div v-if="comentariosMural.length === 0" class="caixa-mural-vazia">
-            <img :src="interrogacao" alt="Mural Vazio">
+            <img :src="interrogacao" alt="Mural Vazio" class="interrogacao">
             <span class="textoDeAviso">Ninguém comentou nada ainda</span>
           </div>
           <div v-else class="listaDasPostagens">
@@ -367,15 +754,18 @@ watch(
         </div>
         <div class="favoritos">
           <h3>Perfis favoritos</h3>
-         <div v-if="perfisFavoritos.length === 0" class="textoDeAviso info-vazio">
-            Você ainda não favoritou nenhum perfil.
+          <div v-if="perfisFavoritos.length === 0" class="textoDeAviso info-vazio">
+            Nenhum perfil favoritado encontrado nesta conta.
           </div>
           <div v-else class="gradeFavoritos">
-            <div v-for="(perfil, index) in perfisFavoritos" :key="index" class="card-favorito">
-              <div class="avatar-favorito">
-                <img :src="userBlackFull" alt="Avatar">
+            <div v-for="perfil in perfisFavoritos" :key="perfil.id_usuario" @click="irParaPerfilDoAmigo(perfil.id_usuario)" class="card-favorito">
+              <div class="avatar-favorito-container">
+                <img v-if="perfil.foto_profile" :src="perfil.foto_profile" alt="Avatar" class="fotoPerfil-favorito">
+                <img v-else :src="userBlackFull" alt="Avatar Padrão" class="fotoPerfilDefault-favorito">
+                <div v-if="perfil.status_online === 1" class="bolinha-status-favorito online"></div>
+                <div v-else class="bolinha-status-favorito offline"></div>
               </div>
-              <span class="nome-favorito">{{ perfil }}</span>
+              <span class="nome-favorito">{{ perfil.nome }}</span>
             </div>
           </div>
         </div>
@@ -383,10 +773,23 @@ watch(
           <a href="#" class="link-suporte">
             <img :src="setinha" alt="Suporte"> Suporte
           </a>
+          <div v-if="idUsuarioDaURL !== meuIdLogado" class="acoesModeracao">
+            <button v-if="!usuarioBloqueado" @click="abrirConfirmacaoBloqueio" class="btnBloquear">
+              Bloquear usuário
+            </button>
+            <button v-else @click="desbloquearUsuario" class="btnDesbloquear">
+              Desbloquear usuário
+            </button>
+          </div>
         </div>
       </div>
     </section>
-    <div v-if="editarPerfil" class="overlay">
+    <ModalComentarios
+  :isOpen="modalAberto"
+  :post="postSelecionado"
+  @fechar="modalAberto = false"
+/>
+    <div v-if="editarPerfil" class="overlay" @click.self="cancelarEdicao()">
         <div class="form">
           <h2 class="overlayFormTitulo">Editar Perfil</h2>
           <form @submit.prevent="edicaoDosDados" class="formularioDeEdicao">
@@ -403,19 +806,43 @@ watch(
             <label for="biografiaEdit">Nova biografia</label>
             <textarea v-model="biografiaEdit" id="biografiaEdit" rows="3" maxlength="500" placeholder="Insira sua biografia" class="textarea"></textarea>
           </div>
-          <div class="divEditImage">
-      <label class="labelMidiPerfil">Alterar Foto de Perfil:</label>
-      <input type="file" accept="image/*" @change="capturarFoto" class="imageInput">
-    </div>
+         <div class="divEditImage">
+        <label class="labelMidiPerfil">Alterar Foto de Perfil:</label>
+        <div class="linha-controle-midia-edit">
+          <input type="file" accept="image/*" @change="capturarFoto" class="imageInput" :disabled="removerFotoMarcada">
+          <button type="button" @click="removerFotoMarcada = !removerFotoMarcada" :class=" removerFotoMarcada ? 'marcado-para-excluir-form' : 'marcado-para-manter-form'">
+            {{ removerFotoMarcada ? 'Manter-Foto' : 'Remover' }}
+          </button>
+        </div>
+      </div>
     <div class="divEditImage">
-      <label class="labelMidiPerfil">Alterar Imagem de Banner:</label>
-      <input type="file" accept="image/*" @change="capturarBanner" class="imageInput">
-    </div>
+        <label class="labelMidiPerfil">Alterar Imagem de Banner:</label>
+        <div class="linha-controle-midia-edit">
+          <input type="file" accept="image/*" @change="capturarBanner" class="imageInput" :disabled="removerBannerMarcado">
+          <button type="button" @click="removerBannerMarcado = !removerBannerMarcado" :class=" removerBannerMarcado ? 'marcado-para-excluir-form' : 'marcado-para-manter-form' ">
+            {{ removerBannerMarcado ? 'Manter-Banner' : 'Remover' }}
+          </button>
+        </div>
+      </div>
           <div class="botoesDoFormEditPerfil">
             <button type="submit" class="salvarAlteracoes">Salvar</button>
-            <button type="button" @click="editarPerfil = false" class="cancelarAlteracoes">Cancelar</button>
+            <button type="button" @click="cancelarEdicao()" class="cancelarAlteracoes">Cancelar</button>
           </div>
         </form>
+        </div>
+      </div>
+      <div v-if="mostrarConfirmacaoBloqueio" class="overlay">
+        <div class="form formBloqueio">
+          <h2 class="overlayFormTitulo overlayFormTituloVermelho">Bloquear {{ nomeUsuario }}?</h2>
+          <div class="formularioDeEdicao">
+            <p class="textoConfirmacaoBloqueio">
+              Vocês deixarão de se seguir. {{ nomeUsuario }} não poderá ver seu perfil, mandar mensagens ou comentar nas suas postagens.
+            </p>
+            <div class="botoesDoFormEditPerfil">
+              <button type="button" @click="confirmarBloqueio" class="btnConfirmarBloqueio">Bloquear</button>
+              <button type="button" @click="cancelarBloqueio" class="cancelarAlteracoes">Cancelar</button>
+            </div>
+          </div>
         </div>
       </div>
       <button v-if="telaConfig"  @click="mostrarTelaConfiguracao" class="botaoVoltar">
@@ -476,7 +903,7 @@ watch(
               <label for="checkBoxToggle" class="labelME">
                 <span>Modo Escuro</span>
               <div class="switch-container">
-                <input type="checkbox" class="chekbox-Oculto" id="checkBoxToggle">
+                <input v-model="modoEscuroAtivo" type="checkbox" class="chekbox-Oculto" id="checkBoxToggle">
                 <span class="trilha">
                   <span class="circulo"></span>
                 </span>
@@ -514,7 +941,6 @@ watch(
 
 <style scoped>
 main {
-  background-color: rgba(85, 255, 51, 0.14);
   height: 100vh;
   flex-grow: 1;
   padding: 1.5vw;
@@ -536,18 +962,80 @@ main {
   flex-wrap: wrap;
   gap: 0.4vw;
 }
+.container-tags-postagem {
+  color: blue;
+  display: flex;
+  gap: 0.3vw;
+  font-size: 0.85vw;
+  flex-wrap: wrap;
+}
+.marcado-para-manter-form {
+  background-color: var(--fundo-card);
+  border: var(--borda-padrao);
+  width: 100%;
+  font-size: 1vw;
+  padding: 0.5vw;
+  color: var(--texto-principal);
+  border-radius: 6px;
+}
+.div-botoes-postagens {
+  display: flex;
+  align-items: center;
+
+}
+.marcado-para-manter-form:hover {
+  background-color: var(--hover-botoes);
+  cursor: pointer;
+  transition: 0.2s;
+}
+.data-do-post {
+  font-size: 0.8vw;
+  color: #7a7a7a;
+}
+.marcado-para-excluir-form {
+  background-color: #ff0000;
+  border: 1px transparent #000;
+  color: #fff;
+  width: 100%;
+  border: none;
+  font-weight: bolder;
+  font-size: 1vw;
+  padding: 0.5vw;
+  border-radius: 6px;
+}
+.marcado-para-excluir-form:hover {
+  background-color: #cf0000;
+  cursor: pointer;
+  transition: 0.2s;
+}
+.btn-post {
+  width: 2.5vw;
+  height: 2.5vw;
+  border-radius: 50%;
+  background-color: var(--fundo-card);
+  border: none;
+}
+.btn-post:hover {
+  background-color: var(--hover-botoes);
+  cursor: pointer;
+  transition: 0.2s;
+}
 .listaParaAdicionarTags {
   display: flex;
   margin: 0.5vw auto;
   flex-wrap: wrap;
   gap: 0.4vw;
-  border-top: 0.8px solid #000;
+  border-top: var(--borda-padrao);
   padding-top: 0.5vw;
 }
 .btnLixeira {
-  background-color: #fff;
+  background-color: var(--fundo-card);
   border: none;
   cursor: pointer;
+  border-radius: 50%;
+}
+.btnLixeira:hover {
+  background-color: var(--hover-botoes);
 }
 .spanLogout {
   color: #cf0000;
@@ -570,10 +1058,16 @@ main {
   cursor: pointer;
   width: 100%;
 }
+.btnPerfilFavorito {
+  background-color: var(--fundo-card);
+  border-radius: 50%;
+  border: none;
+}
 .labelME {
   display: flex !important;
   align-items: center !important;
   justify-content: space-between;
+  width: 100%;
 }
 .chekbox-Oculto {
   opacity: 0;
@@ -627,25 +1121,68 @@ main {
   font-weight: bold;
 }
 .tituloPrincipal {
-  border-bottom: 1px solid #000;
+  border-bottom: var(--borda-padrao);
   margin: -2px;
   padding: 1vw;
   font-size: 1.7vw;
 }
+.avatar-favorito-container {
+  position: relative;
+  width: 3.5vw;
+  height: 3.5vw;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.fotoPerfil-favorito {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+.fotoPerfilDefault-favorito {
+  width: 4.55vw;
+  height: auto;
+  border-radius: 50%;
+  object-fit: cover;
+}
+.bolinha-status-favorito {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 0.8vw;
+  height: 0.8vw;
+  border-radius: 50%;
+  border: var(--fundo-card);
+  box-sizing: border-box;
+}
+.bolinha-status-favorito.online {
+  background-color: #3CBC00;
+}
+.bolinha-status-favorito.offline {
+  background-color: #9e9e9e;
+}
 .lista-de-posts-real {
   display: flex;
   flex-direction: column;
-  border: 1px solid #000;
+  border: var(--borda-padrao);
   margin-top: 0.5vw;
   border-radius: 6px;
   padding: 1vw;
   box-sizing: border-box;
   min-height: 10vw;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
+  scrollbar-width: thin;
   gap: 0.5vw;
+  max-height: 40vw;
+  overflow-y: auto;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  box-sizing: border-box;
+  word-break: normal;
 }
-.dadosCabecalho {
+.dados-Cabecalho {
   display: flex;
   flex-direction: column;
   gap: 0.2vw;
@@ -653,22 +1190,61 @@ main {
   min-width: 0;
   overflow: hidden;
 }
+.card-favorito {
+  display: flex;
+  flex-direction: column;
+  border: var(--borda-padrao);
+  text-overflow: ellipsis;
+  overflow: hidden;
+  width: 6vw;
+  max-width: 6vw;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5vw;
+  border-radius: 6px;
+}
+.card-favorito:hover {
+  background-color: var(--hover-botoes);
+  transition: 0.2s;
+  cursor: pointer;
+}
+.gradeFavoritos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4vw;
+  margin-top: 0.5vw;
+  border: var(--borda-padrao);
+  padding: 0.5vw;
+  height: 9vw;
+  border-radius: 6px;
+}
+.nome-favorito {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: bolder;
+}
 .cartao-postagem-usuario {
-  border: 1px solid #000;
+  border: var(--borda-padrao);
   display: flex;
   flex-direction: column;
   padding: 1vw;
   min-width: 100%;
   border-radius: 6px;
   gap: 1.5vw;
+  box-sizing: border-box;
+  overflow-wrap: break-word;
 }
 .inputFormEdit {
-  padding: 0.4vw;
+  padding: 0.7vw;
+  border-radius: 10px;
+  border: var(--borda-padrao);
+  background-color: var(--fundo-card);
+  color: var(--texto-principal);
 }
 .divLogoutEDeleteAccount {
   display: flex !important;
   flex-direction: row !important;
-  border-bottom: 1px solid #000;
+  border-bottom: var(--borda-padrao);
   padding: 0.5vw 0;
   align-items: center;
   gap: 0.2vw;
@@ -676,7 +1252,7 @@ main {
 .divLogoutEDeleteAccount button {
   border: none !important;
   padding: 0 !important;
-  color: #cf0000;
+  color: #cf0000 !important;
   align-items: center !important;
   text-align: left;
   height: 100%;
@@ -684,10 +1260,10 @@ main {
 }
 .divLogoutEDeleteAccount button:hover {
   cursor: pointer;
-  color: #ff0000;
+  color: #ff0000 !important;
 }
 .btnSeguir {
-  background-color: #3CBC00;
+  background-color: var(--fundo-card-va);
   color: #fff;
   border: none;
   display: flex;
@@ -700,7 +1276,8 @@ main {
 }
 .btnSeguir:hover {
   cursor: pointer;
-  background-color: #37ad00;
+  background-color: var(--fundo-card-va-hover);
+  transition: 0.2s;
 }
 .containerConfig div {
   display: flex;
@@ -708,7 +1285,7 @@ main {
 }
 .containerConfig div h3 {
   padding: 0.6vw 0;
-  border-bottom: 1px solid #000;
+  border-bottom: var(--borda-padrao);
   font-weight: bolder;
 }
 .imgLogout {
@@ -720,38 +1297,40 @@ main {
   display: flex !important;
   flex-direction: row !important;
   justify-content: space-between;
-  border-bottom: 1px solid #000;
+  border-bottom: var(--borda-padrao);
   padding: 0.5vw 0;
   font-weight: bold;
   font-size: 0.9vw;
 }
 .containerConfig div button {
-  background-color: #fff;
+  background-color: var(--fundo-card);
   border: none;
-  border-bottom: 1px solid #000;
+  border-bottom: var(--borda-padrao);
   padding: 0.5vw 0;
   text-align: left;
   font-weight: bold;
   font-size: 0.9vw;
+  color: var(--texto-principal);
 }
 .containerConfig {
   padding: 0.25vw;
   font-size: 1vw;
 }
 .btnSeguindo {
-  background-color: #e7e7e7;
+  background-color: #b5b5b5;
   color: #fff;
   border: none;
   display: flex;
   font-weight: bolder;
   border-radius: 20px;
-
-  display: none;
-
   align-items: center;
   justify-content: center;
   padding: 0.9vw;
   width: 6vw;
+}
+.btnSeguindo:hover {
+  cursor: pointer;
+  background-color: #7a7a7a;
 }
 .selectVP {
   width: 9vw;
@@ -764,7 +1343,7 @@ main {
   font-size: 1vw;
 }
 section.configuracoes {
-  background-color: #fff;
+  background-color: var(--fundo-card);
   position: fixed;
   width: 40%;
   top: 0;
@@ -774,7 +1353,7 @@ section.configuracoes {
   margin-top: 4vw;
   margin-bottom: 3vw;
   border-radius: 9px;
-  border: 1px solid #000;
+  border: var(--borda-padrao);
   scrollbar-color: #ccc transparent;
   overflow-y: auto;
   scrollbar-width: thin;
@@ -788,7 +1367,7 @@ section.configuracoes {
   height: auto;
   position: relative;
   border-radius: 10px;
-  border: 1px solid #000;
+  border: var(--borda-padrao);
   margin: 0.3vw 0;
 }
 .imagem-revelada-post {
@@ -796,15 +1375,94 @@ section.configuracoes {
   width: 100%;
   height: 100%;
 }
-.btn-votar-enquete {
-  background-color: #fff;
+.render-enquete-post {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5vw;
+  margin: 0.6vw 0;
   width: 100%;
-  border: 1px solid #000;
-  text-align: left;
-  font-size: 1.1vw;
-  padding: 0.6vw;
-  margin: 0.15vw 0;
-  border-radius: 5px;
+  box-sizing: border-box;
+}
+.opcao-escolhida {
+  color: var(--opcao-escolhida);
+  font-weight: normal;
+  font-size: 1.3vw;
+  margin-bottom: 0.2vw;
+}
+.lista-opcoes-voto {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4vw;
+  width: 100%;
+}
+.card-opcao-container {
+  width: 100%;
+  position: relative;
+}
+.qnt-likes-dislikes {
+  font-size: 1vw;
+  color: var(--texto-suave);
+}
+.btn-enquete-dinamico {
+  position: relative;
+  width: 100%;
+  height: 2.3vw;
+  background-color: var(--fundo-card);
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  overflow: hidden;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+  padding: 0;
+  transition: border-color 0.2s, background-color 0.2s;
+}
+.btn-enquete-dinamico:hover {
+  border-color: var(--fundo-card-va);
+  background-color: rgba(60, 188, 0, 0.02);
+}
+.opcao-selecionada-local {
+  border: 1.5px solid var(--fundo-card-va) !important;
+}
+.fundo-progresso-verde {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  background-color: var(--fundo-opcao-enquete);
+  transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 1;
+}
+.conteudo-resultado-linha {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 1vw;
+  z-index: 2;
+  font-family: inherit;
+  font-size: 0.95vw;
+  color: var(--texto-principal);
+  font-weight: 500;
+  pointer-events: none;
+}
+.texto-opcao-voto {
+  display: flex;
+  align-items: center;
+  gap: 0.3vw;
+  color: var(--texto-principal);
+}
+.porcentagem-texto-voto {
+  font-weight: bold;
+  color: var(--fundo-card-va);
+}
+.total-votos-legenda {
+  font-size: 0.8vw;
+  color: var(--texto-suave);
+  margin-top: 0.2vw;
+  font-style: italic;
 }
 .nomeDeUsuario{
   font-size: 1.8vw;
@@ -815,12 +1473,16 @@ section.configuracoes {
   text-overflow: ellipsis;
   display: block;
 }
+.span-edit {
+  color: var(--texto-principal);
+}
 .textarea {
-  max-width: 27.87vw;
+  max-width: 37.89vw;
   min-width: 10vw;
   min-height: 3vw;
-  max-height: 12vw;
+  max-height: 20vw;
   padding: 0.5vw;
+  border-radius: 7px;
 }
 .divEditImage {
   margin-top: 0.5vw;
@@ -831,35 +1493,41 @@ section.configuracoes {
   width: 100%;
 }
 .imageInput::-webkit-file-upload-button:hover {
-  background-color: #e2e2e2;
+  background-color: var(--fundo-card-va-hover);
   border-color: #b5b5b5;
 }
 .imageInput {
   font-size: 0.9vw;
-  color: #333;
+  color: var(--texto-suave);
   font-family: inherit;
   cursor: pointer;
 }
 .labelMidiPerfil {
   font-weight: bold;
   font-size: 1vw;
-  color: #000;
+  color: var(--texto-principal);
   text-align: left;
 }
+.linha-controle-midia-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7vw;
+}
 .imageInput::-webkit-file-upload-button {
-  background-color: #f1f1f1;
+  background-color: var(--fundo-card-va);
   border: 1px solid #ccc;
   border-radius: 6px;
   padding: 0.4vw 0.8vw;
-  font-size: 0.9vw;
-  font-weight: 500;
+  font-size: 1vw;
+  font-weight: bolder;
   cursor: pointer;
   transition: 0.2s;
+  color: #fff;
   margin-right: 0.5vw;
 }
 .overlayFormTitulo {
   width: 100%;
-  background-color: #3CBC00;
+  background-color: var(--fundo-card-va);
   color: #fff;
   height: 100%;
   padding: 1vw;
@@ -870,12 +1538,12 @@ section.configuracoes {
   border-radius: 10px;
   font-size: 1vw;
   border: none;
-  background-color: #3CBC00;
+  background-color: var(--fundo-card-va);
   font-weight: bold;
   color: #fff;
 }
 .salvarAlteracoes:hover {
-background-color: #37ad00;
+background-color: var(--fundo-card-va-hover);
 cursor: pointer;
 }
 .cancelarAlteracoes {
@@ -883,11 +1551,11 @@ cursor: pointer;
   width: 7.2vw;
   border-radius: 10px;
   font-size: 1vw;
-  border: 1px solid #000;
-  background-color: #fff;
+  border: var(--borda-padrao);
+  background-color: var(--fundo-card);
 }
 .cancelarAlteracoes:hover {
-  background-color: #e7e7e7;
+  background-color: var(--hover-botoes);
   cursor: pointer;
 }
 .formularioDeEdicao {
@@ -897,9 +1565,9 @@ cursor: pointer;
   color: #cf0000;
 }
 .form {
-  background-color: #fff;
-  width: 30vw;
-  border: 0.8px solid #000;
+  background-color: var(--fundo-card);
+  width: 40vw;
+  border: var(--borda-padrao);
   display: flex;
   flex-direction: column;
   border-radius: 10px;
@@ -918,6 +1586,9 @@ cursor: pointer;
   width: 100%;
   gap: 0.5vw;
   margin: 0.5vw;
+}
+.span-config {
+  color: var(--texto-principal);
 }
 .overlay {
   position: fixed;
@@ -944,27 +1615,33 @@ cursor: pointer;
   text-transform: capitalize;
 }
 .favoritarPerfilDeUsuario {
-  height: 2vw;
+  height: 3vw;
 }
 .favoritarPerfilDeUsuario:hover {
   cursor: pointer;
 }
 .tag {
-  border: 0.8px solid #000;
-  background-color: #fff;
+  border: var(--borda-padrao);
+  background-color: var(--fundo-card);
   border-radius: 100px;
   padding: 0.3vw 0.3vw;
   display: flex;
   align-items: center;
+  color: var(--texto-principal);
   justify-content: center;
 }
+.texto-do-post {
+  overflow-wrap: break-word;
+  box-sizing: border-box;
+  max-width: 32vw;
+}
 .tag:hover {
-  background-color: #e7e7e7;
+  background-color: var(--hover-botoes);
   transition: 0.2s;
   cursor: pointer;
 }
 .indicadorDeLimite {
-  color: #8b8b8b;
+  color: var(--texto-suave);
   position: absolute;
   bottom: 0;
   right: 0.2vw;
@@ -972,7 +1649,7 @@ cursor: pointer;
 }
 .biografiaFieldset {
   display: flex;
-  border: 1px dashed #000;
+  border: var(--borda-dashed);
   margin-top: 0.5vw;
   border-radius: 6px;
   padding: 0.7vw;
@@ -986,7 +1663,7 @@ cursor: pointer;
   width: 100%;
   max-width: 100%;
   font-size: 1vw;
-  color: #333;
+  color: var(--texto-suave);
   margin: 0;
   line-height: 1.4;
   text-align: left;
@@ -994,7 +1671,7 @@ cursor: pointer;
   top: 0;
 }
 .textoDeAviso {
-  color: #8b8b8b;
+  color: var(--texto-suave);
 }
 .semBiografia {
   display: flex;
@@ -1014,7 +1691,7 @@ cursor: pointer;
   width: 1.45vw;
 }
 .btnChat {
-  background-color: #3CBC00;
+  background-color: var(--fundo-card-va);
   color: #fff;
   border: none;
   display: flex;
@@ -1027,15 +1704,15 @@ cursor: pointer;
 }
 .btnChat:hover {
   cursor: pointer;
-  background-color: #37ad00;
+  background-color: var(--fundo-card-va-hover);
 }
 .btn-notificacoes {
   width: 4vw;
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #fff;
-  border: 1px solid #000;
+  background-color: var(--fundo-card);
+  border: var(--borda-padrao);
   border-radius: 20px;
 }
 .botoesU {
@@ -1043,21 +1720,22 @@ cursor: pointer;
   margin-left: 1vw;
   margin-top: 1vw;
   margin-bottom: 1vw;
-  width: 100%;
-  gap: 9vw;
+  width: 37vw;
+  align-items: center;
+  justify-content: space-between;
 }
 .btnPerfil {
-  background-color: #fff;
+  background-color: var(--fundo-card);
   border-radius: 100px;
   display: flex;
   align-items: center;
   align-items: center;
   gap: 5px;
   padding: 1px 7px;
-  border: 0.8px solid #000;
+  border: var(--borda-padrao);
 }
 .localization , .creationDate {
-  color: #8b8b8b
+  color: var(--texto-suave);
 }
 .spanInfo {
   display: flex;
@@ -1066,11 +1744,11 @@ cursor: pointer;
   gap: 0.4vw;
 }
 .btnPerfil:hover {
-  background-color: #e7e7e7;
+  background-color: var(--hover-botoes);
   cursor: pointer;
 }
 section.telaDeExibicao {
-  background-color: #fff;
+  background-color: var(--fundo-card);
   position: fixed;
   width: 40%;
   top: 0;
@@ -1080,17 +1758,73 @@ section.telaDeExibicao {
   margin-top: 4vw;
   margin-bottom: 3vw;
   border-radius: 9px;
-  border: 1px solid #000;
+  border: var(--borda-padrao);
   scrollbar-color: #ccc transparent;
   overflow-y: auto;
   scrollbar-width: thin;
   padding: 2px;
 }
+[data-theme="dark"] .imgDelete {
+  filter: invert(1);
+  transition: filter 0.3s ease;
+}
+[data-theme="dark"] .gear {
+  filter: invert(1);
+  transition: filter 0.3s ease;
+}
+[data-theme="dark"] .Data-de-Criacao {
+  filter: invert(1);
+  transition: filter 0.3s ease;
+}
+[data-theme="dark"] .setaVoltar {
+  filter: invert(1);
+  transition: filter 0.3s ease;
+}
+[data-theme="dark"] .btn-post-img {
+  filter: invert(1);
+  transition: filter 0.3s ease;
+}
+[data-theme="dark"] .btn-edit {
+  filter: invert(1);
+  transition: filter 0.3s ease;
+}
+[data-theme="dark"] .plus {
+  filter: invert(1);
+  transition: filter 0.3s ease;
+}
+[data-theme="dark"] .btn-preenchido {
+  filter: hue-rotate(135deg) saturate(1.8) brightness(1.1);
+  transition: filter 0.3s ease;
+}
+[data-theme="dark"] .favoritarPerfilDeUsuario {
+  filter: hue-rotate(135deg) saturate(1.8) brightness(1.1);
+  transition: filter 0.3s ease;
+}
+[data-theme="dark"] .fotoPerfilDefault {
+  filter: invert(1);
+  transition: filter 0.3s ease;
+}
+[data-theme="dark"] .sininhoNotificacao {
+  filter: invert(1);
+  transition: filter 0.3s ease;
+}
+[data-theme="dark"] .fotoPerfilDefault-favorito {
+  filter: invert(1);
+  transition: filter 0.3s ease;
+}
+[data-theme="dark"] .interrogacao {
+  filter: invert(1) brightness(100);
+  transition: filter 0.3s ease;
+}
+.setaVoltar {
+  width: 2vw;
+  height: 2vw;
+}
 .botaoVoltar {
   width: 3vw;
   height: 3vw;
-  background-color: #fff;
-  border: 1px solid #000;
+  background-color: var(--fundo-card);
+  border: var(--borda-padrao);
   border-radius: 5px;
   position: absolute;
   top: 0;
@@ -1098,16 +1832,12 @@ section.telaDeExibicao {
   margin-left: 13vw;
 }
 .botaoVoltar:hover {
-  background-color: #e7e7e7;
+  background-color: var(--hover-botoes);
   cursor: pointer;
-}
-.setaVoltar {
-  width: 2vw;
-  height: 2vw;
 }
 .bannerPerfil {
   height: 11vw;
-  background-color: #55ff3389;
+  background-color: var(--banner-default);
   margin: 0.5vw 0.5vw;
   border-radius: 5px;
   overflow: hidden;
@@ -1125,7 +1855,7 @@ section.telaDeExibicao {
   justify-content: center;
 }
 .fotoDePerfil {
-  background-color: #fff;
+  background-color: var(--fundo-card);
   margin-top: -3vw;
   margin-left: 1vw;
   margin-right: 0.5vw;
@@ -1156,10 +1886,10 @@ section.telaDeExibicao {
   opacity: 1 !important;
 }
 .spanSeguidores {
-  color: #8b8b8b;
+  color: var(--texto-suave);
 }
 .OnlineTexto , .OfflineTexto {
-  color: #8b8b8b;
+  color: var(--texto-suave);
   font-size: 0.95vw;
 }
 section::-webkit-scrollbar-track {
@@ -1193,13 +1923,7 @@ section::-webkit-scrollbar-thumb:hover {
   gap: 0.1vw;
   align-items: center;
 }
-.gradeFavoritos {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.8vw;
-  margin-top: 0.5vw;
-}
-.postagens, .mural, .favoritos, .suporte {
+.postagens, .mural, .favoritos {
   margin: 1.5vw 1vw;
 }
 .postagens h3, .mural h3, .favoritos h3 {
@@ -1208,7 +1932,7 @@ section::-webkit-scrollbar-thumb:hover {
 .caixa-postagens-vazia, .caixa-mural-vazia {
   display: flex;
   flex-direction: column;
-  border: 1px solid #000;
+  border: var(--borda-padrao);
   margin-top: 0.5vw;
   border-radius: 6px;
   padding: 1.5vw;
@@ -1218,9 +1942,10 @@ section::-webkit-scrollbar-thumb:hover {
   justify-content: center;
 }
 .suporte {
+  margin: 0 1vw 0.7vw 1vw;
   margin-top: 2vw;
   padding-top: 1vw;
-  border-top: 1px solid #000;
+  border-top: var(--borda-padrao);
 }
 .link-suporte {
   color: #00d2ff;
@@ -1237,5 +1962,60 @@ section::-webkit-scrollbar-thumb:hover {
 .seta-suporte {
   display: inline-block;
   transform: rotate(0deg);
+}
+
+/* --- Bloquear usuário --- */
+.acoesModeracao {
+  margin-top: 0.8vw;
+}
+.btnBloquear {
+  background-color: #fff;
+  border: none;
+  color: #cf0000;
+  font-weight: bold;
+  font-size: 1vw;
+  padding: 0;
+}
+.btnBloquear:hover {
+  text-decoration: underline;
+  cursor: pointer;
+}
+.btnDesbloquear {
+  background-color: #fff;
+  border: none;
+  color: #3CBC00;
+  font-weight: bold;
+  font-size: 1vw;
+  padding: 0;
+}
+.btnDesbloquear:hover {
+  text-decoration: underline;
+  cursor: pointer;
+}
+.overlayFormTituloVermelho {
+  background-color: #cf0000 !important;
+}
+.formBloqueio {
+  width: 26vw;
+}
+.textoConfirmacaoBloqueio {
+  padding: 0 1vw;
+  color: #333;
+  font-size: 1vw;
+  line-height: 1.4;
+}
+.btnConfirmarBloqueio {
+  padding: 0.5vw;
+  width: 7.2vw;
+  border-radius: 10px;
+  font-size: 1vw;
+  border: none;
+  background-color: #cf0000;
+  font-weight: bold;
+  color: #fff;
+}
+.btnConfirmarBloqueio:hover {
+  background-color: #ff0000;
+  cursor: pointer;
 }
 </style>

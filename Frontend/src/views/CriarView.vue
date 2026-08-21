@@ -1,12 +1,14 @@
 <script setup>
 import { ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import voltar from '@/icons/voltar.png'
+import { useToast } from 'vue-toastification';
+import voltar from '@/icons/voltar.svg'
 import tagsTotais from '@/data/tags';
 import plus from '@/icons/plus.svg'
 
 const route = useRoute();
 const router = useRouter();
+const toast = useToast();
 
 const listaTagsTotais = ref(tagsTotais);
 const adicionarTag = ref(false);
@@ -42,7 +44,7 @@ function adicionarOpcaoEnquete() {
   if (opcoesEnquete.value.length < 5) {
     opcoesEnquete.value.push({ id: Date.now(), texto: '' });
   } else {
-    alert("Você só pode adicionar até 5 opções na enquete.");
+    toast.warning("Você só pode adicionar até 5 opções na enquete.");
   }
 };
 function removerOpcaoEnquete(index) {
@@ -98,10 +100,10 @@ const enviarPost = async () => {
     const dados = await resposta.json();
 
     if (resposta.ok) {
-      alert('Postagem completa criada com sucesso!');
+      toast.success('Postagem completa criada com sucesso!');
       router.push('/home');
     } else {
-      alert(dados.erro || "Erro ao fazer postagem.");
+      toast.error(dados.erro || "Erro ao fazer postagem.");
     }
 
   } catch(erro) {
@@ -121,7 +123,7 @@ const enviarPost = async () => {
     </section>
     <section v-if="mostrarPostTela" class="criarPost">
       <h2 class="tituloPrincipal">Painel de criação</h2>
-      <form @submit.prevent="enviarPost">
+      <form @submit.prevent="enviarPost" class="form-posts">
         <div class="areaDescricaoPost">
           <label for="descPost" class="titulos-Da-tela-Postagem">Descrição da postagem*</label>
           <textarea v-model="descricaoDaPostagem" placeholder="O que você está pensando?" maxlength="3500" id="descPost" required rows="10" class="textarea"></textarea>
@@ -135,7 +137,7 @@ const enviarPost = async () => {
           <div class="lista-inputs-enquete">
 
             <div v-for="(opcao, index) in opcoesEnquete" :key="opcao.id" class="linha-opcao-enquete">
-              <input v-model="opcao.texto" type="text" :placeholder="`Opção ${index + 1}`" maxlength="100">
+              <input v-model="opcao.texto" type="text" :placeholder="`Opção ${index + 1}`" maxlength="25">
               <button v-if="opcoesEnquete.length > 2" type="button" @click="removerOpcaoEnquete(index)" class="btn-deletar-opcao">&times;</button>
             </div>
           </div>
@@ -206,6 +208,11 @@ main {
   overflow: hidden;
   overflow-x: hidden;
 }
+.form-posts {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5vw;
+}
 .divDasTagsDoUsuario {
   display: flex;
   margin-top: 0.5vw;
@@ -234,6 +241,18 @@ main {
   border-radius: 12px;
 }
 .deFatoOBotaoPostar:hover {
+  background-color: #37ad00;
+}
+.campo-form input::-webkit-file-upload-button {
+  background-color: #3CBC00;
+  border: none;
+  padding: 1vw;
+  border-radius: 10px;
+  color: #fff;
+  cursor: pointer;
+  font-weight: bolder;
+}
+.campo-form input::-webkit-file-upload-button:hover {
   background-color: #37ad00;
 }
 .lista-inputs-enquete {
@@ -299,6 +318,9 @@ main {
 }
 .secao-enquete {
   margin: 0.5vw;
+  gap: 0.5vw;
+  display: flex;
+  flex-direction: column;
 }
 .titulos-Da-tela-Postagem, .tituloTags {
   font-size: 1.2vw;
