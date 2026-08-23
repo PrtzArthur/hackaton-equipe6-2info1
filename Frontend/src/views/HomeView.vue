@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, watch } from 'vue';
+import { ref, onMounted, watch, nextTick, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import userBlackFull from '@/icons/userBlackFull.svg';
 import { useToast } from 'vue-toastification';
@@ -11,6 +11,9 @@ import compartilhar from '@/icons/compartilhar.svg';
 import comentarios from '@/icons/comentarios.svg';
 import dislikeInline from '@/icons/dislikeInline.svg';
 import dislikePreenchido from '@/icons/dislikePreenchido.svg';
+import setaParaBaixo from '@/icons/setaParaBaixo.svg';
+import setaParaCima from '@/icons/setaParaCima.svg';
+import reload from '@/icons/reload.svg';
 import ModalComentarios from '@/components/ModalComentarios.vue';
 
 const router = useRouter();
@@ -27,10 +30,12 @@ function abrirMural(post) {
 const postagensFeedGlobal = ref([]);
 const carregandoFeed = ref(true);
 const carregandoMais = ref(false);
-
+const gatilhoScrollInfinito = ref(null);
 const paginaAtual = ref(1);
 const fimDoFeed = ref(false);
 const meuIdLogado = ref('');
+let observadorSensor = null;
+
 
 const textoBusca = ref('');
 async function carregarTimelineGlobal(novaPagina = 1) {
@@ -73,6 +78,68 @@ watch(textoBusca, () => {
     carregarTimelineGlobal(1);
   }, 300);
 });
+
+const sugestoesAbertas = ref(true);
+const topicosAbertos = ref(true);
+const listaSugestaoPerfis = ref([]);
+const listaTopicosEmAlta = ref([]);
+
+async function carregarSugestoesPerfis() {
+  const idSeguroLocalStorage = localStorage.getItem('ifchat_user_id') || '';
+
+  if (!idSeguroLocalStorage) {
+    console.warn("Aviso: Usuário não identificado para gerar a barra lateral.");
+    return;
+  }
+
+  try {
+    const resposta = await fetch(`http://localhost:3000/api/criar/sidebar/sugestoes?meuId=${idSeguroLocalStorage}`);
+
+    if (resposta.ok) {
+      listaSugestaoPerfis.value = await resposta.json();
+    }
+  } catch (e) {
+    console.error("Erro de comunicação ao carregar sugestões laterais:", e);
+  }
+}
+async function carregarTopicosSidebar() {
+  try {
+    const resposta = await fetch('http://localhost:3000/api/criar/sidebar/topicos');
+    if (resposta.ok) {
+      listaTopicosEmAlta.value = await resposta.json();
+    }
+  } catch (e) { console.error("Erro ao carregar tópicos laterais", e); }
+}
+async function seguirUsuarioPelaSidebar(idCriadorAlvo) {
+  try {
+    const resposta = await fetch('http://localhost:3000/api/usuario/seguir', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idSeguidor: meuIdLogado.value, idSeguido: idCriadorAlvo })
+    });
+
+    if (resposta.ok) {
+      toast.success("Perfil seguido!");
+      listaSugestaoPerfis.value = listaSugestaoPerfis.value.filter(p => p.id_usuario !== idCriadorAlvo);
+      if (listaSugestaoPerfis.value.length === 0) carregarSugestoesPerfis();
+    }
+  } catch (erro) { console.error("Erro ao seguir pela sidebar", erro); }
+}
+const girando = ref(false);
+function dispararGiro() {
+  if (girando.value) return;
+  girando.value = true;
+
+  carregarSugestoesPerfis();
+
+  setTimeout(() => {
+    girando.value = false;
+  }, 500);
+}
+function gerenciarCliqueDoBotao() {
+  carregarSugestoesPerfis();
+  dispararGiro();
+}
 async function curtirPost(postagemAlvo, idUsuarioLogado, tipoEscolhido) {
   if (!idUsuarioLogado) {
     toast.warning("Você precisa estar logado para interagir!");
@@ -156,16 +223,36 @@ async function votarNaEnquete(idOpcao, idPostagem) {
 function irParaPerfilDoAutor(idAutor) {
   router.push(`/usuario/${idAutor}`);
 }
+async function carregarProximoLote() {
+  if (!fimDoFeed.value && !carregandoMais.value) {
+    carregandoMais.value = true;
 
-function carregarProximoLote() {
-  if (!fimDoFeed.value) {
-    carregarTimelineGlobal(paginaAtual.value + 1);
+    await carregarTimelineGlobal(paginaAtual.value + 1);
+
+    carregandoMais.value = false;
   }
 }
-
-onMounted(() => {
+onMounted(async () => {
   meuIdLogado.value = localStorage.getItem('ifchat_user_id') || '';
-  carregarTimelineGlobal();
+  carregarSugestoesPerfis();
+  carregarTopicosSidebar();
+  await carregarTimelineGlobal(1);
+  await nextTick();
+
+  observadorSensor = new IntersectionObserver((entradas) => {
+    const alvoFicouVisivel = entradas[0].isIntersecting;
+    if (alvoFicouVisivel) {
+      carregarProximoLote();
+    }
+  }, {
+    rootMargin: '200px'
+  });
+  if (gatilhoScrollInfinito.value) {
+    observadorSensor.observe(gatilhoScrollInfinito.value);
+  }
+});
+onUnmounted(() => {
+  if (observadorSensor) observadorSensor.disconnect();
 });
 </script>
 
@@ -191,17 +278,13 @@ onMounted(() => {
               <span class="handle-autor">@{{ post.autor.username }}</span>
             </div>
           </div>
-
           <p v-if="post.conteudo" class="texto-do-post">{{ post.conteudo }}</p>
-
           <div v-if="post.imagem" class="container-imagem-post">
             <img :src="post.imagem" alt="Post Imagem" class="imagem-revelada-post">
           </div>
-
           <div v-if="post.tipo === 'postagemComEnquete' && post.opcoes.length > 0" class="render-enquete-post">
             <div class="lista-opcoes-voto">
               <div v-for="opcao in post.opcoes" :key="opcao.id_opcao" class="card-opcao-container">
-
                 <button
                   type="button"
                   @click.stop.prevent="votarNaEnquete(opcao.id_opcao, post.id_postagem)"
@@ -209,7 +292,6 @@ onMounted(() => {
                   :class="{ 'opcao-selecionada-local': opcao.votadoPorMim }"
                   :disabled="post.autor.id === meuIdLogado">
                   <div v-if="post.jaVotado" class="fundo-progresso-verde" :style="{ width: opcao.porcentagem + '%' }"></div>
-
                   <div class="conteudo-resultado-linha">
                     <span class="texto-opcao-voto">
                       {{ opcao.texto_opcao }}
@@ -229,33 +311,27 @@ onMounted(() => {
           </div>
           <div class="div-botoes-postagens">
             <button :disabled="post.autor.id === meuIdLogado" class="btn-post" @click.prevent="curtirPost(post, meuIdLogado, 'like')">
-              <img v-if="post?.meu_voto_post === 'like'" :src="likePreenchido" alt="Curtido">
-              <img v-else :src="likeInline" alt="curtir">
+              <img v-if="post?.meu_voto_post === 'like'" :src="likePreenchido" alt="Curtido" class="img-preenchido">
+              <img v-else :src="likeInline" alt="curtir" class="btn-post-img">
             </button>
             <span class="qnt-likes-dislikes">{{ post.total_likes }}</span>
             <button :disabled="post.autor.id === meuIdLogado" class="btn-post" @click.prevent="curtirPost(post, meuIdLogado, 'dislike')">
-              <img v-if="post?.meu_voto_post === 'dislike'" :src="dislikePreenchido" alt="Descurtido">
-              <img v-else :src="dislikeInline" alt="não curtir">
+              <img v-if="post?.meu_voto_post === 'dislike'" :src="dislikePreenchido" alt="Descurtido" class="img-preenchido">
+              <img v-else :src="dislikeInline" alt="não curtir" class="btn-post-img">
             </button>
             <span class="qnt-likes-dislikes">{{ post.total_dislikes }}</span>
-            <button class="btn-post" @click="abrirMural(post)"><img :src="comentarios" alt="comentar"></button>
-            <button class="btn-post"><img :src="compartilhar" alt="compartilhar"></button>
-            <button class="btn-post"><img v-if="!naoSalvo" :src="marcadorInline" alt=""><img v-else :src="marcadorPreenchido" alt="não curtir"></button>
+            <button class="btn-post" @click="abrirMural(post)"><img :src="comentarios" alt="comentar" class="btn-post-img"></button>
+            <button class="btn-post"><img :src="compartilhar" alt="compartilhar" class="btn-post-img"></button>
+            <button class="btn-post"><img v-if="!naoSalvo" :src="marcadorInline" alt="" class="btn-post-img"><img v-else :src="marcadorPreenchido" alt="não curtir" class="img-preenchido"></button>
           </div>
           <span class="data-do-post">
             Publicado em: {{ new Date(post.data_envio).toLocaleDateString('pt-BR') }}
           </span>
         </div>
-        <div class="container-paginacao-home">
-          <button
-            v-if="!fimDoFeed"
-            type="button"
-            @click="carregarProximoLote"
-            :disabled="carregandoMais"
-            class="btn-carregar-mais"
-          >
-            {{ carregandoMais ? 'Buscando mais posts...' : 'Carregar mais publicações' }}
-          </button>
+        <div ref="gatilhoScrollInfinito" class="container-paginacao-home">
+          <div v-if="!fimDoFeed" class="bloco-loading-scroll">
+            <span class="loading-scroll-texto">Buscando mais publicações do IFC...</span>
+          </div>
           <span v-else class="texto-fim-feed">Você chegou ao fim da timeline do IFchat!</span>
         </div>
       </div>
@@ -265,16 +341,122 @@ onMounted(() => {
   :post="postSelecionado"
   @fechar="modalAberto = false"
 />
+<aside class="coluna-lateral-direita">
+      <section class="box-sidebar-container">
+        <h3 @click="sugestoesAbertas = !sugestoesAbertas" class="titulo-retratil">
+          Sugestões para você
+          <Transition name="troca-icone" mode="out-in">
+            <img v-if="sugestoesAbertas" :src="setaParaCima" alt="tópicos abertos" key="ativo" class="seta">
+            <img v-else :src="setaParaBaixo" alt="" class="seta" key="inativo">
+          </Transition>
+        </h3>
+        <div class="corpo-retratil-container" :class="{ 'aba-recolhida': !sugestoesAbertas }">
+          <div class="lista-sugestoes-wrapper">
+            <div v-for="perfil in listaSugestaoPerfis" :key="perfil.id_usuario" class="card-sugestao-linha">
+              <div class="div-imagem-perfil">
+                <img :src="perfil.foto_profile || '/src/icons/userBlackFull.svg'" alt="Avatar" class="avatar-sugestao-mini" @click="irParaPerfilDoAutor(perfil.id_usuario)">
+              </div>
+              <div class="info-sugestao-texto">
+                <div class="bloco-nomes-user">
+                  <strong>{{ perfil.nome }}</strong>
+                  <span>@{{ perfil.username }}</span>
+                </div>
+                <button type="button" @click="seguirUsuarioPelaSidebar(perfil.id_usuario)" class="btn-seguir-sidebar">
+                  Seguir
+                </button>
+              </div>
+            </div>
+          </div>
+          <button type="button" @click="gerenciarCliqueDoBotao" class="btn-refresh-sidebar" title="Ver novas sugestões">
+            <img :src="reload" alt="" class="icone-loop" :class="{ 'rodando-360': girando }">
+          </button>
+        </div>
+      </section>
+      <section class="box-sidebar-container">
+        <h3 @click="topicosAbertos = !topicosAbertos" class="titulo-retratil">
+          Tópicos em alta
+          <Transition name="troca-icone" mode="out-in">
+            <img v-if="topicosAbertos" :src="setaParaCima" alt="tópicos abertos" key="ativo" class="seta">
+            <img v-else :src="setaParaBaixo" alt="" class="seta" key="inativo">
+          </Transition>
+        </h3>
+        <div class="corpo-retratil-container" :class="{ 'aba-recolhida': !topicosAbertos }">
+          <div class="lista-topicos-wrapper">
+            <div v-for="(topico, index) in listaTopicosEmAlta" :key="index" class="card-topico-linha">
+              <span class="nome-topico-hashtag">#{{ topico.nome }}</span>
+              <span class="ranking-posicao">#{{ index + 1 }}</span>
+            </div>
+          </div>
+        </div>
+      </section>
+    </aside>
   </main>
 </template>
 
 <style scoped>
+[data-theme="dark"] .img-preenchido {
+  filter: hue-rotate(135deg) saturate(1.8) brightness(1.1);
+  transition: filter 0.3s ease;
+}
+[data-theme="dark"] .btn-post-img {
+  filter: invert(1);
+  transition: filter 0.3s ease;
+}
+[data-theme="dark"] .icone-loop {
+  filter: invert(1);
+  transition: filter 0.3s ease;
+}
+[data-theme="dark"] .seta {
+  filter: invert(1);
+  transition: filter 0.3s ease;
+}
+[data-theme="dark"] .img-autor-home-default {
+  filter: invert(1);
+  transition: filter 0.3s ease;
+}
+[data-theme="dark"] .avatar-sugestao-mini[src$="userBlackFull.svg"] {
+  filter: invert(1);
+}
+.avatar-sugestao-mini[src$="userBlackFull.svg"] {
+  width: 4vw;
+  height: auto;
+}
+.div-imagem-perfil {
+  width: 3vw;
+  height: 3vw;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-shrink: 0;
+  background-color: var(--hover-botoes);
+}
+.rodando-360 {
+  animation: girarGatilho 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+@keyframes girarGatilho {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+.troca-icone-enter-active,
+.troca-icone-leave-active {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.troca-icone-enter-from,
+.troca-icone-leave-to {
+  opacity: 0;
+  transform: scale(0.8) rotate(-10deg);
+}
 main {
   height: 100vh;
   flex-grow: 1;
   padding: 1.5vw;
   margin-left: 12vw;
-  width: calc(100% - 12vw);
+  width: calc(100% - 14vw);
   position: fixed;
   top: 0;
   bottom: 0;
@@ -283,8 +465,8 @@ main {
   overflow: hidden;
   overflow-x: hidden;
 }
-section {
-  background-color: #fff;
+.coluna-central-feed {
+  background-color: var(--fundo-card);
   position: fixed;
   width: 40%;
   top: 0;
@@ -293,7 +475,6 @@ section {
   transform: translate(-50%);
   margin-top: 4vw;
   border-radius: 9px 9px 0 0;
-  border: 1px solid #000;
   border-bottom: none;
   scrollbar-color: #ccc transparent;
   overflow-y: auto;
@@ -304,11 +485,18 @@ section {
   width: 2.5vw;
   height: 2.5vw;
   border-radius: 50%;
-  background-color: #fff;
+  background-color: var(--fundo-card);
   border: none;
 }
+.btn-post:hover {
+  transform: scale(1.12); /* Cresce com efeito de mola */
+}
+
+.btn-post:active {
+  transform: scale(0.92); /* Encolhe simulando o clique do dedo */
+}
 .opcao-escolhida {
-  color: #319e00;
+  color: var(--opcao-escolhida);
   font-size: 0.8vw;
   margin-bottom: 0.7vw;
 }
@@ -316,9 +504,164 @@ section {
   font-size: 1vw;
 }
 .btn-post:hover {
-  background-color: #f9f9f9;
+  background-color: var(--hover-botoes);
   cursor: pointer;
   transition: 0.2s;
+}
+.coluna-lateral-direita {
+  position: fixed;
+  top: 4vw;
+  right: 5vw;
+  width: 20vw;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  box-sizing: border-box;
+}
+.box-sidebar-container {
+  background-color: var(--fundo-card);
+  border: var(--borda-padrao);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02);
+  transition: border-color 0.3s ease, background-color 0.3s ease;
+}
+.titulo-retratil {
+  margin: 0;
+  padding: 0.5vw 1.5vw;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--texto-principal);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+  border-bottom: 1px solid var(--borda-padrao);
+}
+.titulo-retratil:hover {
+  background-color: var(--hover-botoes);
+  transition: 0.3s;
+}
+.corpo-retratil-container {
+  max-height: 500px;
+  opacity: 1;
+  transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
+  display: flex;
+  flex-direction: column;
+}
+.corpo-retratil-container.aba-recolhida {
+  max-height: 0px !important;
+  opacity: 0;
+  pointer-events: none;
+}
+.lista-sugestoes-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.card-sugestao-linha {
+  border: 1px solid var(--borda-padrao);
+  border-radius: 8px;
+  padding: 10px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background-color: var(--fundo-card);
+}
+.avatar-sugestao-mini {
+  width: 3vw;
+  height: 3vw;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid var(--borda-padrao);
+  cursor: pointer;
+}
+.info-sugestao-texto {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-grow: 1;
+  box-sizing: border-box;
+}
+.bloco-nomes-user {
+  display: flex;
+  flex-direction: column;
+  max-width: 65%;
+}
+.info-sugestao-texto strong {
+  font-size: 0.88rem;
+  color: var(--texto-principal);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.info-sugestao-texto span {
+  font-size: 0.78rem;
+  color: var(--texto-suave);
+}
+.btn-seguir-sidebar {
+  background-color: var(--fundo-card-va);
+  color: #ffffff;
+  border: none;
+  border-radius: 20px;
+  padding: 6px 14px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  right: 0;
+  transition: background-color 0.2s ease, transform 0.1s ease;
+}
+.btn-seguir-sidebar:hover {
+  background-color: var(--fundo-card-va-hover);
+  transform: scale(1.02);
+}
+.btn-refresh-sidebar {
+  background-color: var(--fundo-card);
+  border: 1px solid var(--borda-padrao);
+  border-radius: 20px;
+  width: 80%;
+  margin: 4px auto 12px auto;
+  padding: 6px 0;
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: all 0.2s ease;
+  border: var(--borda-padrao);
+}
+.btn-refresh-sidebar:hover {
+  background-color: var(--hover-botoes);
+  transform: scale(1.02);
+}
+.icone-loop {
+  font-size: 1rem;
+}
+.lista-topicos-wrapper {
+  display: flex;
+  flex-direction: column;
+  padding: 12px;
+  gap: 8px;
+}
+.card-topico-linha {
+  border: 1px solid var(--borda-padrao);
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: var(--fundo-card);
+}
+.nome-topico-hashtag {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--texto-principal);
+}
+.ranking-posicao {
+  font-size: 0.8rem;
+  color: var(--texto-suave);
+  font-weight: 500;
+  margin: 0 0.7vw;
 }
 .btn-post img {
   width: auto;
@@ -332,14 +675,15 @@ section {
 .div-botoes-postagens {
   display: flex;
   align-items: center;
+  gap: 0.2vw;
 }
 .porcentagem-texto-voto {
-  color: #3CBC00;
+  color: var(--fundo-card-va);
   font-weight: bolder;
 }
 .texto-aviso {
   font-weight: bolder;
-  color: #3CBC00;
+  color: var(--fundo-card-va);
 }
 .imagem-revelada-post {
   width: 100%;
@@ -361,8 +705,7 @@ section {
 .containerPai {
   display: flex;
   flex-direction: column;
-  gap: 1vw;
-  padding: 2vw 2vw;
+  padding: 0.5vw 0.5vw;
 }
 .container-tags-postagem {
   display: flex;
@@ -386,24 +729,38 @@ section {
   height: 3vw;
   border-radius: 50%;
   overflow: hidden;
-  background-color: #eee;
+  background-color: var(--hover-botoes);
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
-.img-autor-home, .img-autor-home-default {
+.img-autor-home{
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
+.img-autor-home-default {
+  object-fit: cover;
+  width: 4vw;
+  height: 4vw;
+}
 .barra-de-pesquisa {
+  outline: none;
+  font-size: 1vw;
   position: fixed;
   top: 0;
   left: 50%;
+  color: var(--texto-suave);
   transform: translate(-50%);
-  border: 0.5px solid #000;
-  background-color: #fff;
+  border: 0.5px solid var(--texto-principal);
+  background-color: var(--fundo-card);
   padding: 0.5vw;
   margin: 1vw 0;
   border-radius: 20px;
   width: 40vw;
+}
+.barra-de-pesquisa::placeholder {
+  color: var(--texto-mais-suave);
 }
 .nomes-autor-post {
   display: flex;
@@ -415,13 +772,13 @@ section {
 }
 .nome-real-autor {
   font-size: 1vw;
-  color: #000;
+  color: var(--texto-principal);
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .handle-autor {
   font-size: 0.8vw;
-  color: #7a7a7a;
+  color: var(--texto-suave);
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -433,12 +790,12 @@ section {
 }
 .qnt-likes-dislikes {
   font-size: 1vw;
-  color: #7a7a7a;
+  color: var(--texto-suave);
 }
 .btn-carregar-mais {
-  background-color: #fff;
-  border: 1px solid #3CBC00;
-  color: #3CBC00;
+  background-color: var(--fundo-card);
+  border: 1px solid var(--fundo-card-va);
+  color: var(--fundo-card-va);
   padding: 0.6vw 2vw;
   border-radius: 20px;
   font-weight: bold;
@@ -447,38 +804,37 @@ section {
   transition: 0.2s;
 }
 .btn-carregar-mais:hover:not(:disabled) {
-  background-color: #3CBC00;
+  background-color: var(--fundo-card-va);
   color: #fff;
 }
 .btn-carregar-mais:disabled {
   border-color: #ccc;
-  color: #999;
+  color: var(--texto-suave);
   cursor: not-allowed;
 }
 .texto-fim-feed {
   font-size: 0.9vw;
-  color: #7a7a7a;
+  color: var(--texto-suave);
   font-style: italic;
 }
 .lista-postagens-globais {
-  border: 1px solid #000;
+  border-bottom: var(--borda-padrao);
   display: flex;
   flex-direction: column;
   padding: 1vw;
   min-width: 100%;
-  border-radius: 6px;
   gap: 1vw;
 }
 .texto-do-post {
   font-size: 1vw;
-  color: #111;
+  color: var(--texto-principal);
   margin: 0;
   overflow-wrap: break-word;
   max-width: 32vw;
 }
 .data-do-post {
   font-size: 0.8vw;
-  color: #7a7a7a;
+  color: var(--texto-suave);
 }
 .render-enquete-post {
   display: flex;
@@ -486,12 +842,6 @@ section {
   gap: 0.5vw;
   margin: 0.5vw 0;
   width: 100%;
-}
-.titulo-mini-enquete {
-  font-size: 0.95vw;
-  font-weight: bold;
-  color: #000;
-  margin: 0;
 }
 .lista-opcoes-voto {
   display: flex;
@@ -507,7 +857,7 @@ section {
   position: relative;
   width: 100%;
   height: 2.3vw;
-  background-color: #ffffff;
+  background-color: var(--fundo-card);
   border: 1px solid #ccc;
   border-radius: 6px;
   overflow: hidden;
@@ -519,18 +869,18 @@ section {
   transition: border-color 0.2s, background-color 0.2s;
 }
 .btn-enquete-dinamico:hover {
-  border-color: #3CBC00;
-  background-color: rgba(60, 188, 0, 0.02);
+  border-color: var(--fundo-card-va);
+  background-color: var(--fundo-opcao-enquete);
 }
 .opcao-selecionada-local {
-  border: 1.5px solid #3CBC00 !important;
+  border: 1.5px solid var(--fundo-card-va) !important;
 }
 .fundo-progresso-verde {
   position: absolute;
   top: 0;
   left: 0;
   bottom: 0;
-  background-color: rgba(60, 188, 0, 0.22);
+  background-color: var(--fundo-opcao-enquete);
   transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
   z-index: 1;
 }
@@ -544,15 +894,49 @@ section {
   z-index: 2;
   font-family: inherit;
   font-size: 0.95vw;
-  color: #000;
+  color: var(--texto-principal);
   font-weight: 500;
   pointer-events: none;
 }
 .total-votos-legenda {
   font-size: 0.8vw;
-  color: #7a7a7a;
+  color: var(--texto-suave);
   margin-top: 0.1vw;
   font-style: italic;
+}
+@media (max-width: 728px) {
+  main {
+    position: relative !important;
+    top: auto !important;
+    left: auto !important;
+    right: auto !important;
+    margin-left: 0 !important;
+    width: 100vw !important;
+    min-height: calc(100vh - 120px) !important;
+    padding-bottom: 75px !important;
+    box-sizing: border-box !important;
+    overflow-y: visible !important;
+  }
+  section {
+    position: relative !important;
+    top: auto !important;
+    bottom: auto !important;
+    left: auto !important;
+    transform: none !important;
+    width: 100% !important;
+    max-width: 100vw !important;
+    margin-top: 0 !important;
+    padding-top: 15px !important;
+    padding-bottom: 80px !important;
+    border: none !important;
+    border-radius: 0 !important;
+    overflow-y: visible !important;
+    box-sizing: border-box !important;
+  }
+  .barra-de-pesquisa {
+    top: auto !important;
+    position: relative;
+  }
 }
 </style>
 

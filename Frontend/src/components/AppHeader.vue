@@ -31,40 +31,40 @@ onMounted(() => {
 <template>
   <header>
     <h1>IFchat</h1>
-    <nav>
+    <nav class="nav-superior">
       <div class="divLink" :class="{ 'ativo': route.path === '/home' }">
         <RouterLink to="/home">
           <img :src="home" alt="" class="imgIcon linha">
           <img :src="homePreenchido" alt="" class="imgIcon preenchido">
-          <span>Home</span>
+          <span class="display-none">Home</span>
         </RouterLink>
       </div>
       <div class="divLink" :class="{ 'ativo': route.path === '/salvar' }">
         <RouterLink to="/salvar">
           <img :src="banner" alt="" class="imgIcon linha">
           <img :src="bannerPreenchido" alt="" class="imgIcon preenchido">
-          <span>Salvar</span>
+          <span class="display-none">Salvar</span>
         </RouterLink>
       </div>
       <div class="divLink" :class="{ 'ativo': route.path === '/chat' }">
         <RouterLink to="/chat">
           <img :src="chat" alt="" class="imgIcon linha">
           <img :src="chatPreenchido" alt="" class="imgIcon preenchido">
-          <span>Chat</span>
+          <span class="display-none">Chat</span>
         </RouterLink>
       </div>
       <div class="divLink" :class="{ 'ativo': route.path === '/explorar' }">
         <RouterLink to="/explorar">
           <img :src="explorar" alt="" class="imgIcon linha">
           <img :src="explorarPreenchido" alt="" class="imgIcon preenchido">
-          <span>Explorar</span>
+          <span class="display-none">Explorar</span>
         </RouterLink>
       </div>
       <div class="divLink" :class="{ 'ativo': route.path === '/eventos' }">
         <RouterLink to="/eventos">
           <img :src="eventos" alt="" class="imgIcon linha">
           <img :src="eventosPreenchido" alt="" class="imgIcon preenchido">
-          <span>Eventos</span>
+          <span class="display-none">Eventos</span>
         </RouterLink>
       </div>
     </nav>
@@ -73,21 +73,21 @@ onMounted(() => {
         <RouterLink :to="`/criar/${meuId}`">
           <img :src="criar" alt="" class="imgIcon linha">
           <img :src="criarPreenchido" alt="" class="imgIcon preenchido">
-          <span>Criar</span>
+          <span class="display-none">Criar</span>
         </RouterLink>
       </div>
       <div  v-if="meuId" class="divLink" :class="{ 'ativo': route.path.startsWith('/usuario') }">
         <RouterLink :to="`/usuario/${meuId}`">
           <img :src="user" alt="" class="imgIcon linha">
           <img :src="userPreenchido" alt="" class="imgIcon preenchido">
-          <span>Perfil</span>
+          <span class="display-none">Perfil</span>
         </RouterLink>
       </div>
       <div class="divLink" :class="{ 'ativo': route.path === '/avisos' }">
         <RouterLink to="/avisos">
           <img :src="sino" alt="" class="imgIcon linha">
           <img :src="sinoPreenchido" alt="" class="imgIcon preenchido">
-          <span>Avisos</span>
+          <span class="display-none">Avisos</span>
         </RouterLink>
       </div>
     </nav>
@@ -99,20 +99,19 @@ header {
   top: 0;
   left: 0;
   margin-top: 0;
-  width: 12vw;
+  width: 14vw;
   height: 100vh;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
   position: fixed;
-  background-color: #fff;
+  background-color: var(--fundo-card);
   border-right: 2px solid #b8b8b87e;
 }
 a {
   text-decoration: none;
   height: 100%;
   padding: 1vw 0;
-
 }
 header h1 {
   text-align: center;
@@ -120,7 +119,7 @@ header h1 {
   justify-content: center;
   display: flex;
   color: white;
-  background-color: #3CBC00;
+  background-color: var(--fundo-card-va);
   width: 100%;
   height: 3vw;
   top: 0;
@@ -134,8 +133,12 @@ header h1 {
   border-left: 0.45vw solid transparent;
 }
 .divLink:hover {
-  background-color: rgba(85, 255, 51, 0.14);
+  background-color: var(--fundo-site);
   transition: 0.3s;
+  transform: scale(1.02);
+}
+.divLink:active {
+  transform: scale(0.94);
 }
 .divLink a {
   display: flex;
@@ -146,7 +149,7 @@ header h1 {
   padding-left: 1.2vw;
   font-weight: bold;
   font-size: 1.4vw;
-  color: #333;
+  color: var(--texto-principal);
 }
 .imgIcon {
   width: 2.1vw;
@@ -156,6 +159,14 @@ header h1 {
 .imgIcon.linha {
   display: block;
 }
+[data-theme="dark"] .imgIcon.linha {
+  filter: invert(1);
+  transition: filter 0.3s ease;
+}
+[data-theme="dark"] .imgIcon.preenchido {
+  filter: hue-rotate(135deg) saturate(1.8) brightness(1.1);
+  transition: filter 0.3s ease;
+}
 .imgIcon.preenchido {
   display: none;
 }
@@ -164,12 +175,12 @@ header h1 {
   height: auto;
 }
 .divLink.ativo {
-  background-color: rgba(85, 255, 51, 0.14);
-  border-left: 0.45vw solid #3CBC00;
+  background-color: var(--fundo-site);
+  border-left: 0.45vw solid var(--fundo-card-va);
   box-shadow: 0px 4px 2px rgba(0, 0, 0, 0.25);
 }
 .divLink.ativo span {
-  color: #000;
+  color: var(--texto-principal);
 }
 .divLink.ativo .imgIcon.linha {
   display: none;
@@ -180,6 +191,81 @@ header h1 {
 .navInferior {
   margin-top: auto;
   margin-bottom: 2vw;
+}
+@media (max-width:728px) {
+  header {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    position: fixed;
+    align-items: center;
+    width: 100%;
+    height: 11vw !important;
+    top: 0;
+    left: 0;
+    z-index: 9999 !important;
+    border: none !important;
+    box-sizing: border-box;
+  }
+  .divLink.ativo {
+    background-color: var(--fundo-card) !important;
+  }
+  .imgIcon {
+    width: 8vw !important;
+    height: auto !important;
+  }
+  .divLink {
+  padding: 0;
+  border-left: none !important;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: none !important;
+  background-color: none !important;
+  }
+  a {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 0 !important;
+    background-color: none !important;
+  }
+  .display-none {
+    display: none;
+  }
+  .nav-superior {
+    width: 85%;
+    height: 12vw;
+    display: flex;
+    border-radius: 7px;
+    margin-bottom: 2vw;
+    flex-direction: row;
+    position: fixed !important;
+    transform: translateX(-50%) !important;
+    bottom: 0 !important;
+    left: 50% !important;
+    z-index: 9999 !important;
+    background-color: var(--fundo-card);
+    align-items: center;
+    justify-content: center;
+    gap: 5.5vw;
+    border-radius: 50px;
+    box-shadow: 0px 4px 2px rgba(0, 0, 0, 0.25);
+  }
+  .navInferior {
+    display: flex;
+    flex-direction: row;
+    gap: 1.5vw;
+    margin: 0 !important;
+  }
+  h1 {
+    width: 50% !important;
+    height: 100% !important;
+    left: 0;
+    font-size: 5vw !important;
+    margin: 0 !important;
+  }
 }
 </style>
 

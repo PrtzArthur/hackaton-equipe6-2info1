@@ -79,11 +79,15 @@ const realizarCadastro = async () => {
             <input v-model="confirmarSenha" minlength="8" maxlength="50" type="password" placeholder="Senha" id="senha" required>
           </div>
           <div class="termos">
+            <label for="checkBox" class="labelTermos">
             <input v-model="aceitouTermos" type="checkbox" class="checkbox" id="checkBox" required>
-            <label for="checkBox" class="labelTermos">Estou de acordo com os <RouterLink to="/termos-de-uso">Termos de Uso</RouterLink> e <RouterLink to="/politica-de-privacidade">Política de Privacidade</RouterLink></label>
+            <span class="texto-termo-label">
+              Estou de acordo com os <RouterLink to="/termos-de-uso" @click.stop>Termos de Uso</RouterLink> e <RouterLink to="/politica-de-privacidade">Política de Privacidade</RouterLink>
+            </span>
+            </label>
           </div>
           <button type="submit" class="BotaoCriar">Criar</button>
-          <p class="direcionarParaLogin">Já tem uma conta? <RouterLink to="/">Fazer login</RouterLink></p>
+          <p class="direcionarParaLogin">Já tem uma conta? <RouterLink to="/" @click.stop>Fazer login</RouterLink></p>
         </form>
       </div>
     </div>
@@ -95,12 +99,51 @@ a:hover {
   color: blue;
 }
 button.BotaoCriar:hover {
-  background-color: #37ad00;
+  background-color: var(--fundo-card-va-hover);
   transition: 0.2s;
+  transform: scale(1.02);
+}
+button.BotaoCriar:active {
+  transform: scale(0.98);
+}
+.texto-termo-label {
+  align-items: flex-start;
+  cursor: pointer;
+  width: 100%;
+  user-select: none;
+  margin: 0 !important;
+}
+.checkbox ~ .texto-termo-label::before {
+  content: "";
+  display: inline-block;
+  width: 1vw;
+  height: 1vw;
+  min-width: 16px;
+  min-height: 16px;
+  border: 0.15vw solid var(--fundo-card-va, #ccc);
+  border-radius: 50%;
+  background-color: var(--fundo-card);
+  margin-right: 0.8vw;
+  flex-shrink: 0;
+  position: relative;
+  top: 0.1vw;
+  transition: all 0.2s ease-in-out;
+}
+.checkbox:checked ~ .texto-termo-label::before {
+  background-color: var(--checkbox-config);
+  border-color: var(--checkbox-config);
+  width: 1vw;
+  height: 1vw;
+  box-shadow: none;
+}
+.checkbox:focus-visible ~ .texto-termo-label::before {
+  box-shadow: 0 0 0 3px rgba(85, 255, 51, 0.4);
 }
 .checkbox {
-  cursor: pointer;
-  margin-right: 0.5vw;
+  opacity: 0;
+  position: absolute;
+  width: 0;
+  height: 0;
 }
 main {
   display: flex;
@@ -113,7 +156,7 @@ main {
   position: fixed;
 }
 main button.BotaoCriar {
-  background-color: #3CBC00;
+  background-color: var(--fundo-card-va);
   color: white;
   border: none;
   cursor: pointer;
@@ -124,7 +167,7 @@ main button.BotaoCriar {
   border-radius: 1.8vw;
 }
 main div.Card-Principal {
-  background-color: white;
+  background-color: var(--fundo-card);
   width: 30vw;
   border-radius: 1.2vw;
   overflow: hidden;
@@ -141,7 +184,7 @@ main div.Div-Central {
 }
 main header {
   color: white;
-  background-color: #3CBC00;
+  background-color: var(--fundo-card-va);
   padding: 1.2vw;
   text-align: left;
 }
@@ -159,10 +202,15 @@ main label.labels {
 }
 main div.Agrupacao input {
   padding: 0.6vw;
+  color: var(--texto-prinncipal);
   font-size: 1vw;
   border: 0.1vw solid #ccc;
   border-radius: 0.4vw;
   outline: none;
+  background-color: var(--fundo-card);
+}
+main div.Agrupacao input::placeholder {
+  color: var(--texto-mais-suave);
 }
 main p.direcionarParaLogin a{
   text-decoration: none;

@@ -78,7 +78,7 @@ const listaSelecionada = ref(listas.value[1] || null)
 
 
 const listasFiltradas = computed(() => {
-  return listas.value.filter(l => 
+  return listas.value.filter(l =>
     l.nome.toLowerCase().includes(buscaLista.value.toLowerCase())
   )
 })
@@ -86,7 +86,7 @@ const listasFiltradas = computed(() => {
 
 const postagensFiltradas = computed(() => {
   if (!listaSelecionada.value) return []
-  return listaSelecionada.value.postagens.filter(p => 
+  return listaSelecionada.value.postagens.filter(p =>
     p.texto.toLowerCase().includes(buscaPostagem.value.toLowerCase()) ||
     p.usuario.toLowerCase().includes(buscaPostagem.value.toLowerCase())
   )
@@ -169,7 +169,7 @@ function removerPostagem(postId) {
 <template>
   <main>
     <div class="saved-container">
-      
+
       <div class="column-card">
         <header class="card-header">
           <h1>Listas de postagens salvas</h1>
@@ -182,11 +182,11 @@ function removerPostagem(postId) {
           </div>
 
           <div v-if="criandoLista" class="add-list-input-box">
-            <input 
+            <input
               ref="inputNovaLista"
-              type="text" 
-              v-model="nomeNovaLista" 
-              placeholder="Digite o nome da lista..." 
+              type="text"
+              v-model="nomeNovaLista"
+              placeholder="Digite o nome da lista..."
               @keyup.enter="salvarNovaLista"
               @blur="cancelarOuSalvar"
             />
@@ -196,9 +196,9 @@ function removerPostagem(postId) {
           </button>
 
           <div class="lists-wrapper">
-            <div 
-              v-for="item in listasFiltradas" 
-              :key="item.id" 
+            <div
+              v-for="item in listasFiltradas"
+              :key="item.id"
               :class="['list-item', { active: listaSelecionada?.id === item.id }]"
               @click="selecionarLista(item)"
             >
@@ -213,16 +213,16 @@ function removerPostagem(postId) {
         <header class="card-header header-with-action">
           <h1>
             <template v-if="listaSelecionada">
-              <strong>{{ listaSelecionada.nome }}</strong> 
+              <strong>{{ listaSelecionada.nome }}</strong>
               <span class="light-text"> selecionada</span>
             </template>
             <template v-else>
               <span class="light-text">Nenhuma lista selecionada</span>
             </template>
           </h1>
-          <button 
-            v-if="listaSelecionada" 
-            class="trash-btn" 
+          <button
+            v-if="listaSelecionada"
+            class="trash-btn"
             title="Excluir lista"
             @click="abrirModalExclusao"
           >
@@ -232,10 +232,10 @@ function removerPostagem(postId) {
 
         <div class="scroll-content">
           <div class="search-box">
-            <input 
-              type="text" 
-              v-model="buscaPostagem" 
-              placeholder="Procurar postagem" 
+            <input
+              type="text"
+              v-model="buscaPostagem"
+              placeholder="Procurar postagem"
               :disabled="!listaSelecionada"
             />
             <span class="search-icon">🔍︎</span>
@@ -247,7 +247,7 @@ function removerPostagem(postId) {
             </div>
 
             <div v-for="post in postagensFiltradas" :key="post.id" class="post-card">
-              
+
               <div class="post-header-meta">
                 {{ post.data }} | {{ post.curtidas }} <template v-if="post.votos">| {{ post.votos }}</template>
               </div>
@@ -283,7 +283,7 @@ function removerPostagem(postId) {
 
             </div>
           </div>
-          
+
           <div v-else class="empty-state">
             Crie ou selecione uma lista para ver as postagens.
           </div>
@@ -310,7 +310,6 @@ function removerPostagem(postId) {
 
 
 main {
-  background-color: rgba(85, 255, 51, 0.14);
   height: 100vh;
   flex-grow: 1;
   padding: 1.5vw;
