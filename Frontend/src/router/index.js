@@ -99,8 +99,7 @@ const router = createRouter({
       path: '/:pathMatch(.*)*',
       name: 'PaginaErro',
       component: paginaErroView,
-      meta: { ocultarHeader: true }
-      meta: { requiresAuth: false }
+      meta: { ocultarHeader: true, requiresAuth: false }
     }
   ],
 })

@@ -175,6 +175,56 @@ router.get('/feed/global', async (req, res) => {
     if (conexao) conexao.release();
   }
 });
+router.get('/sidebar/sugestoes', async (req, res) => {
+  const meuId = req.query.meuId || '';
+
+  if (!meuId || meuId === 'undefined') {
+    return res.status(400).json({ erro: 'ID do usuário logado é obrigatório para filtrar sugestões.' });
+  }
+
+  let conexao = null;
+  try {
+    conexao = await pool.getConnection();
+    const querySQL = `
+      SELECT id_usuario, nome, username, foto_profile 
+      FROM Usuario 
+      WHERE id_usuario != ? 
+        AND id_usuario NOT IN (
+          SELECT id_seguido FROM seguidores WHERE id_seguidor = ?
+        )
+      ORDER BY RAND() 
+      LIMIT 4
+    `;
+
+    const [sugestoes] = await conexao.query(querySQL, [meuId, meuId]);
+    return res.json(sugestoes);
+
+  } catch (error) {
+    console.error('❌ Erro no MySQL ao processar sugestões inteligentes:', error);
+    return res.status(500).json({ erro: 'Erro interno ao processar painel lateral.' });
+  } finally {
+    if (conexao) conexao.release();
+  }
+});
+router.get('/sidebar/topicos', async (req, res) => {
+  let conexao = null;
+  try {
+    conexao = await pool.getConnection();
+    const querySQL = `
+      SELECT t.nome_tag AS nome, COUNT(pt.id_postagem) AS total
+      FROM Tag t
+      LEFT JOIN Postagem_Tag pt ON t.id_tag = pt.id_tag
+      GROUP BY t.id_tag, t.nome_tag
+      ORDER BY total DESC, t.nome_tag ASC
+      LIMIT 6
+    `;
+    const [topicos] = await conexao.query(querySQL);
+    return res.json(topicos);
+  } catch (error) {
+    console.error('Erro no MySQL ao buscar tópicos:', error);
+    return res.status(500).json({ erro: 'Erro ao processar tópicos.' });
+  } finally { if (conexao) conexao.release(); }
+});
 router.post('/enquetes/votar/opcao', async (req, res) => {
     const { idUsuario, idOpcao, idPostagem } = req.body;
 

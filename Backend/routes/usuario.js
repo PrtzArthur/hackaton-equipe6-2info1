@@ -110,6 +110,129 @@ router.post('/favoritos/detalhes', async (req, res) => {
     if (conexao) conexao.release();
   }
 });
+router.get('/perfil/mural/:idPerfil', async (req, res) => {
+  const { idPerfil } = req.params;
+
+  let conexao = null;
+  try {
+    conexao = await pool.getConnection();
+    const querySQL = `
+      SELECT m.id_comentario, m.conteudo_comentario, m.data_comentario, m.id_usuario_autor AS autor,
+             u.nome, u.username, u.foto_profile
+      FROM Mural_Perfil m
+      JOIN Usuario u ON m.id_usuario_autor = u.id_usuario
+      WHERE m.id_usuario_perfil = ?
+      ORDER BY m.data_comentario DESC
+    `;
+
+    const [comentarios] = await conexao.query(querySQL, [idPerfil]);
+    return res.json(comentarios);
+
+  } catch (error) {
+    console.error('erro no MySQL ao buscar mural do perfil:', error);
+    return res.status(500).json({ erro: 'Erro interno ao processar mural.' });
+  } finally {
+    if (conexao) conexao.release();
+  }
+});
+router.post('/perfil/mural/novo', async (req, res) => {
+  const { idAutor, idPerfil, conteudo } = req.body;
+
+  if (!idAutor || !idPerfil || !conteudo || !conteudo.trim()) {
+    return res.status(400).json({ erro: 'Parâmetros inválidos para comentar no mural.' });
+  }
+
+  let conexao = null;
+  try {
+    conexao = await pool.getConnection();
+    const idComentarioNovo = crypto.randomUUID();
+
+    await conexao.query(
+      `INSERT INTO Mural_Perfil (id_comentario, conteudo_comentario, id_usuario_autor, id_usuario_perfil) 
+       VALUES (?, ?, ?, ?)`,
+      [idComentarioNovo, conteudo.trim(), idAutor, idPerfil]
+    );
+    return res.status(201).json({ mensagem: 'Recado publicado com sucesso no mural!' });
+
+  } catch (error) {
+    console.error('erro no MySQL ao salvar recado no mural:', error);
+    return res.status(500).json({ erro: 'Erro interno ao salvar recado.' });
+  } finally {
+    if (conexao) conexao.release();
+  }
+});
+router.post('/perfil/atualizar/:id_usuario', async (req, res) => {
+  const { id_usuario } = req.params;
+  const { tags } = req.body;
+
+  if (!id_usuario || !tags || !Array.isArray(tags)) {
+    return res.status(400).json({ erro: 'Dados inválidos ou lista de tags ausente.' });
+  }
+
+  let conexao = null;
+  try {
+    conexao = await pool.getConnection();
+    await conexao.beginTransaction();
+    await conexao.query('DELETE FROM Usuario_Tag WHERE id_usuario = ?', [id_usuario]);
+
+    if (tags.length > 0) {
+      const tagsLimpas = tags.map(t => t.toLowerCase().replace('#', '').trim());
+      const tagsOriginais = tags.map(t => t.toLowerCase().trim());
+      const todasAsVariacoes = [...tagsOriginais, ...tagsLimpas];
+      const [tagsEncontradas] = await conexao.query(
+        'SELECT id_tag FROM Tag WHERE LOWER(nome_tag) IN (?)',
+        [todasAsVariacoes]
+      );
+      if (tagsEncontradas.length > 0) {
+        const insertQuery = 'INSERT INTO Usuario_Tag (id_usuario, id_tag) VALUES ?';
+        const valoresTags = tagsEncontradas.map(t => [id_usuario, t.id_tag]);
+        await conexao.query(insertQuery, [valoresTags]); 
+      }
+    }
+    
+    await conexao.commit();
+    return res.json({ mensagem: 'Tags atualizadas com sucesso no MySQL!' });
+
+  } catch (error) {
+    if (conexao) await conexao.rollback();
+    console.error('erro no MySQL ao sincronizar tags:', error);
+    return res.status(500).json({ erro: 'Erro interno ao salvar tags.' });
+  } finally {
+    if (conexao) conexao.release();
+  }
+});
+router.delete('/perfil/mural/deletar/:idComentario', async (req, res) => {
+  const { idComentario } = req.params;
+  const { idUsuarioLogado } = req.body;
+
+  if (!idComentario || !idUsuarioLogado) {
+    return res.status(400).json({ erro: 'Parâmetros insuficientes para deleção.' });
+  }
+
+  let conexao = null;
+  try {
+    conexao = await pool.getConnection();
+    const querySQL = `
+      DELETE FROM Mural_Perfil 
+      WHERE id_comentario = ? 
+        AND (id_usuario_autor = ? OR id_usuario_perfil = ?)
+    `;
+
+    const [resultado] = await conexao.query(querySQL, [idComentario, idUsuarioLogado, idUsuarioLogado]);
+
+    if (resultado.affectedRows === 0) {
+      return res.status(403).json({ erro: 'Você não tem permissão para deletar este recado.' });
+    }
+
+    return res.json({ mensagem: 'Recado removido do mural com sucesso!' });
+
+  } catch (error) {
+    console.error('erro no mySQL ao deletar comentário do mural:', error);
+    return res.status(500).json({ erro: 'Erro interno ao processar exclusão.' });
+  } finally {
+    if (conexao) conexao.release();
+  }
+});
 router.put('/perfil/:id/midias', upload.fields([{ name: 'foto', maxCount: 1 }, { name: 'banner', maxCount: 1 }]), async (req, res) => {
   const { id } = req.params;
   
@@ -223,6 +346,17 @@ router.get('/perfil/:id', async (req, res) => {
       }
     }
 
+    let euBloqueei = false;
+
+if (meuIdLogado) {
+  const [checaBloqueio] = await conexao.query(
+    'SELECT * FROM usuario_bloqueado WHERE id_usuario_bloqueador = ? AND id_usuario_bloqueado = ?',
+    [meuIdLogado, idPerfilVisitado]
+  );
+  if (checaBloqueio && checaBloqueio.length > 0) {
+    euBloqueei = true;
+  }
+}
     let jaAtivouSino = false;
 
 if (meuIdLogado) {
@@ -248,7 +382,8 @@ if (meuIdLogado) {
       seguindo: totalVotosSeguindo,
       jaSeguindo: jaSegue,
       tags: listaDeTagsDoUsuario,
-      jaSino: jaAtivouSino 
+      jaSino: jaAtivouSino,
+      usuarioBloqueado: euBloqueei
     });
 
   } catch (error) {
@@ -328,6 +463,40 @@ router.get('/notificacoes/:idUsuario', async (req, res) => {
   } finally {
     if (conexao) conexao.release();
   }
+});
+router.post('/bloquear/:idAlvo', async (req, res) => {
+  const { idAlvo } = req.params;
+  const { idUsuarioLogado } = req.body;
+
+  let conexao = null;
+  try {
+    conexao = await pool.getConnection();
+    await conexao.query(
+      'INSERT IGNORE INTO usuario_bloqueado (id_usuario_bloqueador, id_usuario_bloqueado) VALUES (?, ?)',
+      [idUsuarioLogado, idAlvo]
+    );
+    return res.json({ mensagem: 'Usuário bloqueado com sucesso!' });
+  } catch (e) {
+    console.error('Erro ao cogitar bloqueio',e)
+    return res.status(500).json({ erro: 'Erro interno ao bloquear.' });
+  } finally { if (conexao) conexao.release(); }
+});
+router.delete('/bloquear/:idAlvo', async (req, res) => {
+  const { idAlvo } = req.params;
+  const { idUsuarioLogado } = req.body;
+
+  let conexao = null;
+  try {
+    conexao = await pool.getConnection();
+    await conexao.query(
+      'DELETE FROM usuario_bloqueado WHERE id_usuario_bloqueador = ? AND id_usuario_bloqueado = ?',
+      [idUsuarioLogado, idAlvo]
+    );
+    return res.json({ mensagem: 'Usuário desbloqueado com sucesso!' });
+  } catch (e) {
+    console.error('Erro ao cogitar bloqueio',e)
+    return res.status(500).json({ erro: 'Erro interno ao desbloquear.' });
+  } finally { if (conexao) conexao.release(); }
 });
 router.get('/postagens/:id', async (req, res) => {
   const idDoPerfilQueEstouOlhando = req.params.id;

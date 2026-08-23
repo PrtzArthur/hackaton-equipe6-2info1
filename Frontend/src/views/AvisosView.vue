@@ -26,7 +26,7 @@ onMounted(() => {
   <main>
     <section class="notifications-card">
       <header class="notifications-header">
-        <h2>Notificações</h2>
+        <h2 class="notificacoes-titulo">Notificações</h2>
       </header>
       <div class="notifications-body">
         <p v-if="notificacoes.length === 0" class="empty-text">
@@ -57,6 +57,16 @@ onMounted(() => {
 </template>
 
 <style scoped>
+[data-theme="dark"] .avatar-notificacao-autor[src$="userBlackFull.svg"] {
+  filter: invert(1);
+}
+.avatar-notificacao-autor[src$="userBlackFull.svg"] {
+  width: 3.85vw;
+  height: 3.85vw;
+  border: none !important;
+  box-shadow: none !important;
+  object-fit: contain !important;
+}
 main {
   height: 100vh;
   flex-grow: 1;
@@ -84,18 +94,18 @@ main {
 .notificacao-texto-usuario {
   margin: 0;
   font-size: 0.95rem;
-  color: #1e293b;
+  color: var(--texto-principal);
 }
 .handle-mini {
-  color: #64748b;
+  color: var(--texto-suave);
   font-size: 0.85rem;
 }
 .notificacao-texto-conteudo-post {
   margin: 4px 0 0 0;
   font-size: 0.9rem;
-  color: #475569;
+  color: var(--texto-suave);
   font-style: italic;
-  background-color: #f8fafc;
+  background-color: var(--fundo-card);
   padding: 8px 12px;
   border-radius: 6px;
   border-left: 2px solid #cbd5e1;
@@ -103,7 +113,7 @@ main {
   max-width: 31.6vw;
 }
 .notifications-card {
-  background-color: #fff;
+  background-color: var(--fundo-card);
   position: fixed;
   width: 40%;
   top: 0;
@@ -113,7 +123,7 @@ main {
   margin-top: 4vw;
   margin-bottom: 3vw;
   border-radius: 9px;
-  border: 1px solid #000;
+  border: var(--borda-padrao);
   scrollbar-color: #ccc transparent;
   overflow-y: auto;
   scrollbar-width: thin;
@@ -121,7 +131,7 @@ main {
 }
 .notifications-header {
   padding: 16px;
-  border-bottom: 1px solid #000000;
+  border-bottom: var(--borda-padrao);
 }
 .notifications-list-container {
   display: flex;
@@ -130,7 +140,7 @@ main {
   padding: 4px 0;
 }
 .card-notificacao-item {
-  background-color: #ffffff;
+  background-color: var(--fundo-card);
   border: 1px solid #e2e8f0;
   border-radius: 12px;
   padding: 16px;
@@ -148,17 +158,14 @@ main {
   border-color: #cbd5e1;
 }
 .notificacao-icone-container {
-  background-color: rgba(85, 255, 51, 0.12);
-  width: 42px;
-  height: 42px;
+  width: 3vw;
+  height: 3vw;
   border-radius: 50%;
   display: flex;
   justify-content: center;
   align-items: center;
   flex-shrink: 0;
-}
-.emoji-alerta-sino {
-  font-size: 1.3rem;
+  background-color: var(--hover-botoes);
 }
 .notificacao-conteudo-bloco {
   display: flex;
@@ -171,12 +178,12 @@ main {
   margin: 0;
   font-size: 1rem;
   font-weight: 500;
-  color: #1e293b;
+  color: var(--texto-principal);
   line-height: 1.4;
 }
 .notificacao-data-legenda {
   font-size: 0.78rem;
-  color: #64748b;
+  color: var(--texto-suave);
   font-weight: 400;
 }
 .marcador-novidade-linha {
@@ -185,14 +192,16 @@ main {
   top: 0%;
   bottom: 0%;
   width: 4px;
-  background-color: #3CBC00;
+  background-color: var(--fundo-card-va);
   border-radius: 0 4px 4px 0;
 }
 .notifications-header h2 {
   margin: 0;
   font-size: 2rem;
   font-weight: bold;
-  color: #000000;
+}
+.notificacoes-titulo {
+  color: var(--texto-principal) !important;
 }
 .notifications-body {
   padding: 16px;
@@ -202,7 +211,7 @@ main {
   overflow-wrap: break-word;
 }
 .empty-text {
-  color: #666666;
+  color: var(--texto-suave);
   font-size: 0.9rem;
 }
 .notifications-list {

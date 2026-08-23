@@ -28,13 +28,13 @@ const eventosDisponiveis = ref([
 ])
 
 const principaisFiltrados = computed(() => {
-  return principaisEventos.value.filter(evento => 
+  return principaisEventos.value.filter(evento =>
     evento.titulo.toLowerCase().includes(searchQuery.value.toLowerCase())
   )
 })
 
 const disponiveisFiltrados = computed(() => {
-  return eventosDisponiveis.value.filter(evento => 
+  return eventosDisponiveis.value.filter(evento =>
     evento.titulo.toLowerCase().includes(searchQuery.value.toLowerCase())
   )
 })
@@ -50,20 +50,20 @@ const voltarParaLista = () => {
 
 <template>
   <main>
-    
+
     <div v-if="!eventoSelecionado" class="events-card">
-      
+
       <header class="events-header">
-        <h1>Eventos</h1>
+        <h1 class="eventos-titulo">Eventos</h1>
       </header>
 
       <div class="scroll-content">
-        
+
         <div class="search-box">
-          <input 
-            type="text" 
-            v-model="searchQuery" 
-            placeholder="Procurar evento" 
+          <input
+            type="text"
+            v-model="searchQuery"
+            placeholder="Procurar evento"
           />
           <span class="search-icon">🔍︎</span>
         </div>
@@ -75,10 +75,10 @@ const voltarParaLista = () => {
 
         <section class="events-section">
           <h2>Principais eventos</h2>
-          
-          <div 
-            v-for="evento in principaisFiltrados" 
-            :key="evento.id" 
+
+          <div
+            v-for="evento in principaisFiltrados"
+            :key="evento.id"
             class="event-item"
             @click="abrirDetalhes(evento)"
           >
@@ -104,9 +104,9 @@ const voltarParaLista = () => {
         <section class="events-section">
           <h2>Eventos disponíveis</h2>
 
-          <div 
-            v-for="evento in disponiveisFiltrados" 
-            :key="evento.id" 
+          <div
+            v-for="evento in disponiveisFiltrados"
+            :key="evento.id"
             class="event-item"
             @click="abrirDetalhes(evento)"
           >
@@ -130,14 +130,14 @@ const voltarParaLista = () => {
     </div>
 
     <div v-else class="events-card">
-      
+
       <header class="events-header detail-header">
         <button class="back-btn" @click="voltarParaLista">←</button>
         <h1>{{ eventoSelecionado.titulo }}</h1>
       </header>
 
       <div class="scroll-content">
-        
+
         <div class="event-detail-meta">
           <span class="event-date">{{ eventoSelecionado.data }}</span>
           <span class="event-attendees-text">{{ eventoSelecionado.membros }}</span>
@@ -145,8 +145,8 @@ const voltarParaLista = () => {
 
         <section class="events-section">
           <h2>Descrição</h2>
-          <textarea 
-            v-model="eventoSelecionado.descricao" 
+          <textarea
+            v-model="eventoSelecionado.descricao"
             class="description-input"
           ></textarea>
         </section>
@@ -154,9 +154,9 @@ const voltarParaLista = () => {
         <section class="events-section">
           <h2>Tags</h2>
           <div class="tags-wrapper">
-            <span 
-              v-for="(tag, index) in eventoSelecionado.tags" 
-              :key="index" 
+            <span
+              v-for="(tag, index) in eventoSelecionado.tags"
+              :key="index"
               class="tag-pill"
             >
               {{ tag }}
@@ -172,7 +172,6 @@ const voltarParaLista = () => {
 
 <style scoped>
 main {
-  background-color: rgba(85, 255, 51, 0.14);
   height: 100vh;
   flex-grow: 1;
   padding: 1.5vw;
@@ -186,13 +185,15 @@ main {
   overflow: hidden;
   overflow-x: hidden;
 }
-
+.eventos-titulo {
+  color: var(--texto-principal) !important;
+}
 .events-card {
   width: 100%;
   max-width: 480px;
   height: 80vh;
-  background-color: #ffffff;
-  border: 1px solid #000000;
+  background-color: var(--fundo-card);
+  border: var(--borda-padrao);
   border-radius: 4px;
   display: flex;
   flex-direction: column;
@@ -205,14 +206,13 @@ main {
 
 .events-header {
   padding: 16px 20px;
-  border-bottom: 1px solid #000000;
+  border-bottom: var(--borda-padrao);
 }
 
 .events-header h1 {
   margin: 0;
   font-size: 1.5rem;
   font-weight: bold;
-  color: #000000;
 }
 
 .detail-header {
@@ -242,7 +242,7 @@ main {
 .search-box {
   display: flex;
   align-items: center;
-  border: 1px solid #000000;
+  border: var(--borda-padrao);
   border-radius: 20px;
   padding: 8px 16px;
   background: #ffffff;
@@ -288,7 +288,7 @@ main {
 }
 
 .event-item {
-  border: 1px solid #000000;
+  border: var(--borda-padrao);
   border-radius: 6px;
   padding: 10px 12px;
   display: flex;
@@ -376,7 +376,7 @@ main {
 .description-input {
   width: 100%;
   height: 120px;
-  border: 1px solid #000000;
+  border: var(--borda-padrao);
   border-radius: 6px;
   padding: 10px;
   box-sizing: border-box;
@@ -392,7 +392,7 @@ main {
 }
 
 .tag-pill {
-  border: 1px solid #000000;
+  border: var(--borda-padrao);
   border-radius: 20px;
   padding: 4px 16px;
   font-size: 0.8rem;
