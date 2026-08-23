@@ -172,7 +172,9 @@ onUnmounted(() => {
           Ninguém respondeu ainda. Seja o primeiro a comentar!
         </p>
         <div v-else v-for="c in listaComentariosDoPost" :key="c.id_comentario" class="card-resposta-linha">
-          <img :src="c.foto_profile || '/src/icons/userBlackFull.svg'" alt="Avatar" class="avatar-mural-mini">
+          <div class="div-imagem">
+            <img :src="c.foto_profile || '/src/icons/userBlackFull.svg'" alt="Avatar" class="avatar-mural-mini">
+          </div>
           <div class="corpo-resposta-conteudo">
             <div class="identidade-resposta-autor">
               <strong>{{ c.nome }}</strong> <small>@{{ c.username }}</small>
@@ -182,12 +184,12 @@ onUnmounted(() => {
               <div class="div-btn-like-dislike">
                 <button type="button" :disabled="c.autor === meuIdLogado" @click="votarNoComentarioDoMural(c, 'like')" :class="{ 'comentario-votado-like': c.meu_voto === 'like' }" class="btn-mini-voto">
                 <img v-if="c.meu_voto === 'like'" :src="likePreenchido" alt="">
-                <img v-else :src="likeInline" alt="não curtir">
+                <img v-else :src="likeInline" alt="não curtir" class="btn-modo-escuro">
                 {{ c.total_likes }}
               </button>
               <button type="button" :disabled="c.autor === meuIdLogado" @click="votarNoComentarioDoMural(c, 'dislike')" :class="{ 'comentario-votado-dislike': c.meu_voto === 'dislike' }" class="btn-mini-voto">
                 <img v-if="c.meu_voto === 'dislike'" :src="dislikePreenchido" alt="">
-                <img v-else :src="dislikeInline" alt="não curtir">
+                <img v-else :src="dislikeInline" alt="não curtir" class="btn-modo-escuro">
                 {{ c.total_dislikes }}
               </button>
               </div>
@@ -202,6 +204,7 @@ onUnmounted(() => {
       <div class="caixa-inserir-comentario-modal">
         <input
           v-model="textoNovoComentario"
+          maxlength="500"
           type="text"
           placeholder="Escreva seu comentário..."
           @keyup.enter="enviarComentarioNoOverlay"
@@ -218,20 +221,49 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
+[data-theme="dark"] .btn-modo-escuro {
+  filter: invert(1);
+  transition: filter 0.3s ease;
+}
+[data-theme="dark"] .img-lixeira-mini {
+  filter: invert(1);
+  transition: filter 0.3s ease;
+}
+[data-theme="dark"] .avatar-mural-mini[src$="userBlackFull.svg"] {
+  filter: invert(1);
+  transition: filter 0.3s ease;
+}
+.avatar-mural-mini[src$="userBlackFull.svg"] {
+  width: 3.9vw !important;
+  height: auto !important;
+  border: none;
+}
 .modal-comentarios-largura {
   width: 35vw !important;
-  background-color: #fff;
+  background-color: var(--fundo-card);
   max-height: 85vh;
-  height: 30vw;
+  height: auto !;
   display: flex;
   flex-direction: column;
   gap: 0.8vw;
   padding: 2vw;
   border-radius: 7px;
+  border: var(--borda-padrao);
+  box-sizing: border-box;
+}
+.div-imagem {
+  background-color: var(--hover-botoes);
+  width: 3vw;
+  height: 3vw;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-shrink: 0;
 }
 .btn-mini-lixeira {
   display: flex;
-  background-color: white;
+  background-color: var(--fundo-card);
   width: 1.5vw;
   height: 1.5vw;
   align-items: center;
@@ -243,16 +275,19 @@ onUnmounted(() => {
 .cancelarAlteracoes {
   width: 100%;
   padding: 0.5vw;
-  background-color: #fff;
+  background-color: var(--fundo-card);
   border-radius: 10px;
-  border: 1px solid #000;
+  border: var(--borda-padrao);
   font-weight: bolder;
   cursor: pointer;
+  color: var(--texto-principal);
 }
 .cancelarAlteracoes:hover {
   border: 1px transparent #000;
   background-color: #dc3545;
   color: #fff;
+  transform: scale(1.025);
+  transition: 0.3s;
 }
 .div-btn-like-dislike {
   display: flex;
@@ -264,10 +299,10 @@ onUnmounted(() => {
   border-radius: 50%;
 }
 .div-btn-like-dislike button:hover {
-  background-color: #f0f0f0;
+  background-color: var(--hover-botoes);
 }
 .btn-mini-lixeira:hover {
-  background-color: #f0f0f0;
+  background-color: var(--hover-botoes);
 }
 .btn-mini-lixeira img {
   width: 1vw;
@@ -283,8 +318,14 @@ onUnmounted(() => {
 .inputFormEdit {
   padding: 0.7vw;
   width: 100%;
-  border: 1px solid #000;
+  border: var(--borda-padrao);
   border-radius: 10px 0 0 10px;
+  outline: none;
+  background-color: var(--fundo-card);
+  color: var(--texto-principal);
+}
+.inputFormEdit::placeholder {
+  color: var(--texto-mais-suave);
 }
 .filtros-mural-abas {
   display: flex;
@@ -292,12 +333,13 @@ onUnmounted(() => {
 }
 .filtros-mural-abas button {
   background: none;
-  border: 1px solid #000;
+  border: var(--borda-padrao);
   border-radius: 15px;
   padding: 0.8vw 0.6vw;
   font-size: 0.8vw;
   font-weight: bold;
   cursor: pointer;
+  color: var(--texto-principal);
 }
 .salvarAlteracoes {
   padding: 0.5vw;
@@ -305,15 +347,17 @@ onUnmounted(() => {
   border-radius: 10px;
   font-size: 1vw;
   border: none;
-  background-color: #3CBC00;
+  background-color: var(--fundo-card-va);
   font-weight: bold;
   color: #fff;
 }
 .salvarAlteracoes:hover {
-background-color: #37ad00;
+background-color: var(--fundo-card-va-hover);
 cursor: pointer;
 }
 .overlay {
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
   position: fixed;
   top: 0;
   left: 0;
@@ -326,12 +370,12 @@ cursor: pointer;
   justify-content: center;
 }
 .filtros-mural-abas button.ativo {
-  background-color: #000;
-  color: #fff;
+  background-color: var(--texto-principal);
+  color: var(--texto-principal-reverso);
 }
 .caixa-inserir-comentario-modal {
   display: flex;
-  gap: 0.5vw;
+  gap: 0.1vw;
   width: 100%;
   justify-content: space-between;
 }
@@ -343,29 +387,33 @@ cursor: pointer;
 }
 .container-scroll-comentarios-mural {
   flex-grow: 1;
-  overflow-y: auto;
   max-height: 45vh;
   display: flex;
   flex-direction: column;
-  gap: 0.6vw; padding-right: 0.3vw;
+  gap: 0.6vw;
+  padding-right: 0.5vw;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
 }
 .card-resposta-linha {
   display: flex;
   gap: 0.8vw;
-  background-color: #fafafa;
+  position: relative;
+  background-color: var(--fundo-card-modal);
   border: 1px solid #eee;
   padding: 0.6vw;
   border-radius: 6px;
+  padding: 0.6vw 2.5vw 0.6vw 0.6vw;
   width: 100%;
   box-sizing: border-box;
   word-wrap: break-word;
 }
 .avatar-mural-mini {
-  width: 2.2vw;
-  height: 2.2vw;
+  width: 100%;
+  height: 100%;
   border-radius: 50%;
   object-fit: cover;
-  border: 1px solid #000;
+  border: 1px solid #cbd5e1;
 }
 .corpo-resposta-conteudo {
   display: flex;
@@ -378,7 +426,7 @@ cursor: pointer;
 }
 .texto-mensagem-comentario {
   font-size: 0.85vw;
-  color: #222;
+  color: var(--texto-principal);
   width: 26vw;
   padding: 0 1vw 0 0;
 }
@@ -387,20 +435,29 @@ cursor: pointer;
   align-items: center;
   gap: 0.6vw;
   margin-top: 0.2vw;
-  justify-content: space-between;
+  justify-content: flex-start;
+  width: 100%;
+  box-sizing: border-box;
 }
 .btn-mini-voto {
   background: none;
   border: none;
   cursor: pointer;
   font-size: 0.75vw;
-  color: #555;
+  color: var(--texto-suave);
   display: flex;
   gap: 0.5vw;
 }
 .btn-mini-voto img {
   width: 1vw;
   height: auto;
+}
+.btn-mini-voto:hover {
+  transform: scale(1.05);
+  transition: 0.2s;
+}
+.btn-mini-voto:active {
+  transform: scale(0.92);
 }
 .comentario-votado-like {
   color: #28a745 !important;
@@ -416,8 +473,26 @@ cursor: pointer;
 }
 .texto-vazio-comentarios {
   font-size: 0.8vw;
-  color: #777;
+  color: var(--texto-suave);
   text-align: center;
   margin: 1vw 0;
   }
+</style>
+<style>
+.container-scroll-comentarios-mural::-webkit-scrollbar {
+  width: 6px !important;
+  display: block !important;
+}
+.container-scroll-comentarios-mural::-webkit-scrollbar-track {
+  background: var(--fundo-card) !important;
+  border-radius: 10px !important;
+}
+.container-scroll-comentarios-mural::-webkit-scrollbar-thumb {
+  background: var(--cor-detalhe-escuro, #005cb9) !important;
+  border-radius: 10px !important;
+  border: 1px solid var(--fundo-card) !important;
+}
+.container-scroll-comentarios-mural::-webkit-scrollbar-thumb:hover {
+  background: var(--fundo-card-va-hover, #004b96) !important;
+}
 </style>

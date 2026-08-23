@@ -32,26 +32,26 @@ const comunidades = ref([
 <template>
   <main>
     <div class="explore-card">
-      
+
       <div class="search-section">
         <div class="search-box">
-          <input 
-            type="text" 
-            v-model="searchQuery" 
-            placeholder="Procurar comunidade" 
+          <input
+            type="text"
+            v-model="searchQuery"
+            placeholder="Procurar comunidade"
           />
           <span class="search-icon">🔍︎</span>
         </div>
       </div>
 
       <div class="scroll-content">
-        
+
         <section class="community-section">
           <h2>Comunidades favoritas</h2>
           <div class="horizontal-scroll">
-            <div 
-              v-for="item in favoritas" 
-              :key="item.id" 
+            <div
+              v-for="item in favoritas"
+              :key="item.id"
               class="community-card"
             >
               <div class="card-banner"></div>
@@ -66,9 +66,9 @@ const comunidades = ref([
         <section class="community-section">
           <h2>Comunidades</h2>
           <div class="communities-grid">
-            <div 
-              v-for="item in comunidades" 
-              :key="item.id" 
+            <div
+              v-for="item in comunidades"
+              :key="item.id"
               class="community-card"
             >
               <div class="card-banner"></div>
@@ -88,7 +88,6 @@ const comunidades = ref([
 <style scoped>
 
 main {
-  background-color: rgba(85, 255, 51, 0.14);
   height: 100vh;
   flex-grow: 1;
   padding: 1.5vw;

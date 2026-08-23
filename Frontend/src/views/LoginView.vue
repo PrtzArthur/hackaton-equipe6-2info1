@@ -67,8 +67,14 @@ a:hover {
   color: blue;
 }
 button.BotaoEntrar:hover {
-  background-color: #37ad00;
-  transition: 0.2s;
+  background-color: var(--fundo-card-va-hover);
+  transition: 0.3s;
+  transform: scale(1.02);
+}
+button.BotaoEntrar:active {
+  background-color: var(--fundo-card-va-hover);
+  transition: 0.3s;
+  transform: scale(0.98);
 }
 main {
   display: flex;
@@ -86,7 +92,7 @@ main a.LinkRecSenha {
   font-size: 0.9vw;
 }
 main button.BotaoEntrar {
-  background-color: #3CBC00;
+  background-color: var(--fundo-card-va);
   color: white;
   border: none;
   cursor: pointer;
@@ -98,7 +104,7 @@ main button.BotaoEntrar {
   border-radius: 1.8vw;
 }
 main div.Card-Principal {
-  background-color: white;
+  background-color: var(--fundo-card);
   width: 30vw;
   border-radius: 1.2vw;
   overflow: hidden;
@@ -115,7 +121,7 @@ main div.Div-Central {
 }
 main header {
   color: white;
-  background-color: #3CBC00;
+  background-color: var(--fundo-card-va);
   padding: 1.2vw;
   text-align: left;
 }
@@ -134,9 +140,14 @@ main label {
 main input {
   padding: 0.6vw;
   font-size: 1vw;
-  border: 0.1vw solid #ccc;
+  border: var(--borda-cinza-branca);
+  background-color: var(--fundo-card);
   border-radius: 0.4vw;
   outline: none;
+  color: var(--texto-principal);
+}
+main input::placeholder {
+  color: var(--texto-mais-suave);
 }
 main p.direcionarParaCadastro a{
   text-decoration: none;
