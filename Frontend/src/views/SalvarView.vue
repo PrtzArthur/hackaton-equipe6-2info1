@@ -33,7 +33,7 @@ function abrirMural(post) {
 async function carregarMinhasListas() {
   if (!meuIdLogado.value) return;
   try {
-    const r = await fetch(`http://localhost:3000/api/chat/listas-completo/${meuIdLogado.value}`);
+    const r = await fetch(`${import.meta.env.VITE_API_URL}/api/chat/listas-completo/${meuIdLogado.value}`);
     if (r.ok) {
       minhasListasSalvas.value = await r.json();
     }
@@ -48,7 +48,7 @@ async function curtirPost(postagemAlvo, idUsuarioLogado, tipoEscolhido) {
   }
 
   try {
-    const resposta = await fetch('http://localhost:3000/api/criar/curtir/postagem', {
+    const resposta = await fetch(`${import.meta.env.VITE_API_URL}/api/criar/curtir/postagem`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -95,7 +95,7 @@ async function abrirPastaSalva(lista) {
   buscaPostagem.value = '';
 
   try {
-    const r = await fetch(`http://localhost:3000/api/chat/posts-da-lista/${lista.id_lista}?meuId=${meuIdLogado.value}`);
+    const r = await fetch(`${import.meta.env.VITE_API_URL}/api/chat/posts-da-lista/${lista.id_lista}?meuId=${meuIdLogado.value}`);
     if (r.ok) {
       postagensDaListaAtiva.value = await r.json();
     }
@@ -107,7 +107,7 @@ async function removerPostagemDaLista(idPostagemAlvo) {
   if (!confirm("Deseja remover esta postagem dos seus salvos?")) return;
 
   try {
-    const r = await fetch('http://localhost:3000/api/chat/remover-post-salvo', {
+    const r = await fetch(`${import.meta.env.VITE_API_URL}/api/chat/remover-post-salvo`, {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -132,7 +132,7 @@ async function criarNovaListaPasta() {
   if (!nome || !nome.trim()) return;
 
   try {
-    const r = await fetch('http://localhost:3000/api/chat/criar-lista-rapida', {
+    const r = await fetch(`${import.meta.env.VITE_API_URL}/api/chat/criar-lista-rapida`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

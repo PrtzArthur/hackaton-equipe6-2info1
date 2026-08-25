@@ -11,7 +11,7 @@ const senha = ref('');
 
 const realizarLogin = async () => {
 try {
-    const resposta = await fetch('http://localhost:3000/api/auth/login', {
+    const resposta = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

@@ -52,7 +52,7 @@ async function logout() {
   }
 
   try {
-    const resposta = await fetch('http://localhost:3000/api/usuario/logout', {
+    const resposta = await fetch(`${import.meta.env.VITE_API_URL}/api/usuario/logout`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ idUsuario: idLogado })
@@ -75,7 +75,7 @@ async function logout() {
 }
 const route = useRoute();
 
-const socket = io('http://localhost:3000');
+const socket = io(import.meta.env.VITE_API_URL);
 
 const editarPerfil = ref(false);
 const modalAberto = ref(false);
@@ -124,7 +124,7 @@ function cancelarBloqueio() {
 
 async function confirmarBloqueio() {
   try {
-    const resposta = await fetch(`http://localhost:3000/api/usuario/bloquear/${idUsuarioDaURL.value}`, {
+    const resposta = await fetch(`${import.meta.env.VITE_API_URL}/api/usuario/bloquear/${idUsuarioDaURL.value}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ idUsuarioLogado: meuIdLogado.value })
@@ -147,7 +147,7 @@ async function confirmarBloqueio() {
 
 async function desbloquearUsuario() {
   try {
-    const resposta = await fetch(`http://localhost:3000/api/usuario/bloquear/${idUsuarioDaURL.value}`, {
+    const resposta = await fetch(`${import.meta.env.VITE_API_URL}/api/usuario/bloquear/${idUsuarioDaURL.value}`, {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ idUsuarioLogado: meuIdLogado.value })
@@ -204,7 +204,7 @@ async function curtirPost(postagemAlvo, idUsuarioLogado, tipoEscolhido) {
     return;
   }
   try {
-    const resposta = await fetch('http://localhost:3000/api/criar/curtir/postagem', {
+    const resposta = await fetch(`${import.meta.env.VITE_API_URL}/api/criar/curtir/postagem`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -251,7 +251,7 @@ async function fecharESalvarTagsNoBanco() {
   try {
     console.log("[GATILHO DIRETO] Enviando tags ao MySQL:", tagsDoUsuario.value);
 
-    const resposta = await fetch(`http://localhost:3000/api/usuario/perfil/atualizar/${idSeguro}`, {
+    const resposta = await fetch(`${import.meta.env.VITE_API_URL}/api/usuario/perfil/atualizar/${idSeguro}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -285,7 +285,7 @@ async function redirecionarParaConversaPrivada() {
   }
 
   try {
-    const resposta = await fetch('http://localhost:3000/api/chat/iniciar', {
+    const resposta = await fetch(`${import.meta.env.VITE_API_URL}/api/chat/iniciar`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -332,7 +332,7 @@ async function carregarGradeDeFavoritosVisuais() {
   }
 
   try {
-    const resposta = await fetch('http://localhost:3000/api/usuario/favoritos/detalhes', {
+    const resposta = await fetch(`${import.meta.env.VITE_API_URL}/api/usuario/favoritos/detalhes`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ids: favoritosIds })
@@ -348,7 +348,7 @@ async function carregarGradeDeFavoritosVisuais() {
 const sinoAtivado = ref(false);
 async function alternarSinoNotificacao() {
   try {
-    const resposta = await fetch('http://localhost:3000/api/usuario/perfil/sino', {
+    const resposta = await fetch(`${import.meta.env.VITE_API_URL}/api/usuario/perfil/sino`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -372,7 +372,7 @@ const deletarPostagemDoBanco = async (idPostagem) => {
   if (!confirmou) return;
 
   try {
-    const resposta = await fetch(`http://localhost:3000/api/usuario/postagens/${idPostagem}`, {
+    const resposta = await fetch(`${import.meta.env.VITE_API_URL}/api/usuario/postagens/${idPostagem}`, {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -404,7 +404,7 @@ const edicaoDosDados = async () => {
     try {
       const listaDeTagsPuras = [...tagsDoUsuario.value];
 
-      const resposta = await fetch(`http://localhost:3000/api/usuario/perfil/${idAtualDaBarra}`, {
+      const resposta = await fetch(`${import.meta.env.VITE_API_URL}/api/usuario/perfil/${idAtualDaBarra}`, {
         method: 'PUT',
         headers: {
           'content-Type' : 'application/json'
@@ -432,7 +432,7 @@ const edicaoDosDados = async () => {
         dadosMidia.append('removerFoto', removerFotoMarcada.value);
         dadosMidia.append('removerBanner', removerBannerMarcado.value);
 
-        const respostaMidia = await fetch(`http://localhost:3000/api/usuario/perfil/${idAtualDaBarra}/midias`, {
+        const respostaMidia = await fetch(`${import.meta.env.VITE_API_URL}/api/usuario/perfil/${idAtualDaBarra}/midias`, {
           method: 'PUT',
           body: dadosMidia
         });
@@ -482,7 +482,7 @@ const carregarDadosDoPerfil = async () => {
   try {
     const idAtualDaBarra = route.params.id;
 
-    const respostaPerfil = await fetch(`http://localhost:3000/api/usuario/perfil/${idAtualDaBarra}?meuId=${meuIdLogado.value}`);
+    const respostaPerfil = await fetch(`${import.meta.env.VITE_API_URL}/api/usuario/perfil/${idAtualDaBarra}?meuId=${meuIdLogado.value}`);
     const dadosPerfil = await respostaPerfil.json();
 
     if (respostaPerfil.ok) {
@@ -503,7 +503,7 @@ const carregarDadosDoPerfil = async () => {
         dataDeCriacao.value = new Date(dadosPerfil.data_criacao).toLocaleDateString('pt-BR');
       }
     }
-    const respostaPosts = await fetch(`http://localhost:3000/api/usuario/postagens/${idAtualDaBarra}?meuId=${meuIdLogado.value}`);
+    const respostaPosts = await fetch(`${import.meta.env.VITE_API_URL}/api/usuario/postagens/${idAtualDaBarra}?meuId=${meuIdLogado.value}`);
 
     postagens.value = await respostaPosts.json();
 
@@ -513,7 +513,7 @@ const carregarDadosDoPerfil = async () => {
 };
 async function votarNaEnquete(idOpcao, idPostagem) {
   try {
-    const resposta = await fetch('http://localhost:3000/api/criar/enquetes/votar/opcao', {
+    const resposta = await fetch(`${import.meta.env.VITE_API_URL}/api/criar/enquetes/votar/opcao`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -541,7 +541,7 @@ async function alternarSeguirUsuario() {
   const idAtualDaBarra = route.params.id;
 
   try {
-    const resposta = await fetch('http://localhost:3000/api/usuario/seguir', {
+    const resposta = await fetch(`${import.meta.env.VITE_API_URL}/api/usuario/seguir`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -571,7 +571,7 @@ async function carregarRecadosDoMural() {
   if (!idDoPerfilAtual) return;
 
   try {
-    const resposta = await fetch(`http://localhost:3000/api/usuario/perfil/mural/${idDoPerfilAtual}`);
+    const resposta = await fetch(`${import.meta.env.VITE_API_URL}/api/usuario/perfil/mural/${idDoPerfilAtual}`);
     if (resposta.ok) {
       const dadosDoBanco = await resposta.json();
 
@@ -590,7 +590,7 @@ async function publicarRecadoNoMural() {
     return;
   }
   try {
-    const resposta = await fetch('http://localhost:3000/api/usuario/perfil/mural/novo', {
+    const resposta = await fetch(`${import.meta.env.VITE_API_URL}/api/usuario/perfil/mural/novo`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -617,7 +617,7 @@ async function deletarRecadoDoMural(idComentarioAlvo) {
   if (!confirm("Tem certeza que deseja remover este recado do seu mural?")) return;
 
   try {
-    const resposta = await fetch(`http://localhost:3000/api/usuario/perfil/mural/deletar/${idComentarioAlvo}`, {
+    const resposta = await fetch(`${import.meta.env.VITE_API_URL}/api/usuario/perfil/mural/deletar/${idComentarioAlvo}`, {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ idUsuarioLogado: meuIdLogado.value })

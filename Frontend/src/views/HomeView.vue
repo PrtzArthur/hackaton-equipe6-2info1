@@ -45,7 +45,7 @@ async function carregarTimelineGlobal(novaPagina = 1) {
 
   try {
     const termo = encodeURIComponent(textoBusca.value.trim());
-    const url = `http://localhost:3000/api/criar/feed/global?page=${novaPagina}&meuId=${meuIdLogado.value}&busca=${termo}`;
+    const url = `${import.meta.env.VITE_API_URL}/api/criar/feed/global?page=${novaPagina}&meuId=${meuIdLogado.value}&busca=${termo}`;
     const resposta = await fetch(url);
 
     if (resposta.ok) {
@@ -95,7 +95,7 @@ async function abrirModalDeSelecaoDePasta(idPostagem) {
   listasDePastasDisponiveis.value = [];
 
   try {
-    const r = await fetch(`http://localhost:3000/api/chat/listas-usuario/${meuIdLogado.value}`);
+    const r = await fetch(`${import.meta.env.VITE_API_URL}/api/chat/listas-usuario/${meuIdLogado.value}`);
     if (r.ok) {
       listasDePastasDisponiveis.value = await r.json();
     }
@@ -105,7 +105,7 @@ async function abrirModalDeSelecaoDePasta(idPostagem) {
 }
 async function confirmarSalvamentoNaPasta(idLista) {
   try {
-    const r = await fetch('http://localhost:3000/api/chat/salvar-post-na-lista', {
+    const r = await fetch(`${import.meta.env.VITE_API_URL}/api/chat/salvar-post-na-lista`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -131,7 +131,7 @@ async function confirmarSalvamentoNaPasta(idLista) {
 async function handleCriarListaRapida() {
   if (!nomeNovaListaRapida.value.trim()) return;
   try {
-    const r = await fetch('http://localhost:3000/api/chat/criar-lista-rapida', {
+    const r = await fetch(`${import.meta.env.VITE_API_URL}/api/chat/criar-lista-rapida`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -155,7 +155,7 @@ async function carregarSugestoesPerfis() {
   }
 
   try {
-    const resposta = await fetch(`http://localhost:3000/api/criar/sidebar/sugestoes?meuId=${idSeguroLocalStorage}`);
+    const resposta = await fetch(`${import.meta.env.VITE_API_URL}/api/criar/sidebar/sugestoes?meuId=${idSeguroLocalStorage}`);
 
     if (resposta.ok) {
       listaSugestaoPerfis.value = await resposta.json();
@@ -166,7 +166,7 @@ async function carregarSugestoesPerfis() {
 }
 async function carregarTopicosSidebar() {
   try {
-    const resposta = await fetch('http://localhost:3000/api/criar/sidebar/topicos');
+    const resposta = await fetch(`${import.meta.env.VITE_API_URL}/api/criar/sidebar/topicos`);
     if (resposta.ok) {
       listaTopicosEmAlta.value = await resposta.json();
     }
@@ -174,7 +174,7 @@ async function carregarTopicosSidebar() {
 }
 async function seguirUsuarioPelaSidebar(idCriadorAlvo) {
   try {
-    const resposta = await fetch('http://localhost:3000/api/usuario/seguir', {
+    const resposta = await fetch(`${import.meta.env.VITE_API_URL}/api/usuario/seguir`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ idSeguidor: meuIdLogado.value, idSeguido: idCriadorAlvo })
@@ -209,7 +209,7 @@ async function curtirPost(postagemAlvo, idUsuarioLogado, tipoEscolhido) {
   }
 
   try {
-    const resposta = await fetch('http://localhost:3000/api/criar/curtir/postagem', {
+    const resposta = await fetch(`${import.meta.env.VITE_API_URL}/api/criar/curtir/postagem`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -252,7 +252,7 @@ async function curtirPost(postagemAlvo, idUsuarioLogado, tipoEscolhido) {
 }
 async function votarNaEnquete(idOpcao, idPostagem) {
   try {
-    const resposta = await fetch('http://localhost:3000/api/criar/enquetes/votar/opcao', {
+    const resposta = await fetch(`${import.meta.env.VITE_API_URL}/api/criar/enquetes/votar/opcao`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

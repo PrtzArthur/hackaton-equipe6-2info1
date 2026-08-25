@@ -8,7 +8,7 @@ import emoji from '@/icons/emoji.svg';
 import enviar from '@/icons/enviar.svg';
 import gear from '@/icons/gear.svg';
 
-const socket = io('http://localhost:3000');
+const socket = io(import.meta.env.VITE_API_URL);
 
 const meuIdLogado = ref(localStorage.getItem('ifchat_user_id') || '');
 const buscaUsuario = ref('');
@@ -43,7 +43,7 @@ async function rolarChatParaBaixo() {
 
 async function carregarListaConversas() {
   try {
-    const r = await fetch(`http://localhost:3000/api/chat/conversas?meuId=${meuIdLogado.value}`);
+    const r = await fetch(`${import.meta.env.VITE_API_URL}/api/chat/conversas?meuId=${meuIdLogado.value}`);
     if (r.ok) {
       const dados = await r.json();
       listaConversas.value = dados.map(c => ({ ...c, digitando: false }));
@@ -67,7 +67,7 @@ async function selecionarConversa(usuario) {
   conversaAtiva.value = usuario;
   mostrarPainelEmojis.value = false;
   try {
-    const r = await fetch(`http://localhost:3000/api/chat/historico?meuId=${meuIdLogado.value}&amigoId=${usuario.id_usuario}`);
+    const r = await fetch(`${import.meta.env.VITE_API_URL}/api/chat/historico?meuId=${meuIdLogado.value}&amigoId=${usuario.id_usuario}`);
     if (r.ok) {
       const dadosMensagens = await r.json();
       historicoMensagens.value = dadosMensagens.map(msg => ({
@@ -110,7 +110,7 @@ async function processarEnvioDeImagemDoChat(evento) {
   formDataEnviada.append('imagemChat', arquivo);
 
   try {
-    const resposta = await fetch('http://localhost:3000/api/chat/upload-imagem', {
+    const resposta = await fetch(`${import.meta.env.VITE_API_URL}/api/chat/upload-imagem`, {
       method: 'POST',
       body: formDataEnviada
     });
@@ -135,7 +135,7 @@ async function tratarDuploCliqueNaMensagem(msg) {
   if (!confirm("Deseja apagar esta mensagem para todos?")) return;
 
   try {
-    const resposta = await fetch(`http://localhost:3000/api/chat/mensagem/apagar/${msg.id_mensagem}`, {
+    const resposta = await fetch(`${import.meta.env.VITE_API_URL}/api/chat/mensagem/apagar/${msg.id_mensagem}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ meuId: meuIdLogado.value })

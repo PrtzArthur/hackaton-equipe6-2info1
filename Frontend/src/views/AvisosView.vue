@@ -8,7 +8,7 @@ async function carregarNotificacoes() {
   if (!meuIdLogado.value) return
 
   try {
-    const resposta = await fetch(`http://localhost:3000/api/usuario/notificacoes/${meuIdLogado.value}`)
+    const resposta = await fetch(`${import.meta.env.VITE_API_URL}/api/usuario/notificacoes/${meuIdLogado.value}`)
 
     if (resposta.ok) {
       notificacoes.value = await resposta.json()

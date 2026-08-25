@@ -92,7 +92,7 @@ const enviarPost = async () => {
       formDataCompleto.append('imagem_post', arquivoImagemPost.value[0]);
     }
 
-    const resposta = await fetch(`http://localhost:3000/api/criar/postagens/${idUsuarioDaURL}`, {
+    const resposta = await fetch(`${import.meta.env.VITE_API_URL}/api/criar/postagens/${idUsuarioDaURL}`, {
       method: 'POST',
       body: formDataCompleto
     });
