@@ -352,8 +352,13 @@ onUnmounted(() => {
   color: #fff;
 }
 .salvarAlteracoes:hover {
-background-color: var(--fundo-card-va-hover);
-cursor: pointer;
+  background-color: var(--fundo-card-va-hover);
+  cursor: pointer;
+  transform: scale(1.02);
+  transition: 0.3s;
+}
+.salvarAlteracoes:active {
+  transform: scale(0.92);
 }
 .overlay {
   backdrop-filter: blur(12px) !important;

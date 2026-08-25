@@ -69,6 +69,8 @@ router.get('/feed/global', async (req, res) => {
       let opcoesEnquete = [];
       let jaVotouNaEnquete = false;
       let totalVotosGeral = 0;
+      let naoSalvoStatus = true; 
+
       try {
         if (meuIdLogado) {
           const [checaVoto] = await conexao.query(
@@ -78,8 +80,18 @@ router.get('/feed/global', async (req, res) => {
           if (checaVoto && checaVoto.length > 0) {
             meuVotoNoPost = checaVoto[0].tipo_voto;
           }
+          const [checaSalvo] = await conexao.query(
+            `SELECT 1 FROM salvar_post sp
+             JOIN Lista_salvos ls ON sp.id_lista = ls.id_lista
+             WHERE sp.id_postagem = ? AND ls.id_usuario = ?
+             LIMIT 1`,
+            [post.id_postagem, meuIdLogado]
+          );
+          if (checaSalvo && checaSalvo.length > 0) {
+            naoSalvoStatus = false;
+          }
         }
-      } catch (e) { console.warn("Aviso: Falha ao ler curtidas do post na Home.", e.message); }
+      } catch (e) { console.warn("Aviso: Falha ao ler curtidas ou salvamentos do post na Home.", e.message); }
 
       try {
         const [tagsBanco] = await conexao.query(
@@ -91,6 +103,7 @@ router.get('/feed/global', async (req, res) => {
         );
         tagsFormatadas = tagsBanco.map(t => `#${t.nome_tag}`);
       } catch (e) { console.warn("Aviso: Falha ao ler tags do post na Home.", e.message); }
+      
       try {
         if (post.tipo === 'postagemComEnquete') {
           const [opcoes] = await conexao.query(
@@ -145,6 +158,7 @@ router.get('/feed/global', async (req, res) => {
       } catch (e) { 
         console.warn(`Aviso: Falha na estrutura de enquete da Home no post ${post.id_postagem}:`, e.message); 
       }
+      
       postagensProcessadas.push({
         id_postagem: post.id_postagem,
         conteudo: post.conteudo,
@@ -154,13 +168,14 @@ router.get('/feed/global', async (req, res) => {
         meu_voto_post: meuVotoNoPost,
         total_likes: post.total_likes,
         total_dislikes: post.total_dislikes,
+        naoSalvo: naoSalvoStatus, 
         autor: {
           id: post.id_usuario,
           nome: post.nome,
           username: post.username,
           foto: post.foto_profile
         },
-        opcoes: opcoesEnquete,                
+        opcoes: opcoesEnquete,               
         tags: tagsFormatadas,                   
         jaVotado: jaVotouNaEnquete,
         totalVotosGeral: totalVotosGeral
@@ -200,7 +215,7 @@ router.get('/sidebar/sugestoes', async (req, res) => {
     return res.json(sugestoes);
 
   } catch (error) {
-    console.error('❌ Erro no MySQL ao processar sugestões inteligentes:', error);
+    console.error('Erro no MySQL ao processar sugestões inteligentes:', error);
     return res.status(500).json({ erro: 'Erro interno ao processar painel lateral.' });
   } finally {
     if (conexao) conexao.release();
@@ -342,7 +357,7 @@ router.delete('/comentarios/deletar/:idComentario', async (req, res) => {
     return res.json({ mensagem: 'Comentário excluído com sucesso!' });
 
   } catch (error) {
-    console.error('❌ Erro no MySQL ao deletar comentário:', error);
+    console.error('erro no MySQL ao deletar comentário:', error);
     return res.status(500).json({ erro: 'Erro interno ao remover comentário.' });
   } finally {
     if (conexao) conexao.release();

@@ -30,7 +30,7 @@ onMounted(() => {
 
 <template>
   <header>
-    <h1>IFchat</h1>
+    <h1>IFChat</h1>
     <nav class="nav-superior">
       <div class="divLink" :class="{ 'ativo': route.path === '/home' }">
         <RouterLink to="/home">
