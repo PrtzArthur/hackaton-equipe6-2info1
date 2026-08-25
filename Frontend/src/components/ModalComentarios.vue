@@ -242,7 +242,7 @@ onUnmounted(() => {
   width: 35vw !important;
   background-color: var(--fundo-card);
   max-height: 85vh;
-  height: auto !;
+  height: auto;
   display: flex;
   flex-direction: column;
   gap: 0.8vw;
