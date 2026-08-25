@@ -14,6 +14,7 @@ import dislikePreenchido from '@/icons/dislikePreenchido.svg';
 import setaParaBaixo from '@/icons/setaParaBaixo.svg';
 import setaParaCima from '@/icons/setaParaCima.svg';
 import reload from '@/icons/reload.svg';
+import Folder from '@/icons/Folder.svg';
 import ModalComentarios from '@/components/ModalComentarios.vue';
 
 const router = useRouter();
@@ -83,7 +84,68 @@ const sugestoesAbertas = ref(true);
 const topicosAbertos = ref(true);
 const listaSugestaoPerfis = ref([]);
 const listaTopicosEmAlta = ref([]);
+const mostrarModalSalvar = ref(false);
+const idPostagemAlvoParaSalvar = ref(null);
+const listasDePastasDisponiveis = ref([]);
+const nomeNovaListaRapida = ref('');
 
+async function abrirModalDeSelecaoDePasta(idPostagem) {
+  idPostagemAlvoParaSalvar.value = idPostagem;
+  mostrarModalSalvar.value = true;
+  listasDePastasDisponiveis.value = [];
+
+  try {
+    const r = await fetch(`http://localhost:3000/api/chat/listas-usuario/${meuIdLogado.value}`);
+    if (r.ok) {
+      listasDePastasDisponiveis.value = await r.json();
+    }
+  } catch (e) {
+    console.error("Erro ao carregar listas do usuário", e);
+  }
+}
+async function confirmarSalvamentoNaPasta(idLista) {
+  try {
+    const r = await fetch('http://localhost:3000/api/chat/salvar-post-na-lista', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id_lista: idLista,
+        id_postagem: idPostagemAlvoParaSalvar.value
+      })
+    });
+    const dados = await r.json();
+    if (r.ok) {
+      alert(dados.mensagem || "Salvo com sucesso!");
+      const postAlvo = postagensFeedGlobal.value.find(p => p.id_postagem === idPostagemAlvoParaSalvar.value);
+      if (postAlvo) {
+        postAlvo.naoSalvo = true;
+      }
+      mostrarModalSalvar.value = false;
+    } else {
+      alert(dados.erro || "Falha ao salvar");
+    }
+  } catch (e) {
+    console.error("Erro ao salvar post na pasta", e);
+  }
+}
+async function handleCriarListaRapida() {
+  if (!nomeNovaListaRapida.value.trim()) return;
+  try {
+    const r = await fetch('http://localhost:3000/api/chat/criar-lista-rapida', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        nome_lista: nomeNovaListaRapida.value,
+        id_usuario: meuIdLogado.value
+      })
+    });
+    if (r.ok) {
+      const novaLista = await r.json();
+      listasDePastasDisponiveis.value.push(novaLista);
+      nomeNovaListaRapida.value = '';
+    }
+  } catch (e) { console.error(e); }
+}
 async function carregarSugestoesPerfis() {
   const idSeguroLocalStorage = localStorage.getItem('ifchat_user_id') || '';
 
@@ -322,7 +384,10 @@ onUnmounted(() => {
             <span class="qnt-likes-dislikes">{{ post.total_dislikes }}</span>
             <button class="btn-post" @click="abrirMural(post)"><img :src="comentarios" alt="comentar" class="btn-post-img"></button>
             <button class="btn-post"><img :src="compartilhar" alt="compartilhar" class="btn-post-img"></button>
-            <button class="btn-post"><img v-if="!naoSalvo" :src="marcadorInline" alt="" class="btn-post-img"><img v-else :src="marcadorPreenchido" alt="não curtir" class="img-preenchido"></button>
+            <button type="button" class="btn-post" @click="abrirModalDeSelecaoDePasta(post.id_postagem)" title="Salvar em uma lista">
+              <img v-if="post.naoSalvo" :src="marcadorInline" alt="Salvar" class="btn-post-img">
+              <img v-else :src="marcadorPreenchido" alt="Salvo" class="img-preenchido">
+            </button>
           </div>
           <span class="data-do-post">
             Publicado em: {{ new Date(post.data_envio).toLocaleDateString('pt-BR') }}
@@ -341,7 +406,38 @@ onUnmounted(() => {
   :post="postSelecionado"
   @fechar="modalAberto = false"
 />
-<aside class="coluna-lateral-direita">
+    <div v-if="mostrarModalSalvar" class="overlay">
+      <div class="caixa-corpo-modal-salvamento">
+        <div class="topo-modal-salvar-header">
+          <h3>Salvar postagem em qual lista?</h3>
+          <button @click="mostrarModalSalvar = false" class="btn-fechar-modal-x">×</button>
+        </div>
+        <div v-if="listasDePastasDisponiveis.length === 0" class="container-sem-listas-aviso">
+          <p class="frase-aviso-sem-listas">Sem listas para salvar</p>
+        </div>
+        <div v-else class="lista-de-pastas-opcoes-scroll">
+          <button
+            v-for="lista in listasDePastasDisponiveis"
+            :key="lista.id_lista"
+            @click="confirmarSalvamentoNaPasta(lista.id_lista)"
+            class="btn-opcao-pasta-item">
+            <img :src="Folder" alt=""> {{ lista.nome_lista }}
+          </button>
+        </div>
+        <div class="bloco-criar-nova-lista-rapida">
+          <input
+            v-model="nomeNovaListaRapida"
+            type="text"
+            placeholder="Criar nova lista..."
+            @keyup.enter="handleCriarListaRapida"
+            maxlength="50"
+            class="input-criar-lista-rapida"
+          >
+          <button @click="handleCriarListaRapida" class="btn-enviar-nova-lista-add">+</button>
+        </div>
+      </div>
+    </div>
+    <aside class="coluna-lateral-direita">
       <section class="box-sidebar-container">
         <h3 @click="sugestoesAbertas = !sugestoesAbertas" class="titulo-retratil">
           Sugestões para você
@@ -421,6 +517,152 @@ onUnmounted(() => {
   width: 4vw;
   height: auto;
 }
+.fundo-mascara-modal-salvamento {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  background-color: rgba(0, 0, 0, 0.4) !important;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  z-index: 9999 !important;
+}
+.overlay {
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100vh;
+  z-index: 1000;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.caixa-corpo-modal-salvamento {
+  background-color: var(--fundo-card);
+  border: var(--borda-padrao);
+  border-radius: 12px;
+  width: 30vw;
+  padding: 20px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 1.2vw;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+}
+.topo-modal-salvar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.topo-modal-salvar-header h3 {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--texto-principal);
+  margin: 0;
+}
+.btn-fechar-modal-x {
+  background: none;
+  border: var(--borda-padrao);
+  width: 1.5vw;
+  height: 1.5vw;
+  display: flex;
+  border-radius: 5px;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+  cursor: pointer;
+  color: var(--texto-principal);
+  transition: transform 0.1s ease;
+}
+.btn-fechar-modal-x:hover {
+  transform: scale(1.2);
+  transition: 0.3s;
+  background-color: #dc3545;
+  color: var(--texto-principal-reverso);
+}
+.container-sem-listas-aviso {
+  padding: 20px 10px;
+  text-align: center;
+}
+.frase-aviso-sem-listas {
+  font-style: italic;
+  color: var(--texto-suave, #94a3b8);
+  font-size: 0.9rem;
+  margin: 0;
+}
+.lista-de-pastas-opcoes-scroll {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 160px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.lista-de-pastas-opcoes-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+.lista-de-pastas-opcoes-scroll::-webkit-scrollbar-thumb {
+  background-color: var(--borda-padrao);
+  border-radius: 10px;
+}
+.btn-opcao-pasta-item {
+  display: flex;
+  gap: 0.5vw;
+  width: 100%;
+  padding: 10px 12px;
+  background-color: var(--fundo-site, #f8fafc);
+  border: 1px solid var(--borda-padrao);
+  border-radius: 6px;
+  text-align: left;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--texto-principal);
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+  align-items: center;
+}
+.btn-opcao-pasta-item:hover {
+  background-color: var(--hover-botoes, #e2e8f0);
+  border-color: var(--cor-detalhe-escuro, #3cbc00);
+}
+.bloco-criar-nova-lista-rapida {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+.input-criar-lista-rapida {
+  flex-grow: 1;
+  padding: 8px 12px;
+  border: var(--borda-padrao);
+  border-radius: 6px;
+  background-color: var(--fundo-card);
+  color: var(--texto-principal);
+  font-size: 0.85rem;
+  outline: none;
+}
+.btn-enviar-nova-lista-add {
+  background-color: #3cbc00;
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.btn-enviar-nova-lista-add:hover {
+  transform: scale(1.1);
+  background-color: #2c8200;
+}
 .div-imagem-perfil {
   width: 3vw;
   height: 3vw;
@@ -489,11 +731,11 @@ main {
   border: none;
 }
 .btn-post:hover {
-  transform: scale(1.12); /* Cresce com efeito de mola */
+  transform: scale(1.12);
 }
 
 .btn-post:active {
-  transform: scale(0.92); /* Encolhe simulando o clique do dedo */
+  transform: scale(0.92);
 }
 .opcao-escolhida {
   color: var(--opcao-escolhida);
@@ -506,7 +748,7 @@ main {
 .btn-post:hover {
   background-color: var(--hover-botoes);
   cursor: pointer;
-  transition: 0.2s;
+  transition: 0.3s;
 }
 .coluna-lateral-direita {
   position: fixed;

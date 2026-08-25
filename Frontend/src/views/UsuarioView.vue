@@ -276,6 +276,33 @@ function verificarStatusFavorito() {
   const favoritosSalvos = JSON.parse(localStorage.getItem(obterChaveFavoritos()) || '[]');
   jaEFavorito.value = favoritosSalvos.includes(idAtualDaBarra);
 }
+async function redirecionarParaConversaPrivada() {
+  const idDoPerfilAtual = route.params.id;
+
+  if (!meuIdLogado.value) {
+    toast.warning("Você precisa estar logado para abrir o chat!");
+    return;
+  }
+
+  try {
+    const resposta = await fetch('http://localhost:3000/api/chat/iniciar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        meuId: meuIdLogado.value,
+        amigoId: idDoPerfilAtual
+      })
+    });
+
+    if (resposta.ok) {
+      router.push('/chat');
+    } else {
+      toast.error("Não foi possível abrir o canal de comunicação.");
+    }
+  } catch (erro) {
+    console.error("Erro ao disparar inicialização de chat:", erro);
+  }
+}
 function alternarFavorito() {
   const idAtualDaBarra = route.params.id;
   const chaveConta = obterChaveFavoritos();
@@ -715,7 +742,7 @@ onUnmounted(() => {
               <img v-if="sinoAtivado" :src="notificacoesAtivo" alt="" class="sininhoNotificacao">
               <img v-else :src="sinoOFF" alt="" class="sininhoNotificacao">
             </button>
-            <button class="btnChat">Chat</button>
+            <button type="button" @click="redirecionarParaConversaPrivada" class="btnChat">Chat</button>
           </div>
           <button v-if="jaEFavorito" type="button" @click="alternarFavorito" class="btnPerfilFavorito">
             <img :src="favoritarPreenchido" alt="" class="favoritarPerfilDeUsuario">
@@ -1117,6 +1144,14 @@ main {
   color: var(--texto-principal);
   border-radius: 6px;
 }
+.marcado-para-manter-form:hover {
+  background-color: var(--hover-botoes);
+  transform: scale(1.02);
+  transition: 0.3s;
+}
+.marcado-para-manter-form:active {
+  transform: scale(0.95);
+}
 .div-botoes-postagens {
   display: flex;
   align-items: center;
@@ -1152,6 +1187,10 @@ main {
   background-color: #cf0000;
   cursor: pointer;
   transition: 0.3s;
+  transform: scale(1.02);
+}
+.marcado-para-excluir-form:active {
+  transform: scale(0.95);
 }
 .btn-post {
   width: 2.5vw;
@@ -1815,6 +1854,7 @@ section.configuracoes {
   border: var(--borda-padrao);
   background-color: var(--fundo-card);
   color: var(--texto-principal);
+  outline: none;
 }
 .divEditImage {
   margin-top: 0.5vw;
@@ -1826,7 +1866,13 @@ section.configuracoes {
 }
 .imageInput::-webkit-file-upload-button:hover {
   background-color: var(--fundo-card-va-hover);
-  border-color: #b5b5b5;
+  border-color: var(--borda-padrao);
+  transform: scale(1.001);
+  transition: 0.3s;
+}
+.imageInput::-webkit-file-upload-button:active {
+  transform: scale(0.9);
+  background-color: var(--fundo-card-va);
 }
 .imageInput {
   font-size: 0.9vw;
@@ -2012,8 +2058,12 @@ select {
 }
 .tag:hover {
   background-color: var(--hover-botoes);
-  transition: 0.2s;
+  transition: 0.3s;
+  transform: scale(1.05);
   cursor: pointer;
+}
+.tag:active {
+  transform: scale(0.95);
 }
 .indicadorDeLimite {
   color: var(--texto-suave);
@@ -2143,6 +2193,8 @@ select {
   max-width: 200px;
   opacity: 1;
   margin-left: 0.8vw;
+  transition: 0.8s;
+  transform: scale(1.01);
 }
 .btn-mural-expansivel:active {
   transform: scale(0.95);
@@ -2178,8 +2230,11 @@ select {
 .btnPerfil:hover {
   background-color: var(--hover-botoes);
   cursor: pointer;
-  transition: 0.2s;
+  transition: 0.3s;
   transform: scale(1.05);
+}
+.btnPerfil:active {
+  transform: scale(0.95);
 }
 section.telaDeExibicao {
   background-color: var(--fundo-card);
@@ -2291,10 +2346,12 @@ section.telaDeExibicao {
   background-color: var(--fundo-card);
   border: var(--borda-padrao);
   border-radius: 5px;
-  position: absolute;
-  top: 0;
-  margin-top: 4vw;
-  margin-left: 13vw;
+  position: fixed;
+  top: 0 !important;
+  left: 0 !important;
+  margin-top: 4vw !important;
+  margin-left: 26vw !important;
+  z-index: 9999 !important;
   cursor: pointer;
 }
 .botaoVoltar:hover {

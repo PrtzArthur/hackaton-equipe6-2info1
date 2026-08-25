@@ -55,7 +55,7 @@ const realizarCadastro = async () => {
 <template>
   <main>
     <div class="Card-Principal">
-      <header><h1>IFchat</h1></header>
+      <header><h1>IFChat</h1></header>
       <div class="Div-Central">
         <form @submit.prevent="realizarCadastro" autocomplete="off">
           <div class="Agrupacao">

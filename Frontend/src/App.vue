@@ -41,6 +41,7 @@ const route = useRoute();
   --texto-principal-reverso: #fff;
   --borda-cinza-branca: 0.1vw solid #ccc;
   --texto-mais-suave: #666;
+  --fundo-opcao-enquete-claro: rgba(60, 188, 0, 0.12);
 }
 [data-theme="dark"] {
   --fundo-site: #020b1a;
@@ -60,6 +61,7 @@ const route = useRoute();
   --texto-principal-reverso: #000;
   --borda-cinza-branca: 0.1vw solid #fff;
   --texto-mais-suave: #bababa;
+  --fundo-opcao-enquete-claro: rgba(0, 92, 185, 0.09);
 }
 body {
   background-color: var(--fundo-site);
