@@ -1,6 +1,5 @@
 <template>
   <div class="refeitorio-page">
-    <!-- SIDEBAR -->
     <nav class="sidebar">
       <div class="brand">IF</div>
       <div class="navitem"><SvgHome />Home</div>
@@ -14,20 +13,10 @@
       <div class="navitem"><SvgBell />Avisos</div>
     </nav>
 
-    <!-- MAIN -->
     <main>
-      <div class="topbar">
-        <div class="crumb"><span class="tag">IFchat</span> Refeitório</div>
-        <div class="icons">
-          <div class="icon-btn"><SvgSearch /></div>
-          <div class="icon-btn"><SvgBell small /></div>
-        </div>
-      </div>
-
       <h1 class="title">Mãos Peruanas</h1>
       <p class="subtitle">Refeitório · IFC Araquari · Almoço 11h – 13h30</p>
 
-      <!-- FILA -->
       <section>
         <div class="section-head">
           <h2>Fila agora</h2>
@@ -60,7 +49,7 @@
           </div>
           <div class="queue-info">
             <div class="updated"><span class="dot"></span>Atualizado há {{ minutesSinceUpdate }} min por um usuário</div>
-            <p>O fluxo costuma aumentar entre 11h30 e 12h15. Se puder, evite esse horário ou marque para almoçar mais cedo.</p>
+            <p>O fluxo costuma aumentar entre 11h15 e 12h00.</p>
             <div class="legend">
               <div class="item"><span class="sw vazio"></span>Vazio · até 5 min</div>
               <div class="item"><span class="sw medio"></span>Médio · 5–15 min</div>
@@ -77,7 +66,6 @@
               </div>
             </div>
 
-            <!-- Botões de teste (simulam atualização feita por outro usuário) -->
             <div class="quick-report">
               <span class="hint">Reportar fila:</span>
               <button v-for="key in ['vazio','medio','cheio']" :key="key"
@@ -90,7 +78,6 @@
         </div>
       </section>
 
-      <!-- CARDÁPIO -->
       <section>
         <div class="section-head">
           <h2>Cardápio da semana</h2>
@@ -129,7 +116,7 @@
         </div>
       </section>
 
-      <!-- AVALIAÇÕES -->
+      
       <section>
         <div class="section-head">
           <h2>Avaliações</h2>
@@ -165,7 +152,6 @@
       </section>
     </main>
 
-    <!-- MODAL: NOVA AVALIAÇÃO -->
     <div class="overlay" :class="{ open: showModal }" @click.self="closeModal">
       <div class="modal">
         <h3>Avaliar o almoço de hoje</h3>
@@ -201,7 +187,6 @@
 <script setup>
 import { reactive, ref, computed, onMounted, onUnmounted, h } from 'vue'
 
-/* ---------------- ícones (SVG simples, sem dependências) ---------------- */
 const icon = (path) => (props) =>
   h('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': 2,
              width: props?.small ? 16 : 19, height: props?.small ? 16 : 19 },
@@ -216,9 +201,7 @@ const SvgTray = icon('M3 2v7a4 4 0 0 0 4 4v9M7 2v6M11 2v6M15 2c-1.5 1.5-1.5 4-1.
 const SvgCreate = icon(['M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z', 'M12 8v4l3 3'])
 const SvgProfile = icon(['M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8z', 'M4 21c0-4 4-6.5 8-6.5s8 2.5 8 6.5'])
 const SvgBell = icon(['M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9', 'M13.7 21a2 2 0 0 1-3.4 0'])
-const SvgSearch = icon(['M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16z', 'M21 21l-4.3-4.3'])
 
-/* ---------------- relógio ---------------- */
 const clockNow = ref('')
 let clockTimer = null
 function tickClock() {
@@ -230,8 +213,6 @@ onMounted(() => {
 })
 onUnmounted(() => clearInterval(clockTimer))
 
-/* ---------------- status da fila ---------------- */
-// Em produção: substituir por leitura/gravação em tempo real (ex: API do refeitório)
 const statuses = {
   vazio: { label: 'Vazio', wait: '~3 min de espera', angle: -80, percent: 18, color: 'var(--verde-vivo)' },
   medio: { label: 'Médio', wait: '~12 min de espera', angle: -40, percent: 55, color: 'var(--dourado-vivo)' },
@@ -241,7 +222,6 @@ const statusKey = ref('medio')
 const currentStatus = computed(() => statuses[statusKey.value])
 const minutesSinceUpdate = ref(2)
 
-/* ---------------- geometria do gauge da fila (só desenho, mesmos dados de status) ---------------- */
 const GAUGE_CX = 80
 const GAUGE_CY = 84
 const GAUGE_R = 58
@@ -269,7 +249,6 @@ const gaugeFillAngle = computed(
 const gaugeFillPath = computed(() => gaugeArc(GAUGE_START, gaugeFillAngle.value))
 const gaugeDot = computed(() => gaugePoint(gaugeFillAngle.value))
 
-/* histórico de fila por horário (mock) */
 const hourHistory = [
   { label: '11h', level: 20 },
   { label: '11h30', level: 55 },
@@ -285,8 +264,7 @@ function barColor(level) {
   return 'var(--verde-vivo)'
 }
 
-/* ---------------- cardápio da semana ---------------- */
-// Em produção: viria de uma API, editável apenas por contas com papel "admin"
+
 const menu = reactive({
   Seg: { dish: 'Lomo saltado', desc: 'Tiras de carne bovina salteadas com tomate, cebola roxa e batata frita, servido com arroz.', side: 'Arroz branco · Batata frita', veg: 'Lomo saltado de cogumelos', kcal: '≈ 720 kcal', date: '18/08', editor: 'Coordenação', updated: '1 dia' },
   Ter: { dish: 'Ají de gallina', desc: 'Frango desfiado em creme de ají amarillo, nozes e queijo, servido com arroz e batata cozida.', side: 'Arroz branco · Batata cozida · Azeitona preta', veg: 'Ají de jaca', kcal: '≈ 680 kcal', date: '19/08', editor: 'Coordenação', updated: '2 dias' },
@@ -346,13 +324,7 @@ function submitReview() {
 </script>
 
 <style scoped>
-/*
-  Paleta e identidade: cerâmica andina + mercado de Lima.
-  Verde-jade (Amazônia peruana), ouro-inca (milho, cerâmica) e
-  terracota-adobe (arquitetura de Cusco) sobre um fundo areia quente.
-  Assinatura visual: friso geométrico "chakana" (padrão andino em degraus)
-  usado como divisor sutil, e o disco de fila como um "prato" cerâmico.
-*/
+
 :root, .refeitorio-page {
   --verde-mata: #17563B;
   --verde-vivo: #2F9760;
@@ -367,7 +339,7 @@ function submitReview() {
   --tinta-suave: #766A5C;
   --linha: #E7DFD1;
   --branco: #FFFDF8;
-  --fundo: #F3EEE3;
+  --fundo: #E1F9DC;
   --sombra: 0 1px 2px rgba(33, 27, 21, 0.04), 0 8px 24px -12px rgba(33, 27, 21, 0.18);
   --sombra-lg: 0 2px 4px rgba(33, 27, 21, 0.05), 0 20px 40px -16px rgba(33, 27, 21, 0.22);
 }
@@ -385,7 +357,7 @@ function submitReview() {
   min-height: 100vh;
 }
 
-/* padrão em degraus (chakana simplificada), usado como friso decorativo */
+
 .chakana-rule {
   height: 8px;
   width: 100%;
@@ -401,7 +373,7 @@ function submitReview() {
   margin: 22px 0 4px;
 }
 
-/* ---------- SIDEBAR ---------- */
+
 .sidebar {
   width: 78px;
   background: var(--branco);
@@ -431,25 +403,9 @@ function submitReview() {
 .navitem.active { background: var(--verde-claro); color: var(--verde-mata); }
 .navitem:hover:not(.active) { background: #F3EFE6; transform: translateY(-1px); }
 
-/* ---------- MAIN ---------- */
 main { flex: 1; max-width: 900px; margin: 0 auto; padding: 30px 32px 84px; width: 100%; }
 
-.topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 22px; }
-.topbar .crumb { display: flex; align-items: center; gap: 9px; color: var(--tinta-suave); font-size: 13px; font-weight: 700; }
-.topbar .crumb .tag {
-  background: linear-gradient(155deg, var(--verde-vivo), var(--verde-mata));
-  color: #fff; padding: 4px 11px; border-radius: 4px; font-size: 11px; font-weight: 700;
-  font-family: 'Space Grotesk', sans-serif; letter-spacing: 0.2px;
-}
-.topbar .icons { display: flex; gap: 12px; }
-.icon-btn {
-  width: 36px; height: 36px; border-radius: 50%; background: var(--branco); border: 1px solid var(--linha);
-  display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--tinta-suave);
-  box-shadow: var(--sombra); transition: transform 0.15s ease, color 0.15s ease;
-}
-.icon-btn:hover { color: var(--verde-mata); transform: translateY(-1px); }
-
-h1.title { font-family: 'Space Grotesk', sans-serif; font-size: 33px; font-weight: 600; letter-spacing: -0.6px; }
+h1.title { font-family: 'Space Grotesk', sans-serif; font-size: 33px; font-weight: 600; letter-spacing: -0.6px; margin-top: 4px; }
 .subtitle { color: var(--tinta-suave); font-size: 14px; margin-top: 5px; font-weight: 600; }
 .subtitle::before { content: '◆ '; color: var(--dourado-vivo); font-size: 9px; vertical-align: middle; }
 
@@ -458,7 +414,6 @@ section { margin-top: 30px; }
 .section-head h2 { font-family: 'Space Grotesk', sans-serif; font-size: 19px; font-weight: 600; letter-spacing: -0.2px; }
 .section-head .hint { font-size: 12px; color: var(--tinta-suave); font-weight: 700; }
 
-/* ---------- FILA ---------- */
 .queue-card {
   background: var(--branco); border: 1px solid var(--linha); border-radius: 6px;
   padding: 26px; display: flex; gap: 30px; align-items: center; position: relative; overflow: hidden;
@@ -506,17 +461,16 @@ section { margin-top: 30px; }
 .quick-report { display: flex; align-items: center; gap: 8px; margin-top: 18px; flex-wrap: wrap; }
 .chip {
   border: 1px solid var(--linha); background: var(--branco); color: var(--tinta-suave);
-  font-size: 11.5px; font-weight: 700; padding: 7px 13px; border-radius: 4px; cursor: pointer;
+  font-size: 13.5px; font-weight: 700; padding: 11px 20px; border-radius: 5px; cursor: pointer;
   transition: all 0.15s ease;
 }
 .chip:hover { border-color: var(--verde-vivo); color: var(--verde-mata); }
 .chip.active { background: var(--verde-mata); border-color: var(--verde-mata); color: #fff; box-shadow: 0 4px 10px -4px rgba(23, 86, 59, 0.5); }
 
-/* ---------- CARDÁPIO ---------- */
-.day-tabs { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+.day-tabs { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
 .day-tab {
-  padding: 10px 17px; border-radius: 4px; border: 1px solid var(--linha); background: var(--branco);
-  font-size: 13px; font-weight: 700; cursor: pointer; color: var(--tinta-suave);
+  padding: 15px 25px; border-radius: 5px; border: 1px solid var(--linha); background: var(--branco);
+  font-size: 15.5px; font-weight: 700; cursor: pointer; color: var(--tinta-suave);
   transition: all 0.15s ease;
 }
 .day-tab:hover { border-color: var(--dourado-vivo); color: var(--dourado); }
@@ -590,7 +544,6 @@ section { margin-top: 30px; }
   display: flex; align-items: center; justify-content: center; color: var(--verde-mata);
 }
 
-/* ---------- MODAL ---------- */
 .overlay {
   position: fixed; inset: 0; background: rgba(20, 16, 12, 0.5); backdrop-filter: blur(2px);
   display: none; align-items: center; justify-content: center; z-index: 50;
