@@ -8,15 +8,20 @@ const pool = mysql.createPool({
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME,
+  port: parseInt(process.env.DB_PORT, 10) || 3306, 
   waitForConnections: true,
   connectionLimit: 10,
-  queueLimit: 0
+  queueLimit: 0,
+  ssl: {
+    rejectUnauthorized: false
+  }
 });
 
 pool.getConnection()
-  .then(() => console.log('🔥 Conectado ao banco MySQL com sucesso!'))
+  .then(() => console.log('conectado ao banco MySQL ONLINE com sucesso!'))
   .catch(err => {
-    console.error('❌ Erro ao conectar no MySQL completo:');
+    console.error('erro ao conectar no MySQL completo:');
     console.log(err);
   });
+
 export default pool;

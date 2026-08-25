@@ -388,10 +388,11 @@ main {
   background-color: var(--fundo-card);
   border: var(--borda-padrao);
   border-radius: 5px;
-  position: absolute;
-  top: 0;
-  margin-top: 4vw;
-  margin-left: 13vw;
+  top: 0 !important;
+  left: 0 !important;
+  margin-top: 2.5vw !important;
+  margin-left: 12.5vw !important;
+  z-index: 9999 !important;
   cursor: pointer;
 }
 .secao-enquete {
