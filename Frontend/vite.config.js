@@ -16,7 +16,7 @@ export default defineConfig({
     },
   },
   define: {
-    'import.meta.env.VITE_API_URL': JSON.stringify('https://onrender.com')
+    'import.meta.env.VITE_API_URL': JSON.stringify('https://hackaton-equipe6-2info1.onrender.com')
   }
 })
 
