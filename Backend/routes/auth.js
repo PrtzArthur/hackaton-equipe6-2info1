@@ -67,7 +67,11 @@ router.post('/login', async (req, res) => {
 
     await pool.query('UPDATE Usuario SET status_online = 1 WHERE id_usuario = ?', [usuario.id_usuario]);
 
-    const token = jwt.sign({ id: usuario.id_usuario }, process.env.JWT_SECRET, { expiresIn: '7d' });
+    const token = jwt.sign(
+  { id: usuario.id_usuario }, 
+  process.env.JWT_SECRET || 'ifchat_token_hackaton2026', 
+  { expiresIn: '7d' }
+  );
 
     return res.json({ 
   sucesso: true, 
