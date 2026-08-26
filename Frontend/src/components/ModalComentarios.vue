@@ -15,7 +15,7 @@ const props = defineProps({
 const emit = defineEmits(['fechar']);
 
 const toast = useToast();
-const socket = io('http://localhost:3000');
+const socket = io(import.meta.env.VITE_API_URL);
 
 const listaComentariosDoPost = ref([]);
 const textoNovoComentario = ref('');
@@ -25,7 +25,7 @@ const meuIdLogado = ref(localStorage.getItem('ifchat_user_id') || '');
 async function carregarComentariosDoBanco() {
   if (!props.post?.id_postagem) return;
   try {
-    const resposta = await fetch(`http://localhost:3000/api/criar/postagens/${props.post.id_postagem}/comentarios?meuId=${meuIdLogado.value}&filtro=${filtroAtual.value}`);
+    const resposta = await fetch(`${import.meta.env.VITE_API_URL}/api/criar/postagens/${props.post.id_postagem}/comentarios?meuId=${meuIdLogado.value}&filtro=${filtroAtual.value}`);
     if (resposta.ok) {
       listaComentariosDoPost.value = await resposta.json();
     }
@@ -51,7 +51,7 @@ async function enviarComentarioNoOverlay() {
   }
 
   try {
-    const resposta = await fetch('http://localhost:3000/api/criar/comentarios/novo', {
+    const resposta = await fetch(`${import.meta.env.VITE_API_URL}/api/criar/comentarios/novo`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -81,7 +81,7 @@ async function votarNoComentarioDoMural(idComentario, tipo) {
     return;
   }
   try {
-    const resposta = await fetch('http://localhost:3000/api/criar/postagens/comentarios/votar', {
+    const resposta = await fetch(`${import.meta.env.VITE_API_URL}/api/criar/postagens/comentarios/votar`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -104,7 +104,7 @@ async function deletarComentarioDoBanco(idComentario) {
   if (!confirm("Tem certeza que deseja apagar este comentário?")) return;
 
   try {
-    const resposta = await fetch(`http://localhost:3000/api/criar/comentarios/deletar/${idComentario}`, {
+    const resposta = await fetch(`${import.meta.env.VITE_API_URL}/api/criar/comentarios/deletar/${idComentario}`, {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

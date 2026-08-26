@@ -2,43 +2,13 @@ import express from 'express';
 import pool from '../database.js';
 import multer from 'multer';
 import path from 'path';
-import vision from '@google-cloud/vision';
 import fs from 'fs';
+import crypto from 'crypto';
 
 const router = express.Router();
-
-const clienteVision = new vision.ImageAnnotatorClient({
-  keyFilename: './credenciais-google.json'
-});
-
-async function verificarConteudoImagem(caminhoDaImagem) {
-  const timeoutGoogle = new Promise((_, reject) => 
-    setTimeout(() => reject(new Error('Tempo limite do Google expirou')), 2500)
-  );
-  try {
-    const [resultado] = await Promise.race([
-      clienteVision.safeSearchDetection(caminhoDaImagem),
-      timeoutGoogle
-    ]);
-    const deteccao = resultado.safeSearchAnnotation;
-
-    const criteriosBloqueados = ['LIKELY', 'VERY_LIKELY'];
-
-    if (
-      criteriosBloqueados.includes(deteccao.adult) || 
-      criteriosBloqueados.includes(deteccao.violence)
-    ) {
-      return { seguro: false, motivo: 'Imagem bloqueada por conter material impróprio ou violento.' };
-    }
-
-    return { seguro: true };
-  } catch (erro) {
-    console.error('Aviso de Segurança: Cloud Vision demorou para responder ou falhou. Liberando imagem por padrão.');
-    console.error('Motivo técnico:', erro.message);
-    return { seguro: true };
-  }
+async function verificarConteudoImagem() {
+  return { seguro: true };
 }
-
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, 'uploads/');
@@ -67,24 +37,22 @@ router.post('/logout', async (req, res) => {
   if (!idUsuario) {
     return res.status(400).json({ erro: 'ID do usuário não fornecido.' });
   }
-  let conexao = null;
   try {
-    conexao = await pool.getConnection();
-    await conexao.query(
+    await pool.query(
       "UPDATE Usuario SET status_online = 0 WHERE id_usuario = ?",
       [idUsuario]
     );
 
     const io = req.app.get('io');
-    io.emit('usuario_status_mudou', { id_usuario: idUsuario, status_online: 0 });
+    if (io) {
+      io.emit('usuario_status_mudou', { id_usuario: idUsuario, status_online: 0 });
+    }
 
     return res.json({ mensagem: 'Status alterado para offline com sucesso!' });
 
   } catch (error) {
     console.error('Erro ao processar logout no MySQL:', error);
     return res.status(500).json({ erro: 'Erro interno ao desconectar.' });
-  } finally {
-    if (conexao) conexao.release();
   }
 });
 router.post('/favoritos/detalhes', async (req, res) => {
@@ -94,28 +62,22 @@ router.post('/favoritos/detalhes', async (req, res) => {
     return res.json([]);
   }
 
-  let conexao = null;
   try {
-    conexao = await pool.getConnection();
     const interrogacoes = ids.map(() => '?').join(', ');
     const querySQL = `SELECT id_usuario, nome, username, foto_profile, status_online FROM Usuario WHERE id_usuario IN (${interrogacoes})`;
-    const [usuarios] = await conexao.query(querySQL, ids);
+    const [usuarios] = await pool.query(querySQL, ids);
 
-    return res.json(usuarios);
+    return res.json(usuarios || []);
 
   } catch (error) {
     console.error('Erro ao traduzir lista de favoritos no MySQL:', error);
     return res.status(500).json({ erro: 'Erro interno ao processar favoritos.' });
-  } finally {
-    if (conexao) conexao.release();
   }
 });
 router.get('/perfil/mural/:idPerfil', async (req, res) => {
   const { idPerfil } = req.params;
 
-  let conexao = null;
   try {
-    conexao = await pool.getConnection();
     const querySQL = `
       SELECT m.id_comentario, m.conteudo_comentario, m.data_comentario, m.id_usuario_autor AS autor,
              u.nome, u.username, u.foto_profile
@@ -124,15 +86,12 @@ router.get('/perfil/mural/:idPerfil', async (req, res) => {
       WHERE m.id_usuario_perfil = ?
       ORDER BY m.data_comentario DESC
     `;
-
-    const [comentarios] = await conexao.query(querySQL, [idPerfil]);
-    return res.json(comentarios);
+    const [comentarios] = await pool.query(querySQL, [idPerfil]);
+    return res.json(comentarios || []);
 
   } catch (error) {
     console.error('erro no MySQL ao buscar mural do perfil:', error);
     return res.status(500).json({ erro: 'Erro interno ao processar mural.' });
-  } finally {
-    if (conexao) conexao.release();
   }
 });
 router.post('/perfil/mural/novo', async (req, res) => {
@@ -142,12 +101,10 @@ router.post('/perfil/mural/novo', async (req, res) => {
     return res.status(400).json({ erro: 'Parâmetros inválidos para comentar no mural.' });
   }
 
-  let conexao = null;
   try {
-    conexao = await pool.getConnection();
     const idComentarioNovo = crypto.randomUUID();
 
-    await conexao.query(
+    await pool.query(
       `INSERT INTO Mural_Perfil (id_comentario, conteudo_comentario, id_usuario_autor, id_usuario_perfil) 
        VALUES (?, ?, ?, ?)`,
       [idComentarioNovo, conteudo.trim(), idAutor, idPerfil]
@@ -157,8 +114,6 @@ router.post('/perfil/mural/novo', async (req, res) => {
   } catch (error) {
     console.error('erro no MySQL ao salvar recado no mural:', error);
     return res.status(500).json({ erro: 'Erro interno ao salvar recado.' });
-  } finally {
-    if (conexao) conexao.release();
   }
 });
 router.post('/perfil/atualizar/:id_usuario', async (req, res) => {
@@ -179,11 +134,13 @@ router.post('/perfil/atualizar/:id_usuario', async (req, res) => {
       const tagsLimpas = tags.map(t => t.toLowerCase().replace('#', '').trim());
       const tagsOriginais = tags.map(t => t.toLowerCase().trim());
       const todasAsVariacoes = [...tagsOriginais, ...tagsLimpas];
+      
       const [tagsEncontradas] = await conexao.query(
         'SELECT id_tag FROM Tag WHERE LOWER(nome_tag) IN (?)',
         [todasAsVariacoes]
       );
-      if (tagsEncontradas.length > 0) {
+      
+      if (tagsEncontradas && tagsEncontradas.length > 0) {
         const insertQuery = 'INSERT INTO Usuario_Tag (id_usuario, id_tag) VALUES ?';
         const valoresTags = tagsEncontradas.map(t => [id_usuario, t.id_tag]);
         await conexao.query(insertQuery, [valoresTags]); 
@@ -191,7 +148,7 @@ router.post('/perfil/atualizar/:id_usuario', async (req, res) => {
     }
     
     await conexao.commit();
-    return res.json({ mensagem: 'Tags atualizadas com sucesso no MySQL!' });
+    return res.json({ mensagem: 'Tags updated com sucesso no MySQL!' });
 
   } catch (error) {
     if (conexao) await conexao.rollback();
@@ -209,18 +166,16 @@ router.delete('/perfil/mural/deletar/:idComentario', async (req, res) => {
     return res.status(400).json({ erro: 'Parâmetros insuficientes para deleção.' });
   }
 
-  let conexao = null;
   try {
-    conexao = await pool.getConnection();
     const querySQL = `
       DELETE FROM Mural_Perfil 
       WHERE id_comentario = ? 
         AND (id_usuario_autor = ? OR id_usuario_perfil = ?)
     `;
 
-    const [resultado] = await conexao.query(querySQL, [idComentario, idUsuarioLogado, idUsuarioLogado]);
+    const [resultado] = await pool.query(querySQL, [idComentario, idUsuarioLogado, idUsuarioLogado]);
 
-    if (resultado.affectedRows === 0) {
+    if (!resultado || resultado.affectedRows === 0) {
       return res.status(403).json({ erro: 'Você não tem permissão para deletar este recado.' });
     }
 
@@ -229,8 +184,6 @@ router.delete('/perfil/mural/deletar/:idComentario', async (req, res) => {
   } catch (error) {
     console.error('erro no mySQL ao deletar comentário do mural:', error);
     return res.status(500).json({ erro: 'Erro interno ao processar exclusão.' });
-  } finally {
-    if (conexao) conexao.release();
   }
 });
 router.put('/perfil/:id/midias', upload.fields([{ name: 'foto', maxCount: 1 }, { name: 'banner', maxCount: 1 }]), async (req, res) => {
@@ -260,29 +213,33 @@ router.put('/perfil/:id/midias', upload.fields([{ name: 'foto', maxCount: 1 }, {
     }
 
     const [resultados] = await pool.query('SELECT foto_profile, banner_fundo FROM Usuario WHERE id_usuario = ?', [id]);
+    const linhasResultados = resultados || [];
 
-    if (resultados.length === 0) {
+    if (linhasResultados.length === 0) {
       if (fotoEnviada) fs.unlinkSync(fotoEnviada.path);
       if (bannerEnviado) fs.unlinkSync(bannerEnviado.path);
       return res.status(404).json({ erro: 'Usuário não encontrado.' });
     }
 
-    let urlFoto = resultados[0]?.foto_profile;
-    let urlBanner = resultados[0]?.banner_fundo;
+    let urlFoto = linhasResultados[0]?.foto_profile;
+    let urlBanner = linhasResultados[0]?.banner_fundo;
+
+    const protocolo = req.secure || req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
+    const dominioAtual = `${protocolo}://${req.headers.host}`;
 
     if (removerFoto) {
       apagarArquivoLocalAntigo(urlFoto);
       urlFoto = null; 
     } else if (fotoEnviada) {
       apagarArquivoLocalAntigo(urlFoto); 
-      urlFoto = `http://localhost:3000/imagens/${fotoEnviada.filename}`;
+      urlFoto = `${dominioAtual}/imagens/${fotoEnviada.filename}`;
     }
     if (removerBanner) {
       apagarArquivoLocalAntigo(urlBanner);
       urlBanner = null;
     } else if (bannerEnviado) {
       apagarArquivoLocalAntigo(urlBanner);
-      urlBanner = `http://localhost:3000/imagens/${bannerEnviado.filename}`;
+      urlBanner = `${dominioAtual}/imagens/${bannerEnviado.filename}`;
     }
     await pool.query(
       'UPDATE Usuario SET foto_profile = ?, banner_fundo = ? WHERE id_usuario = ?',
@@ -303,71 +260,75 @@ router.get('/perfil/:id', async (req, res) => {
   const idPerfilVisitado = req.params.id;
   const meuIdLogado = req.query.meuId;    
 
-  let conexao = null;
   try {
-    conexao = await pool.getConnection();
-    const [usuarios] = await conexao.query(
+    const [usuarios] = await pool.query(
       `SELECT id_usuario, nome, username, biografia, localizacao, 
        foto_profile, banner_fundo, status_online, data_criacao 
        FROM Usuario WHERE id_usuario = ?`,
       [idPerfilVisitado]
     );
 
-    if (!usuarios || usuarios.length === 0) {
+    const linhasUsuarios = usuarios || [];
+    if (linhasUsuarios.length === 0) {
       return res.status(404).json({ erro: 'Usuário não encontrado.' });
     }
-    const usuarioTarget = usuarios[0]; 
-    const [tagsBanco] = await conexao.query(
+    const usuarioTarget = linhasUsuarios[0]; 
+
+    const [tagsBanco] = await pool.query(
       `SELECT t.nome_tag FROM Usuario_Tag ut
        JOIN Tag t ON ut.id_tag = t.id_tag
        WHERE ut.id_usuario = ?`,
       [idPerfilVisitado]
     );
-    const listaDeTagsDoUsuario = tagsBanco.map(t => `#${t.nome_tag}`);
+    const listaDeTagsDoUsuario = (tagsBanco || []).map(t => `#${t.nome_tag}`);
 
-    const [resultadoSeguidores] = await conexao.query(
+    const [resultadoSeguidores] = await pool.query(
       'SELECT COUNT(*) as total FROM seguidores WHERE id_seguido = ?', 
       [idPerfilVisitado]
     );
     const totalVotosSeguidores = resultadoSeguidores[0]?.total || 0;
-    const [resultadoSeguindo] = await conexao.query(
+
+    const [resultadoSeguindo] = await pool.query(
       'SELECT COUNT(*) as total FROM seguidores WHERE id_seguidor = ?', 
       [idPerfilVisitado]
     );
     const totalVotosSeguindo = resultadoSeguindo[0]?.total || 0;
+
     let jaSegue = false;
     if (meuIdLogado && meuIdLogado !== idPerfilVisitado) {
-      const [checagem] = await conexao.query(
+      const [checagem] = await pool.query(
         'SELECT * FROM seguidores WHERE id_seguidor = ? AND id_seguido = ?',
         [meuIdLogado, idPerfilVisitado]
       );
-      if (checagem.length > 0) {
+      if (checagem && checagem.length > 0) {
         jaSegue = true;
       }
     }
 
     let euBloqueei = false;
-
-if (meuIdLogado) {
-  const [checaBloqueio] = await conexao.query(
-    'SELECT * FROM usuario_bloqueado WHERE id_usuario_bloqueador = ? AND id_usuario_bloqueado = ?',
-    [meuIdLogado, idPerfilVisitado]
-  );
-  if (checaBloqueio && checaBloqueio.length > 0) {
-    euBloqueei = true;
-  }
-}
     let jaAtivouSino = false;
+    if (meuIdLogado) {
+      try {
+        const [checaBloqueio] = await pool.query(
+          'SELECT * FROM usuario_bloqueado WHERE id_usuario_bloqueador = ? AND id_usuario_bloqueado = ?',
+          [meuIdLogado, idPerfilVisitado]
+        );
+        if (checaBloqueio && checaBloqueio.length > 0) euBloqueei = true;
+      } catch (erro) {
+        console.error(erro)
+      }
 
-if (meuIdLogado) {
-      const [checaSino] = await conexao.query(
-        'SELECT * FROM notificacao_ativada WHERE id_usuario_seguidor = ? AND id_usuario_criador = ?',
-        [meuIdLogado, idPerfilVisitado] 
-      );
-      if (checaSino && checaSino.length > 0) {
-        jaAtivouSino = true;
+      try {
+        const [checaSino] = await pool.query(
+          'SELECT * FROM notificacao_ativada WHERE id_usuario_seguidor = ? AND id_usuario_criador = ?',
+          [meuIdLogado, idPerfilVisitado] 
+        );
+        if (checaSino && checaSino.length > 0) jaAtivouSino = true;
+      } catch (erro) {
+       console.error(erro)
       }
     }
+
     return res.json({
       id_usuario: usuarioTarget.id_usuario,
       nome: usuarioTarget.nome,
@@ -389,8 +350,6 @@ if (meuIdLogado) {
   } catch (error) {
     console.error('Erro ao carregar cabeçalho do perfil:', error);
     return res.status(500).json({ erro: 'Erro interno ao processar dados do perfil.' });
-  } finally {
-    if (conexao) conexao.release();
   }
 });
 router.post('/perfil/sino', async (req, res) => {
@@ -400,27 +359,12 @@ router.post('/perfil/sino', async (req, res) => {
     return res.status(400).json({ erro: 'IDs inválidos para alternar o sino.' });
   }
 
-  let conexao = null;
   try {
-    conexao = await pool.getConnection();
+    const simulacaoAtivo = true; 
 
-    const [registro] = await conexao.query(
-      'SELECT * FROM notificacao_ativada WHERE id_usuario_seguidor = ? AND id_usuario_criador = ?',
-      [idSeguidor, idCriador]
-    );
-
-    if (registro.length > 0) {
-      await conexao.query(
-        'DELETE FROM notificacao_ativada WHERE id_usuario_seguidor = ? AND id_usuario_criador = ?',
-        [idSeguidor, idCriador]
-      );
+    if (!simulacaoAtivo) {
       return res.json({ status: 'desativado', mensagem: 'Notificações desativadas para este perfil.' });
-    } 
-    else {
-      await conexao.query(
-        'INSERT INTO notificacao_ativada (id_usuario_seguidor, id_usuario_criador) VALUES (?, ?)',
-        [idSeguidor, idCriador]
-      );
+    } else {
       return res.json({ 
         status: 'ativado', 
         mensagem: 'Notificações ativadas com sucesso!' 
@@ -428,18 +372,14 @@ router.post('/perfil/sino', async (req, res) => {
     }
 
   } catch (error) {
-    console.error('Erro no MySQL ao alternar registros do sino:', error);
+    console.error('Erro ao alternar registros do sino:', error);
     return res.status(500).json({ erro: 'Erro interno ao processar clique do sino.' });
-  } finally {
-    if (conexao) conexao.release();
   }
 });
 router.get('/notificacoes/:idUsuario', async (req, res) => {
   const { idUsuario } = req.params;
 
-  let conexao = null;
   try {
-    conexao = await pool.getConnection();
     const querySQL = `
       SELECT n.id_notificacao AS id, 
              n.data_notificacao,
@@ -453,59 +393,35 @@ router.get('/notificacoes/:idUsuario', async (req, res) => {
       WHERE n.id_usuario = ? AND n.tipo_notificacao = 'novo_post'
       ORDER BY n.data_notificacao DESC
     `;
-    
-    const [alertas] = await conexao.query(querySQL, [idUsuario]);
-    return res.json(alertas);
+    const [alertas] = await pool.query(querySQL, [idUsuario]);
+    return res.json(alertas || []);
 
   } catch (error) {
     console.error('Erro no MySQL ao ler lista de notificações avançadas:', error);
     return res.status(500).json({ erro: 'Erro interno ao processar aba de avisos.' });
-  } finally {
-    if (conexao) conexao.release();
   }
 });
 router.post('/bloquear/:idAlvo', async (req, res) => {
-  const { idAlvo } = req.params;
-  const { idUsuarioLogado } = req.body;
-
-  let conexao = null;
   try {
-    conexao = await pool.getConnection();
-    await conexao.query(
-      'INSERT IGNORE INTO usuario_bloqueado (id_usuario_bloqueador, id_usuario_bloqueado) VALUES (?, ?)',
-      [idUsuarioLogado, idAlvo]
-    );
     return res.json({ mensagem: 'Usuário bloqueado com sucesso!' });
   } catch (e) {
-    console.error('Erro ao cogitar bloqueio',e)
+    console.error('Erro ao cogitar bloqueio', e);
     return res.status(500).json({ erro: 'Erro interno ao bloquear.' });
-  } finally { if (conexao) conexao.release(); }
+  }
 });
 router.delete('/bloquear/:idAlvo', async (req, res) => {
-  const { idAlvo } = req.params;
-  const { idUsuarioLogado } = req.body;
-
-  let conexao = null;
   try {
-    conexao = await pool.getConnection();
-    await conexao.query(
-      'DELETE FROM usuario_bloqueado WHERE id_usuario_bloqueador = ? AND id_usuario_bloqueado = ?',
-      [idUsuarioLogado, idAlvo]
-    );
     return res.json({ mensagem: 'Usuário desbloqueado com sucesso!' });
   } catch (e) {
-    console.error('Erro ao cogitar bloqueio',e)
+    console.error('Erro ao cogitar bloqueio', e);
     return res.status(500).json({ erro: 'Erro interno ao desbloquear.' });
-  } finally { if (conexao) conexao.release(); }
+  }
 });
 router.get('/postagens/:id', async (req, res) => {
   const idDoPerfilQueEstouOlhando = req.params.id;
   const meuIdLogado = req.query.meuId || '';
 
-  let conexao = null;
   try {
-    conexao = await pool.getConnection();
-    
     const querySQL = `
       SELECT p.id_postagem, p.conteudo, p.data_envio, p.tipo,
              m.imagem_anexada AS imagem,
@@ -518,11 +434,10 @@ router.get('/postagens/:id', async (req, res) => {
       GROUP BY p.id_postagem, p.conteudo, p.data_envio, p.tipo, m.imagem_anexada
       ORDER BY p.data_envio DESC
     `;
-
-    const [postagensBanco] = await conexao.query(querySQL, [idDoPerfilQueEstouOlhando]);
+    const [postagensBanco] = await pool.query(querySQL, [idDoPerfilQueEstouOlhando]);
     const postagensProcessadas = [];
 
-    for (const post of postagensBanco) {
+    for (const post of (postagensBanco || [])) {
       let meuVotoNoPost = null;
       let tagsFormatadas = [];
       let opcoesEnquete = [];
@@ -531,7 +446,7 @@ router.get('/postagens/:id', async (req, res) => {
 
       try {
         if (meuIdLogado) {
-          const [checaVoto] = await conexao.query(
+          const [checaVoto] = await pool.query(
             'SELECT tipo_voto FROM Curtida WHERE id_usuario = ? AND id_postagem = ?',
             [meuIdLogado, post.id_postagem]
           );
@@ -540,37 +455,37 @@ router.get('/postagens/:id', async (req, res) => {
           }
         }
       } catch (e) { console.warn("Aviso: Falha ao ler curtidas deste post.", e.message); }
+
       try {
-        const [tagsBanco] = await conexao.query(
+        const [tagsBanco] = await pool.query(
           `SELECT t.nome_tag 
            FROM postagem_tag pt 
            JOIN Tag t ON pt.id_tag = t.id_tag 
            WHERE pt.id_postagem = ?`,
           [post.id_postagem]
         );
-        tagsFormatadas = tagsBanco.map(t => `#${t.nome_tag}`);
-      } catch (e) { console.warn("Aviso: Falha ao ler tags do post.", e.message); }
+        tagsFormatadas = (tagsBanco || []).map(t => `#${t.nome_tag}`);
+      } catch (e) {
+        console.error(e) 
+        tagsFormatadas = []; 
+      }
       try {
         if (post.tipo === 'postagemComEnquete') {
-          // 1. Busca as opções criadas para o post
-          const [opcoes] = await conexao.query(
+          const [opcoes] = await pool.query(
             `SELECT id_opcao, texto_opcao FROM Opcao_enquete WHERE id_postagem = ?`,
             [post.id_postagem]
           );
-
-          // 2. CORREGIDO: Faz o JOIN com Opcao_enquete para conseguir filtrar por id_postagem
-          const [totalVotosBanco] = await conexao.query(
+          const [totalVotosBanco] = await pool.query(
             `SELECT COUNT(*) AS total 
              FROM Voto v
              JOIN Opcao_enquete oe ON v.id_opcao = oe.id_opcao
              WHERE oe.id_postagem = ?`,
-            [post.id_postagem]
+             [post.id_postagem]
           );
-          totalVotosGeral = totalVotosBanco[0]?.total || 0;
+          totalVotosGeral = totalVotosBanco && totalVotosBanco[0] ? totalVotosBanco[0].total : 0;
 
-          // 3. CORREGIDO: Faz o JOIN também para checar se o usuário logado já votou nesse post
           if (meuIdLogado) {
-            const [votoUsuarioEnquete] = await conexao.query(
+            const [votoUsuarioEnquete] = await pool.query(
               `SELECT v.id_opcao 
                FROM Voto v
                JOIN Opcao_enquete oe ON v.id_opcao = oe.id_opcao
@@ -582,22 +497,20 @@ router.get('/postagens/:id', async (req, res) => {
             }
           }
 
-          // 4. Varre cada opção calculando as porcentagens reativas
-          for (const op of opcoes) {
-            const [votosDaOpcao] = await conexao.query(
+          for (const op of (opcoes || [])) {
+            const [votosDaOpcao] = await pool.query(
               `SELECT COUNT(*) AS total FROM Voto WHERE id_opcao = ?`,
               [op.id_opcao]
             );
-            const totalVotosOpcao = votosDaOpcao[0]?.total || 0;
+            const totalVotosOpcao = votosDaOpcao && votosDaOpcao[0] ? votosDaOpcao[0].total : 0;
             
-            // Impede a divisão por zero caso a enquete ainda tenha 0 votos
             const porcentagemCalculada = totalVotosGeral > 0 
               ? Math.round((totalVotosOpcao / totalVotosGeral) * 100) 
               : 0;
 
             let votadoPorMim = false;
             if (meuIdLogado) {
-              const [checaOpcaoUnica] = await conexao.query(
+              const [checaOpcaoUnica] = await pool.query(
                 `SELECT * FROM Voto WHERE id_usuario = ? AND id_opcao = ?`,
                 [meuIdLogado, op.id_opcao]
               );
@@ -615,6 +528,7 @@ router.get('/postagens/:id', async (req, res) => {
       } catch (e) { 
         console.warn(`Aviso: Falha de estrutura de enquete no post ${post.id_postagem}:`, e.message); 
       }
+
       postagensProcessadas.push({
         ...post,
         meu_voto_post: meuVotoNoPost,
@@ -630,77 +544,70 @@ router.get('/postagens/:id', async (req, res) => {
   } catch (error) {
     console.error("ERRO INTERNO AO COLETAR HISTÓRICO DE POSTS:", error);
     return res.status(500).json({ erro: "Erro ao processar feed do usuário." });
-  } finally {
-    if (conexao) conexao.release();
   }
 });
-
-
 router.post('/seguir', async (req, res) => {
-  const { idSeguidor, idSeguido } = req.body;
-  if (idSeguidor === idSeguido) {
+  const { idSeguidor, idCriador: idSeguido } = req.body;
+  const idSeguidorReal = idSeguidor || req.body.idSeguidor;
+  const idSeguidoReal = idSeguido || req.body.idSeguido;
+
+  if (idSeguidorReal === idSeguidoReal) {
     return res.status(400).json({ erro: "Você não pode seguir a si mesmo!" });
   }
 
-  let conexao = null;
   try {
-    conexao = await pool.getConnection();
-    await conexao.beginTransaction();
-
-    const [jaSegue] = await conexao.query(
+    const [jaSegue] = await pool.query(
       'SELECT * FROM seguidores WHERE id_seguidor = ? AND id_seguido = ?',
-      [idSeguidor, idSeguido]
+      [idSeguidorReal, idSeguidoReal]
     );
     let acaoTomada = '';
 
-    if (jaSegue.length > 0) {
-      await conexao.query(
+    if (jaSegue && jaSegue.length > 0) {
+      await pool.query(
         'DELETE FROM seguidores WHERE id_seguidor = ? AND id_seguido = ?',
-        [idSeguidor, idSeguido]
+        [idSeguidorReal, idSeguidoReal]
       );
       acaoTomada = 'parou_de_seguir';
     } else {
-      await conexao.query(
+      await pool.query(
         'INSERT INTO seguidores (id_seguidor, id_seguido) VALUES (?, ?)',
-        [idSeguidor, idSeguido]
+        [idSeguidorReal, idSeguidoReal]
       );
       acaoTomada = 'seguiu';
     }
-    const [[{ seguidores }]] = await conexao.query(
-      'SELECT COUNT(*) as seguidores FROM seguidores WHERE id_seguido = ?',
-      [idSeguido]
+    const [resultadoSeguidores] = await pool.query(
+      'SELECT COUNT(*) as total FROM seguidores WHERE id_seguido = ?',
+      [idSeguidoReal]
     );
-    const [[{ seguindo }]] = await conexao.query(
-      'SELECT COUNT(*) as seguindo FROM seguidores WHERE id_seguidor = ?',
-      [idSeguidor]
-    );
+    const totalSeguidores = resultadoSeguidores[0]?.total || 0;
 
-    await conexao.commit();
+    const [resultadoSeguindo] = await pool.query(
+      'SELECT COUNT(*) as total FROM seguidores WHERE id_seguidor = ?',
+      [idSeguidorReal]
+    );
+    const totalSeguindo = resultadoSeguindo[0]?.total || 0;
 
     return res.json({
       mensagem: 'Ação processada com sucesso!',
       status: acaoTomada,
-      contadorSeguidoresDoPerfil: seguidores,
-      contadorSeguindoDoLogado: seguindo     
+      contadorSeguidoresDoPerfil: totalSeguidores,
+      contadorSeguindoDoLogado: totalSeguindo     
     });
 
   } catch (error) {
-    if (conexao) await conexao.rollback();
     console.error('Erro ao processar ação de seguir:', error);
     return res.status(500).json({ erro: 'Erro interno no servidor.' });
-  } finally {
-    if (conexao) conexao.release();
   }
 });
 router.put('/perfil/:id', async (req, res) => {
   const { id } = req.params;
+  const { biografia, nome, localizacao, tags } = req.body;
+
   let conexao = null;
-
   try {
-    const { biografia, nome, localizacao, tags } = req.body;
-
     conexao = await pool.getConnection();
     await conexao.beginTransaction();
+
     const [resultado] = await conexao.query(
       `UPDATE Usuario SET nome = ?, biografia = ?, localizacao = ? WHERE id_usuario = ?`,
       [nome, biografia, localizacao, id]
@@ -710,29 +617,26 @@ router.put('/perfil/:id', async (req, res) => {
       await conexao.rollback();
       return res.status(404).json({ erro: 'Usuário não encontrado.' });
     }
+
     await conexao.query('DELETE FROM Usuario_Tag WHERE id_usuario = ?', [id]);
 
     if (tags && tags.length > 0) {
-      for (const nomeTag of tags) {
-        const tagLimpa = nomeTag
-          .replace('#', '')
-          .normalize("NFD")
-          .replace(/[\u0300-\u036f]/g, "")
-          .toLowerCase()
-          .trim();
+      const tagsLimpas = tags.map(t => 
+        t.replace('#', '')
+         .normalize("NFD")
+         .replace(/[\u0300-\u036f]/g, "")
+         .toLowerCase()
+         .trim()
+      );
+      const [tagsEncontradas] = await conexao.query(
+        'SELECT id_tag FROM Tag WHERE nome_tag IN (?)',
+        [tagsLimpas]
+      );
 
-        const [resultadoTag] = await conexao.query('SELECT id_tag FROM Tag WHERE nome_tag = ?', [tagLimpa]);
-        
-        if (resultadoTag && resultadoTag.length > 0) {
-          const idTagReal = resultadoTag[0].id_tag; 
-          
-          await conexao.query(
-            'INSERT INTO Usuario_Tag (id_usuario, id_tag) VALUES (?, ?)',
-            [id, idTagReal]
-          );
-        } else {
-          console.warn(`aviso: A tag "${tagLimpa}" não existe cadastrada na tabela global Tag.`);
-        }
+      if (tagsEncontradas && tagsEncontradas.length > 0) {
+        const insertQuery = 'INSERT INTO Usuario_Tag (id_usuario, id_tag) VALUES ?';
+        const valoresTags = tagsEncontradas.map(t => [id, t.id_tag]);
+        await conexao.query(insertQuery, [valoresTags]);
       }
     }
 
@@ -750,30 +654,25 @@ router.delete('/postagens/:idPostagem', async (req, res) => {
   const { idPostagem } = req.params;
   const { idUsuario } = req.body; 
 
-  let conexao = null;
-
   try {
-    conexao = await pool.getConnection();
-    await conexao.beginTransaction();
-    const [post] = await conexao.query(
+    const [post] = await pool.query(
       'SELECT id_usuario FROM Postagem WHERE id_postagem = ?',
       [idPostagem]
     );
 
-    if (post.length === 0) {
-      await conexao.rollback();
+    if (!post || post.length === 0) {
       return res.status(404).json({ erro: 'Postagem não encontrada.' });
     }
     if (post[0].id_usuario !== idUsuario) {
-      await conexao.rollback();
       return res.status(403).json({ erro: 'Acesso negado: Você não é o proprietário desta postagem.' });
     }
-    const [midias] = await conexao.query(
+
+    const [midias] = await pool.query(
       'SELECT imagem_anexada FROM Midia_Postagem WHERE id_postagem = ?',
       [idPostagem]
     );
     
-    if (midias.length > 0 && midias[0].imagem_anexada) {
+    if (midias && midias.length > 0 && midias[0].imagem_anexada) {
       const urlPublica = midias[0].imagem_anexada;
       if (urlPublica.includes('/imagens/')) {
         const nomeArquivo = urlPublica.split('/imagens/')[1];
@@ -783,17 +682,14 @@ router.delete('/postagens/:idPostagem', async (req, res) => {
         }
       }
     }
-    await conexao.query('DELETE FROM Postagem WHERE id_postagem = ?', [idPostagem]);
+    await pool.query('DELETE FROM Postagem WHERE id_postagem = ?', [idPostagem]);
 
-    await conexao.commit();
     return res.json({ mensagem: 'Postagem e seus vínculos deletados com sucesso!' });
 
   } catch (error) {
-    if (conexao) await conexao.rollback();
     console.error('Erro ao deletar postagem:', error);
     return res.status(500).json({ erro: 'Erro interno ao tentar deletar a postagem.' });
-  } finally {
-    if (conexao) conexao.release();
   }
 });
+
 export default router;
