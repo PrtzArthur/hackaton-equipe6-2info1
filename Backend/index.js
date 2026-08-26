@@ -3,7 +3,7 @@ import cors from 'cors';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import dotenv from 'dotenv';
-import path from 'path';
+//import path from 'path';
 import crypto from 'crypto';
 import authRoutes from './routes/auth.js';
 import usuarioRoutes from './routes/usuario.js';
@@ -13,7 +13,7 @@ import pool from './database.js';
 
 dotenv.config();
 
-process.env.GOOGLE_APPLICATION_CREDENTIALS = path.resolve("./credenciais-google.json");
+//process.env.GOOGLE_APPLICATION_CREDENTIALS = path.resolve("./credenciais-google.json");
 
 const app = express();
 
