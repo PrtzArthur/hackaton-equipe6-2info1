@@ -17,14 +17,19 @@ dotenv.config();
 
 const app = express();
 
-app.use(cors({ origin: 'http://localhost:5173' }));
+app.use(cors({ 
+  origin: '*',
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(express.json());
 
+const PORT = process.env.PORT || 3000;
 const httpServer = createServer(app);
 
 const io = new Server(httpServer, {
   cors: {
-    origin: 'http://localhost:5173',
+    origin: '*',
     methods: ['GET', 'POST', 'PUT', 'DELETE']
   }
 });
@@ -103,6 +108,6 @@ app.get('/', (req, res) => {
   res.send('Servidor do IFchat está rodando e operacional!');
 });
 
-httpServer.listen(3000, () => {
-  console.log('Servidor do IFchat rodando na porta 3000');
+httpServer.listen(PORT, () => {
+  console.log(`Servidor do IFchat rodando na porta ${PORT}`);
 });
