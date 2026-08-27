@@ -691,5 +691,34 @@ router.delete('/postagens/:idPostagem', async (req, res) => {
     return res.status(500).json({ erro: 'Erro interno ao tentar deletar a postagem.' });
   }
 });
+router.get('/explorar/usuarios', async (req, res) => {
+  const meuIdLogado = req.query.meuId || '';
+
+  try {
+    const querySQL = `
+      SELECT 
+        u.id_usuario, 
+        u.nome, 
+        u.username, 
+        u.foto_profile, 
+        u.status_online,
+        u.data_criacao,
+        (SELECT COUNT(*) FROM seguidores WHERE id_seguido = u.id_usuario) AS total_seguidores,
+        (SELECT COUNT(*) FROM Postagem WHERE id_usuario = u.id_usuario) AS total_posts,
+        IF((SELECT COUNT(*) FROM seguidores WHERE id_seguidor = ? AND id_seguido = u.id_usuario) > 0, TRUE, FALSE) AS jaSeguindo
+      FROM Usuario u
+      WHERE u.id_usuario != ? -- Oculta o próprio usuário logado da listagem de busca
+      ORDER BY u.data_criacao DESC
+    `;
+
+    const [linhas] = await pool.query(querySQL, [meuIdLogado, meuIdLogado]);
+
+    return res.json(Array.isArray(linhas) ? linhas : (linhas ? [linhas] : []));
+
+  } catch (error) {
+    console.error('Erro massivo no MySQL ao listar alunos na busca global:', error);
+    return res.status(500).json({ erro: 'Erro interno ao processar dados de exploração.' });
+  }
+});
 
 export default router;
