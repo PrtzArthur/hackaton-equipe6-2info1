@@ -6,9 +6,11 @@ import fs from 'fs';
 import crypto from 'crypto';
 
 const router = express.Router();
+
 async function verificarConteudoImagem() {
   return { seguro: true };
 }
+
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, path.resolve('./uploads')); 
@@ -20,18 +22,6 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage: storage });
 
-const apagarArquivoLocalAntigo = (urlPublica) => {
-  if (!urlPublica || !urlPublica.includes('/imagens/')) return;
-  try {
-    const nomeArquivo = urlPublica.split('/imagens/')[1];
-    const caminhoFisico = path.join('uploads', nomeArquivo);
-    if (fs.existsSync(caminhoFisico)) {
-      fs.unlinkSync(caminhoFisico);
-    }
-  } catch (err) {
-    console.error('Erro ao limpar arquivo antigo:', err.message);
-  }
-};
 router.post('/logout', async (req, res) => {
   const { idUsuario } = req.body;
   if (!idUsuario) {
@@ -64,6 +54,9 @@ router.post('/favoritos/detalhes', async (req, res) => {
 
   try {
     const interrogacoes = ids.map(() => '?').join(', ');
+    
+    // 💡 NOTA DE DESEMPENHO: Como foto_profile agora guarda strings LONGTEXT de Base64,
+    // o pool.query puxa os dados direto e de forma limpa para renderizar a barra lateral
     const querySQL = `SELECT id_usuario, nome, username, foto_profile, status_online FROM Usuario WHERE id_usuario IN (${interrogacoes})`;
     const [usuarios] = await pool.query(querySQL, ids);
 
@@ -198,14 +191,14 @@ router.put('/perfil/:id/midias', upload.fields([{ name: 'foto', maxCount: 1 }, {
     const bannerEnviado = arquivosRecebidos['banner'] ? arquivosRecebidos['banner'][0] : null;
 
     if (fotoEnviada) {
-      const checagemFoto = await verificarConteudoImagem(fotoEnviada.path);
+      const checagemFoto = await verificarConteudoImagem();
       if (!checagemFoto.seguro) {
         fs.unlinkSync(fotoEnviada.path); 
         return res.status(400).json({ erro: `Foto de perfil recusada: ${checagemFoto.motivo}` });
       }
     }
     if (bannerEnviado) {
-      const checagemBanner = await verificarConteudoImagem(bannerEnviado.path);
+      const checagemBanner = await verificarConteudoImagem();
       if (!checagemBanner.seguro) {
         fs.unlinkSync(bannerEnviado.path);
         return res.status(400).json({ erro: `Banner recusado: ${checagemBanner.motivo}` });
@@ -224,27 +217,26 @@ router.put('/perfil/:id/midias', upload.fields([{ name: 'foto', maxCount: 1 }, {
     let urlFoto = linhasResultados[0]?.foto_profile;
     let urlBanner = linhasResultados[0]?.banner_fundo;
 
-    const protocolo = req.secure || req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
-    const dominioAtual = `${protocolo}://${req.headers.host}`;
-
     if (removerFoto) {
-      apagarArquivoLocalAntigo(urlFoto);
       urlFoto = null; 
     } else if (fotoEnviada) {
-      apagarArquivoLocalAntigo(urlFoto); 
-      urlFoto = `${dominioAtual}/imagens/${fotoEnviada.filename}`;
+      const dadosFoto = fs.readFileSync(fotoEnviada.path);
+      urlFoto = `data:${fotoEnviada.mimetype};base64,${dadosFoto.toString('base64')}`;
+      fs.unlinkSync(fotoEnviada.path); 
     }
+
     if (removerBanner) {
-      apagarArquivoLocalAntigo(urlBanner);
       urlBanner = null;
     } else if (bannerEnviado) {
-      apagarArquivoLocalAntigo(urlBanner);
-      urlBanner = `${dominioAtual}/imagens/${bannerEnviado.filename}`;
+      const dadosBanner = fs.readFileSync(bannerEnviado.path);
+      urlBanner = `data:${bannerEnviado.mimetype};base64,${dadosBanner.toString('base64')}`;
+      fs.unlinkSync(bannerEnviado.path); 
     }
     await pool.query(
       'UPDATE Usuario SET foto_profile = ?, banner_fundo = ? WHERE id_usuario = ?',
       [urlFoto, urlBanner, id]
     );
+
     return res.json({
       mensagem: 'Mídias atualizadas com sucesso!',
       foto_profile: urlFoto,
@@ -281,18 +273,19 @@ router.get('/perfil/:id', async (req, res) => {
       [idPerfilVisitado]
     );
     const listaDeTagsDoUsuario = (tagsBanco || []).map(t => `#${t.nome_tag}`);
-
     const [resultadoSeguidores] = await pool.query(
       'SELECT COUNT(*) as total FROM seguidores WHERE id_seguido = ?', 
       [idPerfilVisitado]
     );
-    const totalVotosSeguidores = resultadoSeguidores[0]?.total || 0;
+    const linhasSeguidores = resultadoSeguidores || [];
+    const totalVotosSeguidores = linhasSeguidores.length > 0 ? (linhasSeguidores.total || 0) : 0;
 
     const [resultadoSeguindo] = await pool.query(
       'SELECT COUNT(*) as total FROM seguidores WHERE id_seguidor = ?', 
       [idPerfilVisitado]
     );
-    const totalVotosSeguindo = resultadoSeguindo[0]?.total || 0;
+    const linhasSeguindo = resultadoSeguindo || [];
+    const totalVotosSeguindo = linhasSeguindo.length > 0 ? (linhasSeguindo.total || 0) : 0;
 
     let jaSegue = false;
     if (meuIdLogado && meuIdLogado !== idPerfilVisitado) {
@@ -315,7 +308,7 @@ router.get('/perfil/:id', async (req, res) => {
         );
         if (checaBloqueio && checaBloqueio.length > 0) euBloqueei = true;
       } catch (erro) {
-        console.error(erro)
+        console.error('Tabela de bloqueio não processada:', erro.message);
       }
 
       try {
@@ -325,10 +318,9 @@ router.get('/perfil/:id', async (req, res) => {
         );
         if (checaSino && checaSino.length > 0) jaAtivouSino = true;
       } catch (erro) {
-       console.error(erro)
+       console.error('Tabela de notificações do sino não processada:', erro.message);
       }
     }
-
     return res.json({
       id_usuario: usuarioTarget.id_usuario,
       nome: usuarioTarget.nome,
@@ -346,7 +338,6 @@ router.get('/perfil/:id', async (req, res) => {
       jaSino: jaAtivouSino,
       usuarioBloqueado: euBloqueei
     });
-
   } catch (error) {
     console.error('Erro ao carregar cabeçalho do perfil:', error);
     return res.status(500).json({ erro: 'Erro interno ao processar dados do perfil.' });
@@ -424,14 +415,14 @@ router.get('/postagens/:id', async (req, res) => {
   try {
     const querySQL = `
       SELECT p.id_postagem, p.conteudo, p.data_envio, p.tipo,
-             m.imagem_anexada AS imagem,
+             MAX(m.imagem_anexada) AS imagem,
              COALESCE(SUM(CASE WHEN c.tipo_voto = 'like' THEN 1 ELSE 0 END), 0) AS total_likes,
              COALESCE(SUM(CASE WHEN c.tipo_voto = 'dislike' THEN 1 ELSE 0 END), 0) AS total_dislikes
       FROM Postagem p
       LEFT JOIN Curtida c ON p.id_postagem = c.id_postagem
       LEFT JOIN Midia_Postagem m ON p.id_postagem = m.id_postagem
       WHERE p.id_usuario = ?
-      GROUP BY p.id_postagem, p.conteudo, p.data_envio, p.tipo, m.imagem_anexada
+      GROUP BY p.id_postagem, p.conteudo, p.data_envio, p.tipo
       ORDER BY p.data_envio DESC
     `;
     const [postagensBanco] = await pool.query(querySQL, [idDoPerfilQueEstouOlhando]);
@@ -466,9 +457,9 @@ router.get('/postagens/:id', async (req, res) => {
         );
         tagsFormatadas = (tagsBanco || []).map(t => `#${t.nome_tag}`);
       } catch (e) {
-        console.error(e) 
         tagsFormatadas = []; 
       }
+      
       try {
         if (post.tipo === 'postagemComEnquete') {
           const [opcoes] = await pool.query(
@@ -579,13 +570,15 @@ router.post('/seguir', async (req, res) => {
       'SELECT COUNT(*) as total FROM seguidores WHERE id_seguido = ?',
       [idSeguidoReal]
     );
-    const totalSeguidores = resultadoSeguidores[0]?.total || 0;
+    const dadosSeguidores = resultadoSeguidores || [];
+    const totalSeguidores = dadosSeguidores.length > 0 ? (dadosSeguidores[0].total || 0) : 0;
 
     const [resultadoSeguindo] = await pool.query(
       'SELECT COUNT(*) as total FROM seguidores WHERE id_seguidor = ?',
       [idSeguidorReal]
     );
-    const totalSeguindo = resultadoSeguindo[0]?.total || 0;
+    const dadosSeguindo = resultadoSeguindo || [];
+    const totalSeguindo = dadosSeguindo.length > 0 ? (dadosSeguindo[0].total || 0) : 0;
 
     return res.json({
       mensagem: 'Ação processada com sucesso!',
@@ -660,27 +653,12 @@ router.delete('/postagens/:idPostagem', async (req, res) => {
       [idPostagem]
     );
 
-    if (!post || post.length === 0) {
+    const linhasPost = post || [];
+    if (linhasPost.length === 0) {
       return res.status(404).json({ erro: 'Postagem não encontrada.' });
     }
-    if (post[0].id_usuario !== idUsuario) {
+    if (linhasPost[0].id_usuario !== idUsuario) {
       return res.status(403).json({ erro: 'Acesso negado: Você não é o proprietário desta postagem.' });
-    }
-
-    const [midias] = await pool.query(
-      'SELECT imagem_anexada FROM Midia_Postagem WHERE id_postagem = ?',
-      [idPostagem]
-    );
-    
-    if (midias && midias.length > 0 && midias[0].imagem_anexada) {
-      const urlPublica = midias[0].imagem_anexada;
-      if (urlPublica.includes('/imagens/')) {
-        const nomeArquivo = urlPublica.split('/imagens/')[1];
-        const caminhoFisico = path.join('uploads', nomeArquivo);
-        if (fs.existsSync(caminhoFisico)) {
-          fs.unlinkSync(caminhoFisico); 
-        }
-      }
     }
     await pool.query('DELETE FROM Postagem WHERE id_postagem = ?', [idPostagem]);
 

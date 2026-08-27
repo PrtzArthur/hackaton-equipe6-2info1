@@ -39,7 +39,7 @@ io.on('connection', (socket) => {
 
 async function inicializarBancoDeDados() {
   try {
-    console.log('⏳ Iniciando migração e criação das tabelas na Aiven...');
+    console.log('Iniciando migração e criação das tabelas na Aiven...');
 
     const tabelas = [
       `CREATE TABLE IF NOT EXISTS Usuario (
@@ -52,8 +52,8 @@ async function inicializarBancoDeDados() {
         data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         localizacao VARCHAR(150),
         status_online BOOLEAN DEFAULT FALSE,
-        foto_profile VARCHAR(255),
-        banner_fundo VARCHAR(255)
+        foto_profile LONGTEXT,
+        banner_fundo LONGTEXT
       );`,
 
       `CREATE TABLE IF NOT EXISTS Postagem (
@@ -67,7 +67,7 @@ async function inicializarBancoDeDados() {
 
       `CREATE TABLE IF NOT EXISTS Midia_Postagem (
         id_midia VARCHAR(50) PRIMARY KEY,
-        imagem_anexada VARCHAR(255) NOT NULL,
+        imagem_anexada LONGTEXT NOT NULL,
         id_postagem VARCHAR(50) NOT NULL,
         FOREIGN KEY (id_postagem) REFERENCES Postagem(id_postagem) ON DELETE CASCADE
       );`,

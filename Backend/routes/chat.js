@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import pool from '../database.js';
 import multer from 'multer';
 import path from 'path';
+import fs from 'fs'; 
 
 const router = express.Router();
 
@@ -16,16 +17,23 @@ const storage = multer.diskStorage({
   }
 });
 const upload = multer({ storage: storage });
-
 router.post('/upload-imagem', upload.single('imagemChat'), (req, res) => {
   if (!req.file) {
     return res.status(400).json({ erro: 'Nenhum arquivo enviado.' });
   }
-  const protocolo = req.secure || req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
-  const dominioAtual = `${protocolo}://${req.headers.host}`;
-  const urlImagem = `${dominioAtual}/imagens/${req.file.filename}`;
-  
-  return res.json({ urlImagem });
+
+  try {
+    const dadosArquivo = fs.readFileSync(req.file.path);
+    
+    const urlImagemBase64 = `data:${req.file.mimetype};base64,${dadosArquivo.toString('base64')}`;
+
+    fs.unlinkSync(req.file.path);
+    return res.json({ urlImagem: urlImagemBase64 });
+
+  } catch (error) {
+    console.error('Erro ao converter imagem do chat para Base64:', error);
+    return res.status(500).json({ erro: 'Erro interno ao processar imagem no chat.' });
+  }
 });
 router.get('/conversas', async (req, res) => {
   const meuId = req.query.meuId;
@@ -33,10 +41,12 @@ router.get('/conversas', async (req, res) => {
   if (!meuId) return res.status(400).json({ erro: 'ID do usuário obrigatório.' });
 
   try {
+    // 💡 O SEGREDO DE PERFORMANCE: Usa o LEFT() para capturar apenas um pedaço do texto. 
+    // Se a última msg for uma foto em Base64, o banco não crasha tentando enviar megabytes na lista lateral!
     const querySQL = `
       SELECT DISTINCT u.id_usuario, u.nome, u.username, u.foto_profile, u.status_online,
              (
-               SELECT conteudo_mensagem 
+               SELECT LEFT(conteudo_mensagem, 60) 
                FROM Mensagem 
                WHERE (id_remetente = ? AND id_destinatario = u.id_usuario)
                   OR (id_remetente = u.id_usuario AND id_destinatario = ?)
@@ -65,7 +75,12 @@ router.get('/historico', async (req, res) => {
 
   try {
     const querySQL = `
-      SELECT id_mensagem, conteudo_mensagem AS texto, id_remetente, id_destinatario, data_mensagem AS data
+      SELECT id_mensagem, 
+             conteudo_mensagem AS texto, 
+             conteudo_mensagem,
+             id_remetente, 
+             id_destinatario, 
+             data_mensagem AS data
       FROM Mensagem
       WHERE (id_remetente = ? AND id_destinatario = ?)
          OR (id_remetente = ? AND id_destinatario = ?)
@@ -128,10 +143,9 @@ router.put('/mensagem/apagar/:idMensagem', async (req, res) => {
        WHERE id_mensagem = ? AND id_remetente = ?`,
       [idMensagem, meuId]
     );
-
     const dadosResultado = resultado || {};
 
-    if (dadosResultado.affectedRows === 0) {
+    if (!dadosResultado || dadosResultado.affectedRows === 0) {
       return res.status(403).json({ erro: 'Você não tem permissão para apagar esta mensagem.' });
     }
 
@@ -198,8 +212,8 @@ router.get('/posts-da-lista/:idLista', async (req, res) => {
           [post.id_postagem]
         );
         tagsFormatadas = (tagsBanco || []).map(t => `#${t.nome_tag}`);
-      } catch (e) { 
-        console.error(e)
+      } catch (e) {
+        console.error(e) 
         tagsFormatadas = [];
       }
       
@@ -218,7 +232,7 @@ router.get('/posts-da-lista/:idLista', async (req, res) => {
           );
           
           const linhasTotal = totalVotosBanco || [];
-          totalVotosGeral = linhasTotal.length > 0 ? (linhasTotal.total || 0) : 0;
+          totalVotosGeral = linhasTotal.length > 0 ? (linhasTotal[0].total || 0) : 0;
 
           for (const op of (opcoes || [])) {
             const [votosDaOpcao] = await pool.query(
@@ -226,7 +240,7 @@ router.get('/posts-da-lista/:idLista', async (req, res) => {
               [op.id_opcao]
             );
             const linhasVotosOp = votosDaOpcao || [];
-            const totalVotosOpcao = linhasVotosOp.length > 0 ? (linhasVotosOp.total || 0) : 0;
+            const totalVotosOpcao = linhasVotosOp.length > 0 ? (linhasVotosOp[0].total || 0) : 0;
             
             const porcentagemCalculada = totalVotosGeral > 0 
               ? Math.round((totalVotosOpcao / totalVotosGeral) * 100) 
@@ -269,6 +283,10 @@ router.get('/posts-da-lista/:idLista', async (req, res) => {
     return res.status(500).json({ erro: 'Erro interno ao processar agregados do feed.' });
   }
 });
+
+
+
+
 router.delete('/remover-post-salvo', async (req, res) => {
   const { id_lista, id_postagem } = req.body;
   try {

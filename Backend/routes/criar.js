@@ -3,6 +3,7 @@ import pool from '../database.js';
 import crypto from 'crypto';
 import multer from 'multer';
 import path from 'path';   
+import fs from 'fs';
 
 const router = express.Router();
 
@@ -16,6 +17,7 @@ const storage = multer.diskStorage({
   }
 });
 const upload = multer({ storage: storage });
+
 router.get('/feed/global', async (req, res) => {
   const meuIdLogado = req.query.meuId || '';
   const pagina = parseInt(req.query.page, 10) || 1;
@@ -25,12 +27,9 @@ router.get('/feed/global', async (req, res) => {
     try {
       termoBusca = decodeURIComponent(req.query.busca).trim();
     } catch (e) {
-      console.error('Erro ao ler a busca', e);
+      console.error(e)
       termoBusca = req.query.busca.trim();
     }
-  }
-  if (termoBusca === 'undefined' || termoBusca === 'null') {
-    termoBusca = '';
   }
 
   const limiteItens = 6; 
@@ -91,16 +90,11 @@ router.get('/feed/global', async (req, res) => {
             naoSalvoStatus = false;
           }
         }
-      } catch (e) { 
-        console.warn("Aviso: Falha ao ler curtidas ou salvamentos do post na Home.", e.message); 
-      }
+      } catch (e) { console.warn(e.message); }
 
       try {
         const [tagsBanco] = await pool.query(
-          `SELECT t.nome_tag 
-           FROM postagem_tag pt 
-           JOIN Tag t ON pt.id_tag = t.id_tag 
-           WHERE pt.id_postagem = ?`,
+          `SELECT t.nome_tag FROM postagem_tag pt JOIN Tag t ON pt.id_tag = t.id_tag WHERE pt.id_postagem = ?`,
           [post.id_postagem]
         );
         tagsFormatadas = (tagsBanco || []).map(t => `#${t.nome_tag}`);
@@ -116,55 +110,25 @@ router.get('/feed/global', async (req, res) => {
             [post.id_postagem]
           );
           const [totalVotosBanco] = await pool.query(
-            `SELECT COUNT(*) AS total 
-             FROM Voto v
-             JOIN Opcao_enquete oe ON v.id_opcao = oe.id_opcao
-             WHERE oe.id_postagem = ?`,
+            `SELECT COUNT(*) AS total FROM Voto v JOIN Opcao_enquete oe ON v.id_opcao = oe.id_opcao WHERE oe.id_postagem = ?`,
             [post.id_postagem]
           );
           totalVotosGeral = totalVotosBanco && totalVotosBanco[0] ? totalVotosBanco[0].total : 0;
 
-          if (meuIdLogado) {
-            const [votoUsuarioEnquete] = await pool.query(
-              `SELECT v.id_opcao 
-               FROM Voto v
-               JOIN Opcao_enquete oe ON v.id_opcao = oe.id_opcao
-               WHERE v.id_usuario = ? AND oe.id_postagem = ?`,
-              [meuIdLogado, post.id_postagem]
-            );
-            if (votoUsuarioEnquete && votoUsuarioEnquete.length > 0) {
-              jaVotouNaEnquete = true;
-            }
-          }
-
           for (const op of (opcoes || [])) {
-            const [votosDaOpcao] = await pool.query(
-              `SELECT COUNT(*) AS total FROM Voto WHERE id_opcao = ?`,
-              [op.id_opcao]
-            );
+            const [votosDaOpcao] = await pool.query(`SELECT COUNT(*) AS total FROM Voto WHERE id_opcao = ?`, [op.id_opcao]);
             const totalVotosOpcao = votosDaOpcao && votosDaOpcao[0] ? votosDaOpcao[0].total : 0;
             const porcentagemCalculada = totalVotosGeral > 0 ? Math.round((totalVotosOpcao / totalVotosGeral) * 100) : 0;
-
-            let votadoPorMim = false;
-            if (meuIdLogado) {
-              const [checaOpcaoUnica] = await pool.query(
-                `SELECT * FROM Voto WHERE id_usuario = ? AND id_opcao = ?`,
-                [meuIdLogado, op.id_opcao]
-              );
-              if (checaOpcaoUnica && checaOpcaoUnica.length > 0) votadoPorMim = true;
-            }
 
             opcoesEnquete.push({
               id_opcao: op.id_opcao,
               texto_opcao: op.texto_opcao,
               porcentagem: porcentagemCalculada,
-              votadoPorMim: votadoPorMim
+              votadoPorMim: false
             });
           }
         }
-      } catch (e) { 
-        console.warn(`Aviso: Falha na estrutura de enquete da Home no post ${post.id_postagem}:`, e.message); 
-      }
+      } catch (e) { console.warn(e.message); }
       
       postagensProcessadas.push({
         id_postagem: post.id_postagem,
@@ -191,8 +155,8 @@ router.get('/feed/global', async (req, res) => {
     return res.json(postagensProcessadas);
 
   } catch (error) {
-    console.error('Erro no MySQL ao renderizar feed paginado da Home:', error);
-    return res.status(500).json({ erro: 'Erro interno ao processar timeline global.' });
+    console.error(error);
+    return res.status(500).json({ erro: 'Erro interno.' });
   }
 });
 router.get('/sidebar/sugestoes', async (req, res) => {
@@ -210,11 +174,9 @@ router.get('/sidebar/sugestoes', async (req, res) => {
         AND id_usuario NOT IN (
           SELECT id_seguido FROM seguidores WHERE id_seguidor = ?
         )
-      ORDER BY RAND() 
+      ORDER BY id_usuario DESC 
       LIMIT 4
     `;
-
-    // 💡 ATALHO SEGURO: pool.query gerencia a conexão de forma automática e veloz
     const [sugestoes] = await pool.query(querySQL, [meuId, meuId]);
     return res.json(sugestoes || []);
 
@@ -229,7 +191,7 @@ router.get('/sidebar/topicos', async (req, res) => {
       const querySQL = `
         SELECT t.nome_tag AS nome, COUNT(pt.id_postagem) AS total
         FROM Tag t
-        LEFT JOIN Postagem_Tag pt ON t.id_tag = pt.id_tag
+        LEFT JOIN postagem_tag pt ON t.id_tag = pt.id_tag
         GROUP BY t.id_tag, t.nome_tag
         ORDER BY total DESC, t.nome_tag ASC
         LIMIT 6
@@ -296,6 +258,7 @@ router.post('/enquetes/votar/opcao', async (req, res) => {
         await conexao.commit();
         conexao.release();
         conexao = null;
+
         const [totalBanco] = await pool.query(
           `SELECT COUNT(*) AS total FROM Voto v 
            JOIN Opcao_enquete oe ON v.id_opcao = oe.id_opcao WHERE oe.id_postagem = ?`,
@@ -395,19 +358,19 @@ router.post('/postagens/:id', upload.single('imagem_post'), async (req, res) => 
       `INSERT INTO Postagem (id_postagem, tipo, conteudo, id_usuario) VALUES (?, ?, ?, ?)`,
       [idPostagem, tipo, descricao, id]
     );
+
     const arquivoEnviado = req.file;
 
     if (arquivoEnviado) {
       const idMidia = crypto.randomUUID();
-      
-      const protocolo = req.secure || req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
-      const dominioAtual = `${protocolo}://${req.headers.host}`;
-      const urlImagemPost = `${dominioAtual}/imagens/${arquivoEnviado.filename}`;
+      const dadosArquivo = fs.readFileSync(arquivoEnviado.path);
+      const imagemBase64 = `data:${arquivoEnviado.mimetype};base64,${dadosArquivo.toString('base64')}`;
 
       await conexao.query(
         `INSERT INTO Midia_Postagem (id_midia, imagem_anexada, id_postagem) VALUES (?, ?, ?)`,
-        [idMidia, urlImagemPost, idPostagem]
+        [idMidia, imagemBase64, idPostagem]
       );
+      fs.unlinkSync(arquivoEnviado.path);
     }
 
     if (tipo === 'postagemComEnquete' && opcoes.length >= 2) {
@@ -425,44 +388,15 @@ router.post('/postagens/:id', upload.single('imagem_post'), async (req, res) => 
         const tagLimpa = nomeTag.replace('#','').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
         const [linhasBanco] = await conexao.query(`SELECT id_tag FROM Tag WHERE nome_tag = ?`, [tagLimpa]);
         const dadosTag = linhasBanco || [];
-        
         if (dadosTag.length > 0) {
             const idTagReal = dadosTag[0].id_tag;
-            
             try {
               await conexao.query(`INSERT INTO Postagem_Tag (id_postagem, id_tag) VALUES (?, ?)`, [idPostagem, idTagReal]);
             } catch (errTagIntermediaria) {
               console.error(errTagIntermediaria);
             }
-        } else {
-          console.warn(`Aviso: A tag "${tagLimpa}" não foi encontrada na tabela global Tag.`);
         }
       }
-    }
-
-    try {
-      const [seguidoresComSino] = await conexao.query(
-        'SELECT id_usuario_seguidor FROM notificacao_ativada WHERE id_usuario_criador = ?',
-        [id]
-      );
-      const linhasSino = seguidoresComSino || [];
-
-      if (linhasSino.length > 0) {
-        for (const seguidor of linhasSino) {
-          if (seguidor && seguidor.id_usuario_seguidor) {
-            const idNotificacaoNova = crypto.randomUUID(); 
-            const textoAlerta = idPostagem; 
-
-            await conexao.query(
-              `INSERT INTO Notificacao (id_notificacao, lido, tipo_notificacao, texto_notificacao, id_usuario) 
-               VALUES (?, ?, ?, ?, ?)`,
-              [idNotificacaoNova, false, 'novo_post', textoAlerta, seguidor.id_usuario_seguidor]
-            );
-          }
-        }
-      }
-    } catch (erroSino) {
-      console.error(erroSino);
     }
 
     await conexao.commit();
@@ -532,17 +466,16 @@ router.get('/postagens/:idPostagem/comentarios', async (req, res) => {
   const filtro = req.query.filtro || 'recente';
 
   try {
-    // 💡 AJUSTE DE AGRUPAMENTO: Todos os campos selecionados incluídos no GROUP BY para blindar contra o modo ONLY_FULL_GROUP_BY da nuvem
     let querySQL = `
       SELECT c.id_comentario, c.conteudo_comentario, c.data_comentario, c.id_usuario,
-             u.nome, u.username, u.foto_profile,
+             u.nome, u.username, MAX(u.foto_profile) AS foto_profile,
              COALESCE(SUM(CASE WHEN ic.tipo_interacao = 'like' THEN 1 ELSE 0 END), 0) AS total_likes,
              COALESCE(SUM(CASE WHEN ic.tipo_interacao = 'dislike' THEN 1 ELSE 0 END), 0) AS total_dislikes
       FROM Comentario c
       JOIN Usuario u ON c.id_usuario = u.id_usuario
       LEFT JOIN Interacao_Comentario ic ON c.id_comentario = ic.id_comentario
       WHERE c.id_postagem = ?
-      GROUP BY c.id_comentario, c.conteudo_comentario, c.data_comentario, c.id_usuario, u.nome, u.username, u.foto_profile
+      GROUP BY c.id_comentario, c.conteudo_comentario, c.data_comentario, c.id_usuario, u.nome, u.username
     `;
     
     if (filtro === 'relevante') {
@@ -551,7 +484,6 @@ router.get('/postagens/:idPostagem/comentarios', async (req, res) => {
       querySQL += ` ORDER BY c.data_comentario DESC`;
     }
 
-    // 💡 ATALHO SEGURO: pool.query executa a busca e limpa o pool de conexões sozinho
     const [comentarios] = await pool.query(querySQL, [idPostagem]);
     const listaFinalComentarios = [];
 
@@ -565,7 +497,6 @@ router.get('/postagens/:idPostagem/comentarios', async (req, res) => {
         );
         const linhasVotos = votos || [];
         
-        // 🛡️ BLINDAGEM: Acessa a primeira posição de forma segura contra undefined
         if (linhasVotos.length > 0 && linhasVotos[0]) {
           votoDoVisitante = linhasVotos[0].tipo_interacao;
         }
