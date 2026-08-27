@@ -293,7 +293,7 @@ onUnmounted(() => {
 
 <template>
   <main>
-    <section class="coluna-lista-conversas" :class="{ 'mobile-oculto': conversaAtiva }">
+    <section v-if="!mostrarTelaPesquisaUsuarios" class="coluna-lista-conversas" :class="{ 'mobile-oculto': conversaAtiva }">
       <div class="cabecalho-secao-chat">
         <h2>Lista de conversas</h2>
       </div>
@@ -330,7 +330,7 @@ onUnmounted(() => {
         Encontre outros usuários
       </button>
     </section>
-    <section class="coluna-janela-mensagens" :class="{ 'mobile-visivel': conversaAtiva }">
+    <section v-if="!mostrarTelaPesquisaUsuarios" class="coluna-janela-mensagens" :class="{ 'mobile-visivel': conversaAtiva }">
       <div v-if="conversaAtiva" class="grade-chat-mural-ativo" style="position: relative;">
         <div class="cabecalho-chat-janela-ativa">
           <div class="identidade-usuario-chat-ativo">
@@ -468,7 +468,7 @@ onUnmounted(() => {
     </div>
   </div>
 </section>
-      <button v-if="voltarTela"  @click="voltarAoPainel" class="botaoVoltar">
+      <button v-if="mostrarTelaPesquisaUsuarios"  @click="voltarTela" class="botaoVoltar">
           <img :src="voltar" alt="" class="setaVoltar">
       </button>
   </main>
