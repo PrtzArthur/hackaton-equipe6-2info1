@@ -6,6 +6,7 @@ import likePreenchido from '@/icons/likePreenchido.svg';
 import likeInline from '@/icons/likeInline.svg';
 import dislikeInline from '@/icons/dislikeInline.svg';
 import dislikePreenchido from '@/icons/dislikePreenchido.svg';
+import userBlackFull from '@/icons/userBlackFull.svg';
 import lixeira from '@/icons/lixeira.svg';
 
 const props = defineProps({
@@ -173,7 +174,8 @@ onUnmounted(() => {
         </p>
         <div v-else v-for="c in listaComentariosDoPost" :key="c.id_comentario" class="card-resposta-linha">
           <div class="div-imagem">
-            <img :src="c.foto_profile || '/src/icons/userBlackFull.svg'" alt="Avatar" class="avatar-mural-mini">
+            <img  v-if="c.foto_profile && c.foto_profile !== ''" :src="c.foto_profile" alt="Avatar" class="avatar-mural-mini">
+            <img v-else :src="userBlackFull" alt="default" class="avatar-mural-mini">
           </div>
           <div class="corpo-resposta-conteudo">
             <div class="identidade-resposta-autor">
