@@ -7,10 +7,12 @@ import path from 'path';
 const router = express.Router();
 
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => { cb(null, 'uploads/'); },
+  destination: (req, file, cb) => {
+    cb(null, path.resolve('./uploads')); 
+  },
   filename: (req, file, cb) => {
-    const sufixoUnico = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, 'chat-' + sufixoUnico + path.extname(file.originalname));
+    const sufixoUnico = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    cb(null, file.fieldname + '-' + sufixoUnico + path.extname(file.originalname));
   }
 });
 const upload = multer({ storage: storage });
@@ -70,8 +72,10 @@ router.get('/historico', async (req, res) => {
       ORDER BY data_mensagem ASC
     `;
 
-    const [mensagens] = await pool.query(querySQL, [meuId, amigoId, amigoId, meuId]);
-    return res.json(mensagens || []);
+    const [linhas] = await pool.query(querySQL, [meuId, amigoId, amigoId, meuId]);
+    const listaMensagens = Array.isArray(linhas) ? linhas : (linhas ? [linhas] : []);
+    
+    return res.json(listaMensagens);
 
   } catch (error) {
     console.error('Erro no MySQL ao buscar histórico de chat:', error);

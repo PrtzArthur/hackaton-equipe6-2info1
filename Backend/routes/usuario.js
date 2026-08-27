@@ -11,7 +11,7 @@ async function verificarConteudoImagem() {
 }
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, 'uploads/');
+    cb(null, path.resolve('./uploads')); 
   },
   filename: (req, file, cb) => {
     const sufixoUnico = Date.now() + '-' + Math.round(Math.random() * 1e9);

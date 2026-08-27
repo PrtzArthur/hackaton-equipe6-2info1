@@ -1,7 +1,9 @@
 import express from 'express';
 import cors from 'cors';
+import fs from 'fs';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
+import path from 'path';
 import pool from './database.js';
 import authRoutes from './routes/auth.js';
 import usuarioRoutes from './routes/usuario.js';
@@ -16,6 +18,14 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use(express.json());
+
+const dirUploads = path.resolve('./uploads');
+if (!fs.existsSync(dirUploads)){
+    fs.mkdirSync(dirUploads, { recursive: true });
+    console.log('pasta uploads pronta e criada com sucesso no servidor Linux!');
+}
+
+app.use('/imagens', express.static(dirUploads));
 
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
