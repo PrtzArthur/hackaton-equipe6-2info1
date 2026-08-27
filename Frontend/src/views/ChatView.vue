@@ -253,7 +253,7 @@ onUnmounted(() => {
       <div class="trilho-scroll-conversas">
         <div v-for="chat in conversasFiltradas" :key="chat.id_usuario" @click="selecionarConversa(chat)" class="card-conversa-linha" :class="{ 'card-selecionado': conversaAtiva?.id_usuario === chat.id_usuario }">
           <div class="avatar-chat-container">
-            <img :src="chat.foto_profile || '/src/icons/userBlackFull.svg'" alt="Avatar" class="avatar-chat-img">
+            <img :src="chat.foto_profile || '/icons/userBlackFull.svg'" alt="Avatar" class="avatar-chat-img">
             <span class="ponto-status-online" :class="{ 'online': chat.status_online }"></span>
           </div>
           <div class="info-corpo-chat-card">
@@ -302,7 +302,7 @@ onUnmounted(() => {
             ]"
             @dblclick="tratarDuploCliqueNaMensagem(msg)">
             <div v-if="msg.id_remetente !== meuIdLogado && msg.texto !== 'Mensagem apagada'" class="wrapper-avatar-mensagem-outro">
-              <img :src="conversaAtiva.foto_profile || '/src/icons/userBlackFull.svg'" alt="Avatar" class="avatar-mural-mini-chat">
+              <img :src="conversaAtiva.foto_profile || '/icons/userBlackFull.svg'" alt="Avatar" class="avatar-mural-mini-chat">
             </div>
             <div class="corpo-balao-conteudo">
               <p v-if="msg.texto === 'Mensagem apagada'" class="texto-mensagem-deletada">
