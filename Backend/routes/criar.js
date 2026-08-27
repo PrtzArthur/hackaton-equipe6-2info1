@@ -213,8 +213,6 @@ router.get('/sidebar/sugestoes', async (req, res) => {
       ORDER BY RAND() 
       LIMIT 4
     `;
-
-    // 💡 ATALHO SEGURO: pool.query gerencia a conexão de forma automática e veloz
     const [sugestoes] = await pool.query(querySQL, [meuId, meuId]);
     return res.json(sugestoes || []);
 
