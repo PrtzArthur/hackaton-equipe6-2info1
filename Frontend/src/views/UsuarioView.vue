@@ -1406,6 +1406,7 @@ main {
   height: 20vh;
   width: 35vw;
   border-radius: 7px;
+  overflow: hidden;
 }
 .inputCirculo {
   opacity: 0;
