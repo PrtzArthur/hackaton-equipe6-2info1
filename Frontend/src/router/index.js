@@ -45,13 +45,13 @@ const router = createRouter({
       path: '/salvar',
       name: 'Salvar',
       component: SalvarView,
-      meta: { requiresAuth: false }
+      meta: { requiresAuth: true }
     },
     {
       path: '/avisos',
       name: 'Avisos',
       component: AvisosView,
-      meta: { requiresAuth: false }
+      meta: { requiresAuth: true }
     },
     {
       path: '/criar/:id',
@@ -63,25 +63,25 @@ const router = createRouter({
       path: '/usuario/:id',
       name: 'Usuário',
       component: UsuarioView,
-      meta: { requiresAuth: false }
+      meta: { requiresAuth: true }
     },
     {
       path: '/chat',
       name: 'Chat',
       component: ChatView,
-      meta: { requiresAuth: false }
+      meta: { requiresAuth: true }
     },
     {
       path: '/eventos',
       name: 'Eventos',
       component: EventosView,
-      meta: { requiresAuth: false }
+      meta: { requiresAuth: true }
     },
     {
       path: '/explorar',
       name: 'Explorar',
       component: ExplorarView,
-      meta: { requiresAuth: false }
+      meta: { requiresAuth: true }
     },
     {
       path: '/politica-de-privacidade',
