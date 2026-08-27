@@ -455,7 +455,7 @@ onUnmounted(() => {
             <div v-for="perfil in listaSugestaoPerfis" :key="perfil.id_usuario" class="card-sugestao-linha">
               <div class="div-imagem-perfil">
                 <img
-                  :src="perfil && perfil.foto_profile && perfil.foto_profile.startsWith('data:') ? perfil.foto_profile : '/icons/userBlackFull.svg'"
+                  :src="perfil && perfil.foto_profile && perfil.foto_profile.startsWith('data:') ? perfil.foto_profile : 'Frontend/public/icons/userBlackFull.svg'"
                   alt="Avatar"
                   class="avatar-sugestao-mini"
                   @click="irParaPerfilDoAutor(perfil.id_usuario)"

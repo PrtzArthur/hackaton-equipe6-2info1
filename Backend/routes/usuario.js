@@ -167,9 +167,8 @@ router.put('/perfil/:id/midias', async (req, res) => {
   try {
     const removerFoto = req.body.removerFoto === 'true' || req.body.removerFoto === true;
     const removerBanner = req.body.removerBanner === 'true' || req.body.removerBanner === true;
-    const fotoEnviadaBase64 = req.body.foto;
-    const bannerEnviadoBase64 = req.body.banner;
-
+    const fotoEnviadaBase64 = req.body.foto;   
+    const bannerEnviadoBase64 = req.body.banner; 
     const [resultados] = await pool.query('SELECT foto_profile, banner_fundo FROM Usuario WHERE id_usuario = ?', [id]);
     const linhasResultados = resultados || [];
 
@@ -177,17 +176,19 @@ router.put('/perfil/:id/midias', async (req, res) => {
       return res.status(404).json({ erro: 'Usuário não encontrado.' });
     }
 
-    let urlFoto = linhasResultados[0]?.foto_profile;
-    let urlBanner = linhasResultados[0]?.banner_fundo;
+    let urlFoto = linhasResultados[0]?.foto_profile || null;
+    let urlBanner = linhasResultados[0]?.banner_fundo || null;
+
     if (removerFoto) {
       urlFoto = null; 
     } else if (fotoEnviadaBase64 && fotoEnviadaBase64.trim() !== '') {
-      urlFoto = fotoEnviadaBase64.trim();
+      urlFoto = fotoEnviadaBase64.trim(); 
     }
+
     if (removerBanner) {
       urlBanner = null;
     } else if (bannerEnviadoBase64 && bannerEnviadoBase64.trim() !== '') {
-      urlBanner = bannerEnviadoBase64.trim();
+      urlBanner = bannerEnviadoBase64.trim(); 
     }
     await pool.query(
       'UPDATE Usuario SET foto_profile = ?, banner_fundo = ? WHERE id_usuario = ?',
@@ -201,7 +202,7 @@ router.put('/perfil/:id/midias', async (req, res) => {
     });
   
   } catch(error) {
-    console.error('Falha ao enviar as imagens para o banco.', error);
+    console.error('Falha ao enviar as imagens para o banco:', error);
     return res.status(500).json({ erro: 'Erro ao salvar as imagens.' });
   }
 });
