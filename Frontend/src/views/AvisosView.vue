@@ -35,7 +35,7 @@ onMounted(() => {
         <div v-else class="notifications-list-container">
           <div v-for="item in notificacoes" :key="item.id" class="card-notificacao-item">
           <div class="notificacao-icone-container">
-            <img :src="item.autor_foto || '/icons/userBlackFull.svg'" alt="Avatar" class="avatar-notificacao-autor">
+            <img :src="item.autor_foto || 'Frontend/public/icons/userBlackFull.svg'" alt="Avatar" class="avatar-notificacao-autor">
           </div>
           <div class="notificacao-conteudo-bloco">
             <p class="notificacao-texto-usuario">

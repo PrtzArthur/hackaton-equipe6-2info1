@@ -174,7 +174,7 @@ onUnmounted(() => {
         <div v-else v-for="c in listaComentariosDoPost" :key="c.id_comentario" class="card-resposta-linha">
           <div class="div-imagem">
             <img
-              :src="c.foto_profile && c.foto_profile.startsWith('data:') ? c.foto_profile : '/icons/userBlackFull.svg'"
+              :src="c.foto_profile && c.foto_profile.startsWith('data:') ? c.foto_profile : 'Frontend/public/icons/userBlackFull.svg'"
               alt="Avatar"
               class="avatar-mural-mini"
             >
