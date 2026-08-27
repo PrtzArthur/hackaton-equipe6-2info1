@@ -1,12 +1,16 @@
 <script setup>
-import { ref, onMounted, nextTick, onUnmounted, computed } from 'vue';
+import { ref, onMounted, nextTick, onUnmounted, computed, watch } from 'vue';
 import { io } from 'socket.io-client';
 import iconeLupa from '@/icons/iconeLupa.svg';
 import imagem from '@/icons/imagem.svg';
 import voltar from '@/icons/voltar.svg';
 import emoji from '@/icons/emoji.svg';
+import userBlackFull from '@/icons/userBlackFull.svg';
 import enviar from '@/icons/enviar.svg';
 import gear from '@/icons/gear.svg';
+import { useToast } from 'vue-toastification';
+
+const toast = useToast();
 
 const socket = io(import.meta.env.VITE_API_URL);
 
@@ -32,6 +36,8 @@ const listaDeEmojisTotais = [
   '👉','👆','🖕','👇','☝️','👍','❤️','💔','💖','💗','💘','⚡','🔥','✨'
 ];
 
+const mostrarTelaPesquisaUsuarios = ref(false);
+
 let timeoutDigitando = null;
 
 async function rolarChatParaBaixo() {
@@ -39,6 +45,13 @@ async function rolarChatParaBaixo() {
   if (containerMensagens.value) {
     containerMensagens.value.scrollTop = containerMensagens.value.scrollHeight;
   }
+}
+
+function mostrarTelaDeUsuarios()  {
+  mostrarTelaPesquisaUsuarios.value = true;
+}
+function voltarTela()  {
+  mostrarTelaPesquisaUsuarios.value = false;
 }
 
 async function carregarListaConversas() {
@@ -170,6 +183,69 @@ function avisarQueEstouDigitando() {
   }, 1500);
 }
 
+const usuarioFiltrado = ref('');
+const mostrarDropdownOrdenacao = ref(false);
+const filtroOrdenacaoSelecionado = ref('Mais recente');
+const listaDeTodosOsUsuariosDoBanco = ref([]);
+
+function alternarDropdownOrdenacao() {
+  mostrarDropdownOrdenacao.value = !mostrarDropdownOrdenacao.value;
+}
+const usuariosFiltradosEOrdenados = computed(() => {
+  let resultado = [...listaDeTodosOsUsuariosDoBanco.value];
+  if (usuarioFiltrado.value.trim()) {
+    const termo = usuarioFiltrado.value.toLowerCase().trim();
+    resultado = resultado.filter(u =>
+      u.nome?.toLowerCase().includes(termo) ||
+      u.username?.toLowerCase().includes(termo)
+    );
+  }
+  if (filtroOrdenacaoSelecionado.value === 'Mais seguido') {
+    return resultado.sort((a, b) => (b.total_seguidores || 0) - (a.total_seguidores || 0));
+  } else if (filtroOrdenacaoSelecionado.value === 'Com mais postagens') {
+    return resultado.sort((a, b) => (b.total_posts || 0) - (a.total_posts || 0));
+  } else {
+    return resultado.sort((a, b) => new Date(b.data_criacao) - new Date(a.data_criacao));
+  }
+});
+async function carregarTodosOsUsuariosParaExplorar() {
+  const idLogado = localStorage.getItem('ifchat_user_id') || '';
+  if (!idLogado) return;
+
+  try {
+    const resposta = await fetch(`${import.meta.env.VITE_API_URL}/api/usuario/explorar/usuarios?meuId=${idLogado}`);
+
+    if (resposta.ok) {
+      listaDeTodosOsUsuariosDoBanco.value = await resposta.json();
+    }
+  } catch (erro) {
+    console.error("Falha na requisição de exploração de alunos:", erro);
+  }
+}
+watch(mostrarTelaPesquisaUsuarios, (ficouVisivel) => {
+  if (ficouVisivel) {
+    carregarTodosOsUsuariosParaExplorar();
+  }
+});
+function reordenarUsuarios() {
+  mostrarDropdownOrdenacao.value = false;
+}
+async function alternarSeguirUsuarioNaLista(userAlvo) {
+  try {
+    const r = await fetch(`${import.meta.env.VITE_API_URL}/api/usuario/seguir`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idSeguidor: meuIdLogado.value, idCriador: userAlvo.id_usuario })
+    });
+    if (r.ok) {
+      const dados = await r.json();
+      userAlvo.jaSeguindo = (dados.status === 'seguiu');
+      userAlvo.total_seguidores = dados.contadorSeguidoresDoPerfil;
+      toast.success(dados.status === 'seguiu' ? `Seguindo ${userAlvo.nome}!` : `Parou de seguir.`);
+    }
+  } catch (e) { console.error(e); }
+}
+
 onMounted(() => {
   carregarListaConversas();
   if (meuIdLogado.value) { socket.emit('entrar_no_chat', meuIdLogado.value); }
@@ -250,7 +326,7 @@ onUnmounted(() => {
           </div>
         </div>
       </div>
-      <button type="button" class="btn-encontrar-usuarios-verde">
+      <button @click="mostrarTelaDeUsuarios" type="button" class="btn-encontrar-usuarios-verde">
         Encontre outros usuários
       </button>
     </section>
@@ -340,6 +416,61 @@ onUnmounted(() => {
         <span>Selecione uma conversa para iniciar o IFChat Realtime</span>
       </div>
     </section>
+    <section v-if="mostrarTelaPesquisaUsuarios" class="notifications-card">
+  <div class="topo-pesquisa-filtro">
+    <div class="container-input-busca">
+      <input v-model="usuarioFiltrado" type="text" placeholder="Procurar por usuário...">
+      <i v-if="usuarioFiltrado.length === ''" class="icone-lupa"><img :src="iconeLupa" alt=""></i>
+    </div>
+    <div class="dropdown-ordenacao-container">
+      <button @click="alternarDropdownOrdenacao" class="botao-dropdown-ordenar">
+        Ordenar por: <span>{{ filtroOrdenacaoSelecionado }}</span>
+        <i class="seta-dropdown">▼</i>
+      </button>
+      <div v-if="mostrarDropdownOrdenacao" class="painel-opcoes-ordenar">
+        <label class="opcao-checkbox">
+          <input type="radio" v-model="filtroOrdenacaoSelecionado" value="Mais recente" @change="reordenarUsuarios">
+          Mais recente
+        </label>
+        <label class="opcao-checkbox">
+          <input type="radio" v-model="filtroOrdenacaoSelecionado" value="Mais seguido" @change="reordenarUsuarios">
+          Mais seguido
+        </label>
+        <label class="opcao-checkbox">
+          <input type="radio" v-model="filtroOrdenacaoSelecionado" value="Com mais postagens" @change="reordenarUsuarios">
+          Com mais postagens
+        </label>
+      </div>
+    </div>
+  </div>
+  <div class="lista-de-usuarios-container">
+    <div v-for="user in usuariosFiltradosEOrdenados" :key="user.id_usuario" class="card-usuario-linha">
+      <div class="bloco-info-esquerda" @click="irParaPerfilDoAutor(user.id_usuario)">
+        <img :src="user.foto_profile" class="avatar-aluno-lista">
+        <img :src="userBlackFull" alt="">
+        <div class="detalhes-texto-aluno">
+          <h4 class="nome-aluno-titulo">{{ user.nome }}</h4>
+          <span :class="['status-badge', user.status_online ? 'online' : 'offline']">
+            ● {{ user.status_online ? 'Online' : 'Offline' }}
+          </span>
+          <p class="contador-seguidores-sub">{{ user.total_seguidores || 0 }} seguidores</p>
+        </div>
+      </div>
+      <button
+        :class="['btn-seguir-lista', user.jaSeguindo ? 'seguindo' : '']"
+        @click="alternarSeguirUsuarioNaLista(user)"
+      >
+        {{ user.jaSeguindo ? 'Seguindo' : 'Seguir' }}
+      </button>
+    </div>
+    <div v-if="usuariosFiltradosEOrdenados.length === 0" class="aviso-vazio-lista">
+      Nenhum estudante encontrado com esse termo.
+    </div>
+  </div>
+</section>
+      <button v-if="voltarTela"  @click="voltarAoPainel" class="botaoVoltar">
+          <img :src="voltar" alt="" class="setaVoltar">
+      </button>
   </main>
 </template>
 
@@ -369,6 +500,209 @@ main {
   align-items: center !important;
   justify-content: center !important;
   gap: 2vw;
+}
+.setaVoltar {
+  width: 2vw;
+  height: 2vw;
+}
+.botaoVoltar {
+  width: 3vw;
+  height: 3vw;
+  background-color: var(--fundo-card);
+  border: var(--borda-padrao);
+  border-radius: 5px;
+  top: 0 !important;
+  left: 0 !important;
+  margin-top: 2.5vw !important;
+  margin-left: 12.5vw !important;
+  z-index: 9999 !important;
+  cursor: pointer;
+}
+.botaoVoltar:hover {
+  background-color: var(--hover-botoes);
+  transform: scale(1.02);
+  transition: 0.3s;
+}
+.botaoVoltar:active {
+  transform: scale(0.92);
+}
+[data-theme="dark"] .setaVoltar {
+  filter: invert(1);
+  transition: filter 0.3s ease;
+}
+.notifications-card {
+  background-color: var(--fundo-card);
+  position: fixed;
+  width: 40%;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  transform: translate(-50%);
+  margin-top: 4vw;
+  margin-bottom: 3vw;
+  border-radius: 9px;
+  border: var(--borda-padrao);
+  scrollbar-color: #ccc transparent;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  padding: 2px;
+}
+.topo-pesquisa-filtro {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+}
+.container-input-busca {
+  position: relative;
+  flex: 1;
+  max-width: 450px;
+}
+.container-input-busca input {
+  width: 100%;
+  padding: 10px 40px 10px 16px;
+  border: 1px solid #ccc;
+  border-radius: 20px;
+  font-size: 14px;
+  outline: none;
+  background-color: #fff;
+}
+.container-input-busca .icone-lupa {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #777;
+  font-size: 14px;
+  cursor: pointer;
+}
+.dropdown-ordenacao-container {
+  position: relative;
+}
+.botao-dropdown-ordenar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: #fff;
+  border: 1px solid #000;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
+}
+.botao-dropdown-ordenar span {
+  font-weight: normal;
+  color: #555;
+}
+.painel-opcoes-ordenar {
+  position: absolute;
+  top: 110%;
+  right: 0;
+  width: 220px;
+  background: #fff;
+  border: 1px solid #000;
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.1);
+  z-index: 10;
+}
+.opcao-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #333;
+  cursor: pointer;
+}
+.lista-de-usuarios-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background-color: #f2f9f2;
+  border: 1px solid #ccc;
+  border-radius: 12px;
+  padding: 20px;
+  max-height: 600px;
+  overflow-y: auto;
+}
+.card-usuario-linha {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 25px;
+  padding: 12px 24px;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.card-usuario-linha:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+}
+.bloco-info-esquerda {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  cursor: pointer;
+  flex: 1;
+}
+.avatar-aluno-lista {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #000;
+}
+.detalhes-texto-aluno {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.nome-aluno-titulo {
+  margin: 0;
+  font-size: 15px;
+  font-weight: bold;
+  color: #000;
+}
+.status-badge {
+  font-size: 11px;
+  font-weight: 500;
+}
+.status-badge.online { color: #2e7d32; }
+.status-badge.offline { color: #757775; }
+.contador-seguidores-sub {
+  margin: 0;
+  font-size: 11px;
+  color: #888;
+}
+.btn-seguir-lista {
+  background-color: #44cc11;
+  color: #fff;
+  border: none;
+  border-radius: 20px;
+  padding: 8px 24px;
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 0.2s;
+  min-width: 100px;
+}
+.btn-seguir-lista:hover {
+  background-color: #33aa08;
+}
+.btn-seguir-lista.seguindo {
+  background-color: #757775;
+}
+.aviso-vazio-lista {
+  text-align: center;
+  color: #777;
+  font-size: 14px;
+  padding: 20px 0;
 }
 .coluna-lista-conversas,
 .coluna-janela-mensagens {
