@@ -1,5 +1,6 @@
 <script setup>
 import { ref, onMounted } from 'vue'
+import userBlackFull from '@/icons/userBlackFull.svg'
 
 const notificacoes = ref([]);
 const meuIdLogado = ref(localStorage.getItem('ifchat_user_id') || '');
@@ -35,7 +36,8 @@ onMounted(() => {
         <div v-else class="notifications-list-container">
           <div v-for="item in notificacoes" :key="item.id" class="card-notificacao-item">
           <div class="notificacao-icone-container">
-            <img :src="item.autor_foto || '/src/icons/userBlackFull.svg'" alt="Avatar" class="avatar-notificacao-autor">
+            <img v-if="item.autor_foto && item.autor_foto !== ''" :src="item.autor_foto" alt="Avatar" class="avatar-notificacao-autor">
+            <img  :src="userBlackFull" alt="Avatar" class="avatar-notificacao-autor">
           </div>
           <div class="notificacao-conteudo-bloco">
             <p class="notificacao-texto-usuario">
