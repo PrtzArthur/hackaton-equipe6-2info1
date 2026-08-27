@@ -457,6 +457,7 @@ router.get('/postagens/:id', async (req, res) => {
         );
         tagsFormatadas = (tagsBanco || []).map(t => `#${t.nome_tag}`);
       } catch (e) {
+        console.error(e)
         tagsFormatadas = []; 
       }
       
