@@ -20,11 +20,12 @@ router.get('/feed/global', async (req, res) => {
   const meuIdLogado = req.query.meuId || '';
   const pagina = parseInt(req.query.page, 10) || 1;
   let termoBusca = '';
+  
   if (req.query.busca) {
     try {
       termoBusca = decodeURIComponent(req.query.busca).trim();
     } catch (e) {
-      console.error('Erro ao ler a busca', e)
+      console.error('Erro ao ler a busca', e);
       termoBusca = req.query.busca.trim();
     }
   }
@@ -35,9 +36,7 @@ router.get('/feed/global', async (req, res) => {
   const limiteItens = 6; 
   const deslocamentoOffset = parseInt((pagina - 1) * limiteItens, 10);
   
-  let conexao = null;
   try {
-    conexao = await pool.getConnection();
     let filtroSQL = '';
     const parametrosQuery = [];
 
@@ -60,10 +59,10 @@ router.get('/feed/global', async (req, res) => {
       ORDER BY p.data_envio DESC
       LIMIT ${limiteItens} OFFSET ${deslocamentoOffset}
     `;
-    const [postagensBanco] = await conexao.query(querySQL, parametrosQuery);
+    const [postagensBanco] = await pool.query(querySQL, parametrosQuery);
     const postagensProcessadas = [];
 
-    for (const post of postagensBanco) {
+    for (const post of (postagensBanco || [])) {
       let meuVotoNoPost = null;
       let tagsFormatadas = [];
       let opcoesEnquete = [];
@@ -73,14 +72,15 @@ router.get('/feed/global', async (req, res) => {
 
       try {
         if (meuIdLogado) {
-          const [checaVoto] = await conexao.query(
+          const [checaVoto] = await pool.query(
             'SELECT tipo_voto FROM Curtida WHERE id_usuario = ? AND id_postagem = ?',
             [meuIdLogado, post.id_postagem]
           );
-          if (checaVoto && checaVoto.length > 0) {
+          if (checaVoto && checaVoto.length > 0 && checaVoto[0]) {
             meuVotoNoPost = checaVoto[0].tipo_voto;
           }
-          const [checaSalvo] = await conexao.query(
+
+          const [checaSalvo] = await pool.query(
             `SELECT 1 FROM salvar_post sp
              JOIN Lista_salvos ls ON sp.id_lista = ls.id_lista
              WHERE sp.id_postagem = ? AND ls.id_usuario = ?
@@ -91,35 +91,41 @@ router.get('/feed/global', async (req, res) => {
             naoSalvoStatus = false;
           }
         }
-      } catch (e) { console.warn("Aviso: Falha ao ler curtidas ou salvamentos do post na Home.", e.message); }
+      } catch (e) { 
+        console.warn("Aviso: Falha ao ler curtidas ou salvamentos do post na Home.", e.message); 
+      }
 
       try {
-        const [tagsBanco] = await conexao.query(
+        const [tagsBanco] = await pool.query(
           `SELECT t.nome_tag 
            FROM postagem_tag pt 
            JOIN Tag t ON pt.id_tag = t.id_tag 
            WHERE pt.id_postagem = ?`,
           [post.id_postagem]
         );
-        tagsFormatadas = tagsBanco.map(t => `#${t.nome_tag}`);
-      } catch (e) { console.warn("Aviso: Falha ao ler tags do post na Home.", e.message); }
+        tagsFormatadas = (tagsBanco || []).map(t => `#${t.nome_tag}`);
+      } catch (e) { 
+        console.error(e)
+        tagsFormatadas = []; 
+      }
       
       try {
         if (post.tipo === 'postagemComEnquete') {
-          const [opcoes] = await conexao.query(
+          const [opcoes] = await pool.query(
             `SELECT id_opcao, texto_opcao FROM Opcao_enquete WHERE id_postagem = ?`,
             [post.id_postagem]
           );
-          const [totalVotosBanco] = await conexao.query(
+          const [totalVotosBanco] = await pool.query(
             `SELECT COUNT(*) AS total 
              FROM Voto v
              JOIN Opcao_enquete oe ON v.id_opcao = oe.id_opcao
              WHERE oe.id_postagem = ?`,
             [post.id_postagem]
           );
-          totalVotosGeral = totalVotosBanco[0]?.total || 0;
+          totalVotosGeral = totalVotosBanco && totalVotosBanco[0] ? totalVotosBanco[0].total : 0;
+
           if (meuIdLogado) {
-            const [votoUsuarioEnquete] = await conexao.query(
+            const [votoUsuarioEnquete] = await pool.query(
               `SELECT v.id_opcao 
                FROM Voto v
                JOIN Opcao_enquete oe ON v.id_opcao = oe.id_opcao
@@ -130,17 +136,18 @@ router.get('/feed/global', async (req, res) => {
               jaVotouNaEnquete = true;
             }
           }
-          for (const op of opcoes) {
-            const [votosDaOpcao] = await conexao.query(
+
+          for (const op of (opcoes || [])) {
+            const [votosDaOpcao] = await pool.query(
               `SELECT COUNT(*) AS total FROM Voto WHERE id_opcao = ?`,
               [op.id_opcao]
             );
-            const totalVotosOpcao = votosDaOpcao[0]?.total || 0;
+            const totalVotosOpcao = votosDaOpcao && votosDaOpcao[0] ? votosDaOpcao[0].total : 0;
             const porcentagemCalculada = totalVotosGeral > 0 ? Math.round((totalVotosOpcao / totalVotosGeral) * 100) : 0;
 
             let votadoPorMim = false;
             if (meuIdLogado) {
-              const [checaOpcaoUnica] = await conexao.query(
+              const [checaOpcaoUnica] = await pool.query(
                 `SELECT * FROM Voto WHERE id_usuario = ? AND id_opcao = ?`,
                 [meuIdLogado, op.id_opcao]
               );
@@ -186,8 +193,6 @@ router.get('/feed/global', async (req, res) => {
   } catch (error) {
     console.error('Erro no MySQL ao renderizar feed paginado da Home:', error);
     return res.status(500).json({ erro: 'Erro interno ao processar timeline global.' });
-  } finally {
-    if (conexao) conexao.release();
   }
 });
 router.get('/sidebar/sugestoes', async (req, res) => {
@@ -197,9 +202,7 @@ router.get('/sidebar/sugestoes', async (req, res) => {
     return res.status(400).json({ erro: 'ID do usuário logado é obrigatório para filtrar sugestões.' });
   }
 
-  let conexao = null;
   try {
-    conexao = await pool.getConnection();
     const querySQL = `
       SELECT id_usuario, nome, username, foto_profile 
       FROM Usuario 
@@ -211,34 +214,38 @@ router.get('/sidebar/sugestoes', async (req, res) => {
       LIMIT 4
     `;
 
-    const [sugestoes] = await conexao.query(querySQL, [meuId, meuId]);
-    return res.json(sugestoes);
+    // 💡 ATALHO SEGURO: pool.query gerencia a conexão de forma automática e veloz
+    const [sugestoes] = await pool.query(querySQL, [meuId, meuId]);
+    return res.json(sugestoes || []);
 
   } catch (error) {
     console.error('Erro no MySQL ao processar sugestões inteligentes:', error);
     return res.status(500).json({ erro: 'Erro interno ao processar painel lateral.' });
-  } finally {
-    if (conexao) conexao.release();
   }
 });
 router.get('/sidebar/topicos', async (req, res) => {
-  let conexao = null;
   try {
-    conexao = await pool.getConnection();
-    const querySQL = `
-      SELECT t.nome_tag AS nome, COUNT(pt.id_postagem) AS total
-      FROM Tag t
-      LEFT JOIN Postagem_Tag pt ON t.id_tag = pt.id_tag
-      GROUP BY t.id_tag, t.nome_tag
-      ORDER BY total DESC, t.nome_tag ASC
-      LIMIT 6
-    `;
-    const [topicos] = await conexao.query(querySQL);
-    return res.json(topicos);
+    try {
+      const querySQL = `
+        SELECT t.nome_tag AS nome, COUNT(pt.id_postagem) AS total
+        FROM Tag t
+        LEFT JOIN Postagem_Tag pt ON t.id_tag = pt.id_tag
+        GROUP BY t.id_tag, t.nome_tag
+        ORDER BY total DESC, t.nome_tag ASC
+        LIMIT 6
+      `;
+      const [topicos] = await pool.query(querySQL);
+      return res.json(topicos || []);
+    } catch (errTabela) {
+      console.error(errTabela)
+      const [tagsLimpas] = await pool.query('SELECT nome_tag AS nome, 0 AS total FROM Tag LIMIT 6');
+      return res.json(tagsLimpas || []);
+    }
+
   } catch (error) {
     console.error('Erro no MySQL ao buscar tópicos:', error);
     return res.status(500).json({ erro: 'Erro ao processar tópicos.' });
-  } finally { if (conexao) conexao.release(); }
+  }
 });
 router.post('/enquetes/votar/opcao', async (req, res) => {
     const { idUsuario, idOpcao, idPostagem } = req.body;
@@ -247,6 +254,7 @@ router.post('/enquetes/votar/opcao', async (req, res) => {
     try {
         conexao = await pool.getConnection();
         await conexao.beginTransaction();
+        
         const [votoExistente] = await conexao.query(
           `SELECT v.id_opcao FROM Voto v 
            JOIN Opcao_enquete o ON v.id_opcao = o.id_opcao 
@@ -255,9 +263,10 @@ router.post('/enquetes/votar/opcao', async (req, res) => {
         );
 
         let statusFinal = 'votado';
+        const linhasVoto = votoExistente || [];
 
-        if (votoExistente && votoExistente.length > 0) {
-          const idOpcaoAntiga = votoExistente[0].id_opcao;
+        if (linhasVoto.length > 0) {
+          const idOpcaoAntiga = linhasVoto[0].id_opcao;
           
           if (idOpcaoAntiga === idOpcao) {
             await conexao.query(
@@ -285,35 +294,43 @@ router.post('/enquetes/votar/opcao', async (req, res) => {
         }
         
         await conexao.commit();
-        const [totalBanco] = await conexao.query(
+        conexao.release();
+        conexao = null;
+        const [totalBanco] = await pool.query(
           `SELECT COUNT(*) AS total FROM Voto v 
            JOIN Opcao_enquete oe ON v.id_opcao = oe.id_opcao WHERE oe.id_postagem = ?`,
           [idPostagem]
         );
-        const novoTotalGeral = totalBanco[0]?.total || 0;
+        const linhasTotal = totalBanco || [];
+        const novoTotalGeral = linhasTotal.length > 0 ? (linhasTotal[0].total || 0) : 0;
 
-        const [opcoesBanco] = await conexao.query(
+        const [opcoesBanco] = await pool.query(
           `SELECT id_opcao, texto_opcao FROM Opcao_enquete WHERE id_postagem = ?`,
           [idPostagem]
         );
 
         const novasOpcoesProcessadas = [];
-        for (const op of opcoesBanco) {
-          const [votosOp] = await conexao.query(`SELECT COUNT(*) AS total FROM Voto WHERE id_opcao = ?`, [op.id_opcao]);
-          const totalVotosOpcao = votosOp[0]?.total || 0;
+        for (const op of (opcoesBanco || [])) {
+          const [votosOp] = await pool.query(`SELECT COUNT(*) AS total FROM Voto WHERE id_opcao = ?`, [op.id_opcao]);
+          const linhasVotosOp = votosOp || [];
+          const totalVotosOpcao = linhasVotosOp.length > 0 ? (linhasVotosOp[0].total || 0) : 0;
+          
           const novaPorcentagem = novoTotalGeral > 0 ? Math.round((totalVotosOpcao / novoTotalGeral) * 100) : 0;
-          const [checaSeVotou] = await conexao.query(
+          
+          const [checaSeVotou] = await pool.query(
             `SELECT * FROM Voto WHERE id_usuario = ? AND id_opcao = ?`, 
             [idUsuario, op.id_opcao]
           );
+          const linhasChecaVoto = checaSeVotou || [];
 
           novasOpcoesProcessadas.push({
             id_opcao: op.id_opcao,
             texto_opcao: op.texto_opcao,
             porcentagem: novaPorcentagem,
-            votadoPorMim: checaSeVotou.length > 0
+            votadoPorMim: (linhasChecaVoto.length > 0)
           });
         }
+
         return res.json({ 
           mensagem: 'Voto processado com sucesso!', 
           status: statusFinal,
@@ -338,29 +355,26 @@ router.delete('/comentarios/deletar/:idComentario', async (req, res) => {
     return res.status(400).json({ erro: 'Usuário não identificado.' });
   }
 
-  let conexao = null;
   try {
-    conexao = await pool.getConnection();
-    const [comentario] = await conexao.query(
+    const [comentario] = await pool.query(
       'SELECT id_usuario FROM Comentario WHERE id_comentario = ?',
       [idComentario]
     );
+    const linhasComentario = comentario || [];
 
-    if (comentario.length === 0) {
+    if (linhasComentario.length === 0) {
       return res.status(404).json({ erro: 'Comentário não encontrado.' });
     }
-    if (comentario[0].id_usuario !== idUsuarioLogado) {
+    if (linhasComentario[0].id_usuario !== idUsuarioLogado) {
       return res.status(403).json({ erro: 'Você não tem permissão para apagar o comentário de outra pessoa!' });
     }
-    await conexao.query('DELETE FROM Comentario WHERE id_comentario = ?', [idComentario]);
-
+    
+    await pool.query('DELETE FROM Comentario WHERE id_comentario = ?', [idComentario]);
     return res.json({ mensagem: 'Comentário excluído com sucesso!' });
 
   } catch (error) {
     console.error('erro no MySQL ao deletar comentário:', error);
     return res.status(500).json({ erro: 'Erro interno ao remover comentário.' });
-  } finally {
-    if (conexao) conexao.release();
   }
 });
 router.post('/postagens/:id', upload.single('imagem_post'), async (req, res) => {
@@ -368,6 +382,7 @@ router.post('/postagens/:id', upload.single('imagem_post'), async (req, res) => 
   let conexao = null;
 
   try {
+
     const { descricao, tipo } = req.body;
 
     conexao = await pool.getConnection();
@@ -376,18 +391,24 @@ router.post('/postagens/:id', upload.single('imagem_post'), async (req, res) => 
     const opcoes = req.body.opcoes ? JSON.parse(req.body.opcoes) : [];
     const tags = req.body.tags ? JSON.parse(req.body.tags) : [];
     const idPostagem = crypto.randomUUID();
+
     await conexao.query(
       `INSERT INTO Postagem (id_postagem, tipo, conteudo, id_usuario) VALUES (?, ?, ?, ?)`,
       [idPostagem, tipo, descricao, id]
     );
+
     if (req.file) {
       const idMidia = crypto.randomUUID();
-      const urlImagemPost = `http://localhost:3000/imagens/${req.file.filename}`;
+      const protocolo = req.secure || req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
+      const dominioAtual = `${protocolo}://${req.headers.host}`;
+      const urlImagemPost = `${dominioAtual}/imagens/${req.file.filename}`;
+
       await conexao.query(
         `INSERT INTO Midia_Postagem (id_midia, imagem_anexada, id_postagem) VALUES (?, ?, ?)`,
         [idMidia, urlImagemPost, idPostagem]
       );
     }
+
     if (tipo === 'postagemComEnquete' && opcoes.length >= 2) {
       for (const textoOpcao of opcoes) {
         const idOpcao = crypto.randomUUID();
@@ -397,13 +418,21 @@ router.post('/postagens/:id', upload.single('imagem_post'), async (req, res) => 
         );
       }
     }
+
     if (tags && tags.length > 0) {
       for (const nomeTag of tags) {
         const tagLimpa = nomeTag.replace('#','').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
         const [linhasBanco] = await conexao.query(`SELECT id_tag FROM Tag WHERE nome_tag = ?`, [tagLimpa]);
-        if (linhasBanco && linhasBanco.length > 0) {
-            const idTagReal = linhasBanco[0].id_tag;
-            await conexao.query(`INSERT INTO Postagem_Tag (id_postagem, id_tag) VALUES (?, ?)`, [idPostagem, idTagReal]);
+        const dadosTag = linhasBanco || [];
+        
+        if (dadosTag.length > 0) {
+            const idTagReal = dadosTag[0].id_tag;
+            
+            try {
+              await conexao.query(`INSERT INTO Postagem_Tag (id_postagem, id_tag) VALUES (?, ?)`, [idPostagem, idTagReal]);
+            } catch (errTagIntermediaria) {
+              console.error(errTagIntermediaria)
+            }
         } else {
           console.warn(`Aviso: A tag "${tagLimpa}" não foi encontrada na tabela global Tag.`);
         }
@@ -414,31 +443,34 @@ router.post('/postagens/:id', upload.single('imagem_post'), async (req, res) => 
         'SELECT id_usuario_seguidor FROM notificacao_ativada WHERE id_usuario_criador = ?',
         [id]
       );
+      const linhasSino = seguidoresComSino || [];
 
-      if (seguidoresComSino && seguidoresComSino.length > 0) {
-        for (const seguidor of seguidoresComSino) {
-          const idNotificacaoNova = crypto.randomUUID(); 
-          const textoAlerta = idPostagem; 
+      if (linhasSino.length > 0) {
+        for (const seguidor of linhasSino) {
+          if (seguidor && seguidor.id_usuario_seguidor) {
+            const idNotificacaoNova = crypto.randomUUID(); 
+            const textoAlerta = idPostagem; 
 
-          await conexao.query(
-            `INSERT INTO Notificacao (id_notificacao, lido, tipo_notificacao, texto_notificacao, id_usuario) 
-             VALUES (?, ?, ?, ?, ?)`,
-            [idNotificacaoNova, false, 'novo_post', textoAlerta, seguidor.id_usuario_seguidor]
-          );
+            await conexao.query(
+              `INSERT INTO Notificacao (id_notificacao, lido, tipo_notificacao, texto_notificacao, id_usuario) 
+               VALUES (?, ?, ?, ?, ?)`,
+              [idNotificacaoNova, false, 'novo_post', textoAlerta, seguidor.id_usuario_seguidor]
+            );
+          }
         }
-        console.log(`Notificações do sino disparadas com sucesso para ${seguidoresComSino.length} usuários!`);
       }
     } catch (erroSino) {
-      console.warn("Aviso: Falha no processamento secundário do sino:", erroSino.message);
+      console.error(erroSino)
     }
     await conexao.commit();
     return res.status(201).json({ mensagem: 'Postagem completa publicada com sucesso no IFchat!' });
+
   } catch (error) { 
     if (conexao) await conexao.rollback();
     console.error('Erro ao processar postagem complexa:', error);
     return res.status(500).json({ erro: 'Erro interno ao salvar dados da postagem.' });
   } finally {
-    if (conexao) conexao.release();
+    if (conexao) conexao.release(); 
   }
 });
 router.post('/comentarios/novo', async (req, res) => {
@@ -448,23 +480,25 @@ router.post('/comentarios/novo', async (req, res) => {
     return res.status(400).json({ erro: 'O conteúdo do comentário é obrigatório.' });
   }
 
-  let conexao = null;
   try {
-    conexao = await pool.getConnection();
     const idComentario = crypto.randomUUID();
-    await conexao.query(
+    await pool.query(
       `INSERT INTO Comentario (id_comentario, conteudo_comentario, id_usuario, id_postagem) 
        VALUES (?, ?, ?, ?)`,
       [idComentario, conteudo.trim(), idUsuario, idPostagem]
     );
-    const [autores] = await conexao.query(
+
+    const [autores] = await pool.query(
       'SELECT nome, username, foto_profile FROM Usuario WHERE id_usuario = ?',
       [idUsuario]
     );
-    if (!autores || autores.length === 0) {
+    const linhasAutores = autores || [];
+
+    if (linhasAutores.length === 0) {
       return res.status(404).json({ erro: 'Autor do comentário não encontrado.' });
     }
-    const autorReal = autores[0]; 
+    const autorReal = linhasAutores[0]; 
+
     const novoComentarioObjeto = {
       id_comentario: idComentario,
       id_postagem: idPostagem,
@@ -477,6 +511,7 @@ router.post('/comentarios/novo', async (req, res) => {
       total_dislikes: 0,
       meu_voto: null
     };
+
     const io = req.app.get('io');
     if (io) {
       io.emit('novo_comentario_recebido', novoComentarioObjeto);
@@ -486,8 +521,6 @@ router.post('/comentarios/novo', async (req, res) => {
   } catch (error) {
     console.error('ERRO CRÍTICO NO MYSQL AO SALVAR COMENTÁRIO:', error);
     return res.status(500).json({ erro: 'Erro interno no servidor ao processar comentário.' });
-  } finally {
-    if (conexao) conexao.release();
   }
 });
 router.get('/postagens/:idPostagem/comentarios', async (req, res) => {
@@ -495,9 +528,8 @@ router.get('/postagens/:idPostagem/comentarios', async (req, res) => {
   const meuIdLogado = req.query.meuId || '';
   const filtro = req.query.filtro || 'recente';
 
-  let conexao = null;
   try {
-    conexao = await pool.getConnection();
+    // 💡 AJUSTE DE AGRUPAMENTO: Todos os campos selecionados incluídos no GROUP BY para blindar contra o modo ONLY_FULL_GROUP_BY da nuvem
     let querySQL = `
       SELECT c.id_comentario, c.conteudo_comentario, c.data_comentario, c.id_usuario,
              u.nome, u.username, u.foto_profile,
@@ -507,28 +539,35 @@ router.get('/postagens/:idPostagem/comentarios', async (req, res) => {
       JOIN Usuario u ON c.id_usuario = u.id_usuario
       LEFT JOIN Interacao_Comentario ic ON c.id_comentario = ic.id_comentario
       WHERE c.id_postagem = ?
-      GROUP BY c.id_comentario, u.id_usuario
+      GROUP BY c.id_comentario, c.conteudo_comentario, c.data_comentario, c.id_usuario, u.nome, u.username, u.foto_profile
     `;
+    
     if (filtro === 'relevante') {
       querySQL += ` ORDER BY (total_likes - total_dislikes) DESC, c.data_comentario DESC`;
     } else {
       querySQL += ` ORDER BY c.data_comentario DESC`;
     }
 
-    const [comentarios] = await conexao.query(querySQL, [idPostagem]);
+    // 💡 ATALHO SEGURO: pool.query executa a busca e limpa o pool de conexões sozinho
+    const [comentarios] = await pool.query(querySQL, [idPostagem]);
     const listaFinalComentarios = [];
-    for (const c of comentarios) {
+
+    for (const c of (comentarios || [])) {
       let votoDoVisitante = null;
 
       if (meuIdLogado) {
-        const [votos] = await conexao.query(
+        const [votos] = await pool.query(
           'SELECT tipo_interacao FROM Interacao_Comentario WHERE id_usuario = ? AND id_comentario = ?',
           [meuIdLogado, c.id_comentario]
         );
-        if (votos.length > 0) {
-          votoDoVisitante = votos[0].tipo_interacao;
+        const linhasVotos = votos || [];
+        
+        // 🛡️ BLINDAGEM: Acessa a primeira posição de forma segura contra undefined
+        if (linhasVotos.length > 0 && linhasVotos[0]) {
+          votoDoVisitante = linhasVotos[0].tipo_interacao;
         }
       }
+      
       listaFinalComentarios.push({
         ...c,
         meu_voto: votoDoVisitante,
@@ -541,8 +580,6 @@ router.get('/postagens/:idPostagem/comentarios', async (req, res) => {
   } catch (error) {
     console.error('Erro ao buscar lista de comentários filtrada:', error);
     return res.status(500).json({ erro: 'Erro interno ao carregar discussões.' });
-  } finally {
-    if (conexao) conexao.release();
   }
 });
 router.post('/curtir/postagem', async (req, res) => {
@@ -552,43 +589,39 @@ router.post('/curtir/postagem', async (req, res) => {
     return res.status(400).json({ erro: 'Dados inválidos ao curtir' });
   }
 
-  let conexao = null;
-try {
-  conexao = await pool.getConnection();
-  const [registros] = await conexao.query(
-    `SELECT tipo_voto FROM Curtida WHERE id_usuario = ? AND id_postagem = ?`,
-    [idDoUsuario, idDaPostagem]
-  );
-
-  if (registros.length > 0) {
-    const votoAntigo = registros[0].tipo_voto; 
-
-    if (votoAntigo === tipoVoto) {
-      await conexao.query(
-        'DELETE FROM Curtida WHERE id_usuario = ? AND id_postagem = ?',
-        [idDoUsuario, idDaPostagem]
-      );
-      return res.json({ status: 'anulado', mensagem: 'Voto removido!', votoAtual: null });
-    } else {
-      await conexao.query(
-        'UPDATE Curtida SET tipo_voto = ? WHERE id_usuario = ? AND id_postagem = ?',
-        [tipoVoto, idDoUsuario, idDaPostagem]
-      );
-      return res.json({ status: 'invertido', mensagem: 'Voto atualizado!', votoAtual: tipoVoto });
-    }
-  } else {
-    await conexao.query(
-      'INSERT INTO Curtida (id_usuario, id_postagem, tipo_voto) VALUES (?, ?, ?)',
-      [idDoUsuario, idDaPostagem, tipoVoto]
+  try {
+    const [registros] = await pool.query(
+      `SELECT tipo_voto FROM Curtida WHERE id_usuario = ? AND id_postagem = ?`,
+      [idDoUsuario, idDaPostagem]
     );
-    return res.json({ status: 'computado', mensagem: 'Curtida salva!', votoAtual: tipoVoto });
-  }
-}
- catch(erro) {
+    const linhasRegistros = registros || [];
+
+    if (linhasRegistros.length > 0 && linhasRegistros[0]) {
+      const votoAntigo = linhasRegistros[0].tipo_voto; 
+
+      if (votoAntigo === tipoVoto) {
+        await pool.query(
+          'DELETE FROM Curtida WHERE id_usuario = ? AND id_postagem = ?',
+          [idDoUsuario, idDaPostagem]
+        );
+        return res.json({ status: 'anulado', mensagem: 'Voto removido!', votoAtual: null });
+      } else {
+        await pool.query(
+          'UPDATE Curtida SET tipo_voto = ? WHERE id_usuario = ? AND id_postagem = ?',
+          [tipoVoto, idDoUsuario, idDaPostagem]
+        );
+        return res.json({ status: 'invertido', message: 'Voto atualizado!', votoAtual: tipoVoto });
+      }
+    } else {
+      await pool.query(
+        'INSERT INTO Curtida (id_usuario, id_postagem, tipo_voto) VALUES (?, ?, ?)',
+        [idDoUsuario, idDaPostagem, tipoVoto]
+      );
+      return res.json({ status: 'computado', mensagem: 'Curtida salva!', votoAtual: tipoVoto });
+    }
+  } catch(erro) {
     console.error('Não foi possível curtir o post', erro);
     return res.status(500).json({ erro: 'Erro interno no banco.' });
-  } finally {
-    if (conexao) conexao.release();
   }
 });
 router.post('/postagens/comentarios/votar', async (req, res) => {
@@ -598,32 +631,31 @@ router.post('/postagens/comentarios/votar', async (req, res) => {
     return res.status(400).json({ erro: 'Dados inválidos fornecidos para votação.' });
   }
 
-  let conexao = null;
   try {
-    conexao = await pool.getConnection();
-    const [registros] = await conexao.query(
+    const [registros] = await pool.query(
       'SELECT tipo_interacao FROM Interacao_Comentario WHERE id_usuario = ? AND id_comentario = ?',
       [idUsuario, idComentario]
     );
+    const linhasVotosComentario = registros || [];
 
-    if (registros.length > 0) {
-      const votoSalvoAntigo = registros[0].tipo_interacao;
+    if (linhasVotosComentario.length > 0 && linhasVotosComentario[0]) {
+      const votoSalvoAntigo = linhasVotosComentario[0].tipo_interacao;
 
       if (votoSalvoAntigo === tipoVoto) {
-        await conexao.query(
+        await pool.query(
           'DELETE FROM Interacao_Comentario WHERE id_usuario = ? AND id_comentario = ?',
           [idUsuario, idComentario]
         );
         return res.json({ status: 'anulado', mensagem: 'Voto removido!', votoAtual: null });
       } else {
-        await conexao.query(
+        await pool.query(
           'UPDATE Interacao_Comentario SET tipo_interacao = ? WHERE id_usuario = ? AND id_comentario = ?',
           [tipoVoto, idUsuario, idComentario]
         );
         return res.json({ status: 'invertido', mensagem: 'Voto atualizado!', votoAtual: tipoVoto });
       }
     } else {
-      await conexao.query(
+      await pool.query(
         'INSERT INTO Interacao_Comentario (id_usuario, id_comentario, tipo_interacao) VALUES (?, ?, ?)',
         [idUsuario, idComentario, tipoVoto]
       );
@@ -633,8 +665,6 @@ router.post('/postagens/comentarios/votar', async (req, res) => {
   } catch (error) {
     console.error('Erro ao processar transação de voto em comentário:', error);
     return res.status(500).json({ erro: 'Erro interno ao salvar voto.' });
-  } finally {
-    if (conexao) conexao.release();
   }
 });
 
