@@ -382,7 +382,6 @@ router.post('/postagens/:id', upload.single('imagem_post'), async (req, res) => 
   let conexao = null;
 
   try {
-
     const { descricao, tipo } = req.body;
 
     conexao = await pool.getConnection();
@@ -396,8 +395,7 @@ router.post('/postagens/:id', upload.single('imagem_post'), async (req, res) => 
       `INSERT INTO Postagem (id_postagem, tipo, conteudo, id_usuario) VALUES (?, ?, ?, ?)`,
       [idPostagem, tipo, descricao, id]
     );
-
-    const arquivoEnviado = req.files && req.files.length > 0 ? req.files[0] : null;
+    const arquivoEnviado = req.file;
 
     if (arquivoEnviado) {
       const idMidia = crypto.randomUUID();
@@ -406,7 +404,7 @@ router.post('/postagens/:id', upload.single('imagem_post'), async (req, res) => 
       const dominioAtual = `${protocolo}://${req.headers.host}`;
       const urlImagemPost = `${dominioAtual}/imagens/${arquivoEnviado.filename}`;
 
-      await pool.query(
+      await conexao.query(
         `INSERT INTO Midia_Postagem (id_midia, imagem_anexada, id_postagem) VALUES (?, ?, ?)`,
         [idMidia, urlImagemPost, idPostagem]
       );
@@ -434,13 +432,14 @@ router.post('/postagens/:id', upload.single('imagem_post'), async (req, res) => 
             try {
               await conexao.query(`INSERT INTO Postagem_Tag (id_postagem, id_tag) VALUES (?, ?)`, [idPostagem, idTagReal]);
             } catch (errTagIntermediaria) {
-              console.error(errTagIntermediaria)
+              console.error(errTagIntermediaria);
             }
         } else {
           console.warn(`Aviso: A tag "${tagLimpa}" não foi encontrada na tabela global Tag.`);
         }
       }
     }
+
     try {
       const [seguidoresComSino] = await conexao.query(
         'SELECT id_usuario_seguidor FROM notificacao_ativada WHERE id_usuario_criador = ?',
@@ -463,8 +462,9 @@ router.post('/postagens/:id', upload.single('imagem_post'), async (req, res) => 
         }
       }
     } catch (erroSino) {
-      console.error(erroSino)
+      console.error(erroSino);
     }
+
     await conexao.commit();
     return res.status(201).json({ mensagem: 'Postagem completa publicada com sucesso no IFchat!' });
 
