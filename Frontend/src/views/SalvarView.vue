@@ -219,7 +219,7 @@ onMounted(() => {
             <p class="texto-postagem-conteudo-reaproveitado">{{ post.conteudo }}</p>
             <div v-if="post.imagem" class="container-imagem-anexada-salvos">
               <img
-                :src="`http://localhost:3000${post.imagem}`"
+                :src="post.imagem"
                 alt="Imagem do post"
                 class="img-post-salvamento-midia"
               >

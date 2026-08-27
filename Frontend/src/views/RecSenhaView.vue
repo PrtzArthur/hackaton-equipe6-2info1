@@ -20,7 +20,7 @@ async function enviarLinkDeRecuperacao() {
   carregando.value = true;
 
   try {
-    const resposta = await fetch('http://localhost:3000/api/usuario/recuperar-senha', {
+    const resposta = await fetch(`${import.meta.env.VITE_API_URL}/api/usuario/recuperar-senha`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: email.value })

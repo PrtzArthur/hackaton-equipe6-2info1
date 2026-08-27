@@ -286,7 +286,7 @@ onUnmounted(() => {
                 Mensagem apagada
               </p>
               <div v-else-if="msg.texto.startsWith('/imagens/')" class="container-imagem-chat-balao">
-                <img :src="`http://localhost:3000${msg.texto}`" alt="Imagem enviada" class="img-enviada-chat-midia">
+                <img :src="msg.texto" alt="Imagem enviada" class="img-enviada-chat-midia">
               </div>
               <p v-else>{{ msg.texto }}</p>
 
