@@ -35,6 +35,62 @@ app.set('io', io);
 
 io.on('connection', (socket) => {
   console.log(`Usuário conectado ao WebSocket: ${socket.id}`);
+
+  socket.on('entrar_no_chat', (idUsuarioLogado) => {
+    if (idUsuarioLogado) {
+      socket.join(idUsuarioLogado);
+      console.log(`Aluno ${idUsuarioLogado} entrou em sua sala privada de escuta.`);
+    }
+  });
+
+  socket.on('enviar_mensagem_privada', async (data) => {
+    const mensagemTexto = data.texto || data.conteudo_mensagem;
+    const { id_remetente, id_destinatario } = data;
+
+    if (!mensagemTexto || !id_remetente || !id_destinatario) return;
+
+    try {
+      const id_mensagem = String(Date.now() + Math.round(Math.random() * 1000));
+
+      await pool.query(
+        `INSERT INTO Mensagem (id_mensagem, conteudo_mensagem, id_remetente, id_destinatario) 
+         VALUES (?, ?, ?, ?)`,
+        [id_mensagem, mensagemTexto.trim(), id_remetente, id_destinatario]
+      );
+
+      const objetoMensagemTransmitida = {
+        id_mensagem,
+        id_remetente,
+        id_destinatario,
+        texto: mensagemTexto.trim(),
+        conteudo_mensagem: mensagemTexto.trim(),
+        data: new Date()
+      };
+      io.to(id_remetente).to(id_destinatario).emit('receber_mensagem_privada', objetoMensagemTransmitida);
+
+    } catch (errSocket) {
+      console.error('Falha ao processar streaming do chat no MySQL:', errSocket.message);
+    }
+  });
+  socket.on('aluno_digitando', (dados) => {
+    if (dados.id_destinatario) {
+      io.to(dados.id_destinatario).emit('aluno_esta_digitando', { id_remetente: dados.id_remetente });
+    }
+  });
+  socket.on('aluno_parou_digitando', (dados) => {
+    if (dados.id_destinatario) {
+      io.to(dados.id_destinatario).emit('aluno_parou_de_digitando', { id_remetente: dados.id_remetente });
+    }
+  });
+  socket.on('apagar_mensagem_realtime', (dados) => {
+    if (dados.id_destinatario) {
+      io.to(dados.id_destinatario).emit('mensagem_foi_apagada', { id_mensagem: dados.id_mensagem });
+    }
+  });
+
+  socket.on('disconnect', () => {
+    console.log(`Usuário desconectado do WebSocket: ${socket.id}`);
+  });
 });
 
 async function inicializarBancoDeDados() {
