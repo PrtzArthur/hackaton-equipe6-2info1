@@ -14,7 +14,8 @@ const pool = mysql.createPool({
   queueLimit: 0,
   ssl: {
     rejectUnauthorized: false
-  }
+  },
+  maxAllowedPacket: 67108864
 });
 
 pool.getConnection()
