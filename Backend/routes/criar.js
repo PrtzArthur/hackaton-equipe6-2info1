@@ -1,22 +1,8 @@
 import express from 'express';
 import pool from '../database.js';
 import crypto from 'crypto';
-import multer from 'multer';
-import path from 'path';   
-import fs from 'fs';
 
 const router = express.Router();
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, path.resolve('./uploads')); 
-  },
-  filename: (req, file, cb) => {
-    const sufixoUnico = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    cb(null, file.fieldname + '-' + sufixoUnico + path.extname(file.originalname));
-  }
-});
-const upload = multer({ storage: storage });
 
 router.get('/feed/global', async (req, res) => {
   const meuIdLogado = req.query.meuId || '';
@@ -340,40 +326,30 @@ router.delete('/comentarios/deletar/:idComentario', async (req, res) => {
     return res.status(500).json({ erro: 'Erro interno ao remover comentário.' });
   }
 });
-router.post('/postagens/:id', upload.single('imagem_post'), async (req, res) => {
+router.post('/postagens/:id', async (req, res) => {
   const { id } = req.params;
   let conexao = null;
 
   try {
-    const { descricao, tipo } = req.body;
+    const { descricao, tipo, opcoes, tags, imagem_base64 } = req.body;
 
     conexao = await pool.getConnection();
     await conexao.beginTransaction();
     
-    const opcoes = req.body.opcoes ? JSON.parse(req.body.opcoes) : [];
-    const tags = req.body.tags ? JSON.parse(req.body.tags) : [];
     const idPostagem = crypto.randomUUID();
 
     await conexao.query(
       `INSERT INTO Postagem (id_postagem, tipo, conteudo, id_usuario) VALUES (?, ?, ?, ?)`,
       [idPostagem, tipo, descricao, id]
     );
-
-    const arquivoEnviado = req.file;
-
-    if (arquivoEnviado) {
+    if (imagem_base64) {
       const idMidia = crypto.randomUUID();
-      const dadosArquivo = fs.readFileSync(arquivoEnviado.path);
-      const imagemBase64 = `data:${arquivoEnviado.mimetype};base64,${dadosArquivo.toString('base64')}`;
-
       await conexao.query(
         `INSERT INTO Midia_Postagem (id_midia, imagem_anexada, id_postagem) VALUES (?, ?, ?)`,
-        [idMidia, imagemBase64, idPostagem]
+        [idMidia, imagem_base64, idPostagem]
       );
-      fs.unlinkSync(arquivoEnviado.path);
     }
-
-    if (tipo === 'postagemComEnquete' && opcoes.length >= 2) {
+    if (tipo === 'postagemComEnquete' && opcoes && opcoes.length >= 2) {
       for (const textoOpcao of opcoes) {
         const idOpcao = crypto.randomUUID();
         await conexao.query(
@@ -388,17 +364,17 @@ router.post('/postagens/:id', upload.single('imagem_post'), async (req, res) => 
         const tagLimpa = nomeTag.replace('#','').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
         const [linhasBanco] = await conexao.query(`SELECT id_tag FROM Tag WHERE nome_tag = ?`, [tagLimpa]);
         const dadosTag = linhasBanco || [];
+        
         if (dadosTag.length > 0) {
             const idTagReal = dadosTag[0].id_tag;
             try {
-              await conexao.query(`INSERT INTO Postagem_Tag (id_postagem, id_tag) VALUES (?, ?)`, [idPostagem, idTagReal]);
+              await conexao.query(`INSERT INTO postagem_tag (id_postagem, id_tag) VALUES (?, ?)`, [idPostagem, idTagReal]);
             } catch (errTagIntermediaria) {
               console.error(errTagIntermediaria);
             }
         }
       }
     }
-
     await conexao.commit();
     return res.status(201).json({ mensagem: 'Postagem completa publicada com sucesso no IFchat!' });
 

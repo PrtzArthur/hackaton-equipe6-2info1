@@ -169,11 +169,60 @@ function mostrarTelaConfiguracao() {
   telaConfig.value = !telaConfig.value;
   telaExibicao.value = !telaExibicao.value;
 }
-function capturarFoto(event) {
-  arquivoFoto.value = event.target.files[0];
+function comprimirImagemParaBase64(arquivo, larguraMaxima = 400, qualidade = 0.6) {
+  return new Promise((resolve, reject) => {
+    const leitor = new FileReader();
+    leitor.readAsDataURL(arquivo);
+    leitor.onload = (evento) => {
+      const img = new Image();
+      img.src = evento.target.result;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let largura = img.width;
+        let altura = img.height;
+
+        if (largura > larguraMaxima) {
+          altura = Math.round((altura * larguraMaxima) / largura);
+          largura = larguraMaxima;
+        }
+
+        canvas.width = largura;
+        canvas.height = altura;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, largura, altura);
+
+        const base64Comprimido = canvas.toDataURL('image/jpeg', qualidade);
+        resolve(base64Comprimido);
+      };
+      img.onerror = (err) => reject(err);
+    };
+    leitor.onerror = (err) => reject(err);
+  });
 }
-function capturarBanner(event) {
-  arquivoBanner.value = event.target.files[0];
+async function capturarFoto(event) {
+  const arquivo = event.target.files[0];
+  if (arquivo) {
+    try {
+      arquivoFoto.value = await comprimirImagemParaBase64(arquivo, 200, 0.6);
+      toast.success("Foto de perfil selecionada e processada!");
+    } catch (e) {
+      console.error("Erro ao converter foto", e);
+      toast.error("Erro ao processar imagem.");
+    }
+  }
+}
+
+async function capturarBanner(event) {
+  const arquivo = event.target.files[0];
+  if (arquivo) {
+    try {
+      arquivoBanner.value = await comprimirImagemParaBase64(arquivo, 600, 0.6);
+      toast.success("Banner selecionado e processado!");
+    } catch (e) {
+      console.error("Erro ao converter banner", e);
+      toast.error("Erro ao processar imagem do banner.");
+    }
+  }
 }
 
 const biografiaEdit = ref('');
@@ -403,11 +452,10 @@ const edicaoDosDados = async () => {
     showWarningNome.value = false;
     try {
       const listaDeTagsPuras = [...tagsDoUsuario.value];
-
       const resposta = await fetch(`${import.meta.env.VITE_API_URL}/api/usuario/perfil/${idAtualDaBarra}`, {
         method: 'PUT',
         headers: {
-          'content-Type' : 'application/json'
+          'Content-Type' : 'application/json'
         },
         body: JSON.stringify({
           nome: nomeEdit.value,
@@ -424,27 +472,33 @@ const edicaoDosDados = async () => {
         return;
       }
       if (arquivoFoto.value || arquivoBanner.value || removerFotoMarcada.value || removerBannerMarcado.value) {
-        const dadosMidia = new FormData();
-
-        if (arquivoFoto.value && !removerFotoMarcada.value) dadosMidia.append('foto', arquivoFoto.value);
-        if (arquivoBanner.value && !removerBannerMarcado.value) dadosMidia.append('banner', arquivoBanner.value);
-
-        dadosMidia.append('removerFoto', removerFotoMarcada.value);
-        dadosMidia.append('removerBanner', removerBannerMarcado.value);
+        const payloadMidia = {
+          removerFoto: String(removerFotoMarcada.value),
+          removerBanner: String(removerBannerMarcado.value),
+          foto: !removerFotoMarcada.value ? arquivoFoto.value : null,
+          banner: !removerBannerMarcado.value ? arquivoBanner.value : null
+        };
 
         const respostaMidia = await fetch(`${import.meta.env.VITE_API_URL}/api/usuario/perfil/${idAtualDaBarra}/midias`, {
           method: 'PUT',
-          body: dadosMidia
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payloadMidia)
         });
+
         const resultadoMidia = await respostaMidia.json();
 
         if (respostaMidia.ok) {
           fotoPerfil.value = resultadoMidia.foto_profile || '';
           bannerUrl.value = resultadoMidia.banner_fundo || '';
+
+          if (idAtualDaBarra === meuIdLogado.value) {
+            localStorage.setItem('ifchat_user_foto', resultadoMidia.foto_profile || '');
+          }
         } else {
           toast.error(resultadoMidia.erro || "Erro ao processar imagens.");
         }
       }
+
       nomeUsuario.value = nomeEdit.value;
       biografia.value = biografiaEdit.value;
       localizacao.value = localizacaoEdit.value;

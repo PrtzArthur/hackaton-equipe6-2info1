@@ -46,15 +46,15 @@ function adicionarOpcaoEnquete() {
   } else {
     toast.warning("Você só pode adicionar até 5 opções na enquete.");
   }
-};
+}
 function removerOpcaoEnquete(index) {
   if (opcoesEnquete.value.length > 2) {
     opcoesEnquete.value.splice(index, 1);
   }
-};
+}
 function deletarTag(index) {
   tagsDaPostagem.value.splice(index, 1)
-};
+}
 const arquivoImagemPost = ref(null);
 
 function moverTagParaListaUsuario(tagUniversal) {
@@ -64,12 +64,50 @@ function moverTagParaListaUsuario(tagUniversal) {
     console.log('Esta tag já existe.')
   }
 }
-function capturarImagemPost(event) {
-  arquivoImagemPost.value = event.target.files;
+function comprimirImagemParaBase64(arquivo, larguraMaxima = 600, qualidade = 0.7) {
+  return new Promise((resolve, reject) => {
+    const leitor = new FileReader();
+    leitor.readAsDataURL(arquivo);
+    leitor.onload = (evento) => {
+      const img = new Image();
+      img.src = evento.target.result;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let largura = img.width;
+        let altura = img.height;
+
+        if (largura > larguraMaxima) {
+          altura = Math.round((altura * larguraMaxima) / largura);
+          largura = larguraMaxima;
+        }
+
+        canvas.width = largura;
+        canvas.height = altura;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, largura, altura);
+
+        const base64Comprimido = canvas.toDataURL('image/jpeg', qualidade);
+        resolve(base64Comprimido);
+      };
+      img.onerror = (err) => reject(err);
+    };
+    leitor.onerror = (err) => reject(err);
+  });
+}
+async function capturarImagemPost(event) {
+  const arquivos = event.target.files;
+  if (arquivos && arquivos.length > 0) {
+    try {
+      arquivoImagemPost.value = await comprimirImagemParaBase64(arquivos[0]);
+      console.log("✅ Imagem do post comprimida e convertida para Base64!");
+    } catch (e) {
+      console.error("Erro ao converter imagem", e);
+      toast.error("Erro ao processar imagem selecionada.");
+    }
+  }
 }
 
 const descricaoDaPostagem = ref('');
-
 const enviarPost = async () => {
   const idUsuarioDaURL = route.params.id;
 
@@ -80,21 +118,18 @@ const enviarPost = async () => {
   const tipoPostagem = opcoesValidas.length >= 2 ? 'postagemComEnquete' : 'postagemComum';
 
   try {
-    const formDataCompleto = new FormData();
-
-    formDataCompleto.append('descricao', descricaoDaPostagem.value.trim());
-    formDataCompleto.append('tipo', tipoPostagem);
-
-    formDataCompleto.append('opcoes', JSON.stringify(opcoesValidas));
-    formDataCompleto.append('tags', JSON.stringify(tagsDaPostagem.value));
-
-    if (arquivoImagemPost.value && arquivoImagemPost.value.length > 0) {
-      formDataCompleto.append('imagem_post', arquivoImagemPost.value[0]);
-    }
+    const payloadPostagem = {
+      descricao: descricaoDaPostagem.value.trim(),
+      tipo: tipoPostagem,
+      opcoes: opcoesValidas,
+      tags: tagsDaPostagem.value,
+      imagem_base64: arquivoImagemPost.value
+    };
 
     const resposta = await fetch(`${import.meta.env.VITE_API_URL}/api/criar/postagens/${idUsuarioDaURL}`, {
       method: 'POST',
-      body: formDataCompleto
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payloadPostagem)
     });
 
     const dados = await resposta.json();
@@ -108,6 +143,7 @@ const enviarPost = async () => {
 
   } catch(erro) {
     console.error('Não foi possível fazer a postagem.', erro);
+    toast.error("Falha na comunicação com o servidor.");
   }
 };
 </script>

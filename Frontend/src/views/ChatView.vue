@@ -41,6 +41,37 @@ async function rolarChatParaBaixo() {
   }
 }
 
+function comprimirImagemParaBase64(arquivo, larguraMaxima = 500, qualidade = 0.6) {
+  return new Promise((resolve, reject) => {
+    const leitor = new FileReader();
+    leitor.readAsDataURL(arquivo);
+    leitor.onload = (evento) => {
+      const img = new Image();
+      img.src = evento.target.result;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let largura = img.width;
+        let altura = img.height;
+
+        if (largura > larguraMaxima) {
+          altura = Math.round((altura * larguraMaxima) / largura);
+          largura = larguraMaxima;
+        }
+
+        canvas.width = largura;
+        canvas.height = altura;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, largura, altura);
+
+        const base64Comprimido = canvas.toDataURL('image/jpeg', qualidade);
+        resolve(base64Comprimido);
+      };
+      img.onerror = (err) => reject(err);
+    };
+    leitor.onerror = (err) => reject(err);
+  });
+}
+
 async function carregarListaConversas() {
   try {
     const r = await fetch(`${import.meta.env.VITE_API_URL}/api/chat/conversas?meuId=${meuIdLogado.value}`);
@@ -106,25 +137,16 @@ async function processarEnvioDeImagemDoChat(evento) {
   const arquivo = evento.target.files[0];
   if (!arquivo || !conversaAtiva.value) return;
 
-  const formDataEnviada = new FormData();
-  formDataEnviada.append('imagemChat', arquivo);
-
   try {
-    const resposta = await fetch(`${import.meta.env.VITE_API_URL}/api/chat/upload-imagem`, {
-      method: 'POST',
-      body: formDataEnviada
+    const base64Leve = await comprimirImagemParaBase64(arquivo);
+    socket.emit('enviar_mensagem_privada', {
+      id_remetente: meuIdLogado.value,
+      id_destinatario: conversaAtiva.value.id_usuario,
+      texto: base64Leve
     });
 
-    if (resposta.ok) {
-      const dadosRetorno = await resposta.json();
-      socket.emit('enviar_mensagem_privada', {
-        id_remetente: meuIdLogado.value,
-        id_destinatario: conversaAtiva.value.id_usuario,
-        texto: dadosRetorno.urlImagem
-      });
-    }
   } catch (erro) {
-    console.error("Erro ao fazer upload da imagem no chat:", erro);
+    console.error("Erro ao comprimir ou enviar imagem pelo WebSocket:", erro);
   }
 }
 
@@ -175,6 +197,8 @@ onMounted(() => {
   if (meuIdLogado.value) { socket.emit('entrar_no_chat', meuIdLogado.value); }
 
   socket.on('receber_mensagem_privada', (novaMsg) => {
+    const textoFinal = novaMsg.texto || novaMsg.conteudo_mensagem;
+
     if (
       (novaMsg.id_remetente === meuIdLogado.value && novaMsg.id_destinatario === conversaAtiva.value?.id_usuario) ||
       (novaMsg.id_remetente === conversaAtiva.value?.id_usuario && novaMsg.id_destinatario === meuIdLogado.value)
@@ -183,7 +207,7 @@ onMounted(() => {
         id_mensagem: novaMsg.id_mensagem,
         id_remetente: novaMsg.id_remetente,
         id_destinatario: novaMsg.id_destinatario,
-        texto: novaMsg.texto,
+        texto: textoFinal,
         data: novaMsg.data
       });
       rolarChatParaBaixo();
@@ -200,7 +224,6 @@ onMounted(() => {
     const index = listaConversas.value.findIndex(c => c.id_usuario === dados.id_remetente);
     if (index !== -1) { listaConversas.value[index] = { ...listaConversas.value[index], digitando: true }; }
   });
-
   socket.on('aluno_parou_de_digitando', (dados) => {
     const index = listaConversas.value.findIndex(c => c.id_usuario === dados.id_remetente);
     if (index !== -1) { listaConversas.value[index] = { ...listaConversas.value[index], digitando: false }; }
