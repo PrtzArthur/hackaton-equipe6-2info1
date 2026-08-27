@@ -544,8 +544,8 @@ const carregarDadosDoPerfil = async () => {
       statusOnline.value = dadosPerfil.status_online;
       biografia.value = dadosPerfil.biografia;
       localizacao.value = dadosPerfil.localizacao;
-      fotoPerfil.value = dadosPerfil.foto_profile || '';
-      bannerUrl.value = dadosPerfil.banner_fundo || '';
+      fotoPerfil.value = dadosPerfil.foto_profile ? dadosPerfil.foto_profile.trim() : '';
+      bannerUrl.value = dadosPerfil.banner_fundo ? dadosPerfil.banner_fundo.trim() : '';
       tagsDoUsuario.value = dadosPerfil.tags || [];
       seguidoresUsuario.value = dadosPerfil.seguidores || 0;
       usiarioSeguindo.value = dadosPerfil.seguindo || 0;
