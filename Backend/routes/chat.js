@@ -283,10 +283,6 @@ router.get('/posts-da-lista/:idLista', async (req, res) => {
     return res.status(500).json({ erro: 'Erro interno ao processar agregados do feed.' });
   }
 });
-
-
-
-
 router.delete('/remover-post-salvo', async (req, res) => {
   const { id_lista, id_postagem } = req.body;
   try {

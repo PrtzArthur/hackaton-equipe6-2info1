@@ -337,47 +337,52 @@ router.post('/postagens/:id', async (req, res) => {
     await conexao.beginTransaction();
     
     const idPostagem = crypto.randomUUID();
-
     await conexao.query(
       `INSERT INTO Postagem (id_postagem, tipo, conteudo, id_usuario) VALUES (?, ?, ?, ?)`,
       [idPostagem, tipo, descricao, id]
     );
-    if (imagem_base64) {
+    if (imagem_base64 && imagem_base64.trim() !== '') {
       const idMidia = crypto.randomUUID();
       await conexao.query(
         `INSERT INTO Midia_Postagem (id_midia, imagem_anexada, id_postagem) VALUES (?, ?, ?)`,
-        [idMidia, imagem_base64, idPostagem]
+        [idMidia, imagem_base64.trim(), idPostagem]
       );
     }
-    if (tipo === 'postagemComEnquete' && opcoes && opcoes.length >= 2) {
-      for (const textoOpcao of opcoes) {
-        const idOpcao = crypto.randomUUID();
-        await conexao.query(
-          `INSERT INTO Opcao_enquete (id_opcao, texto_opcao, id_postagem) VALUES (?, ?, ?)`,
-          [idOpcao, textoOpcao, idPostagem]
-        );
+    if (tipo === 'postagemComEnquete' && opcoes) {
+      const listaOpcoes = Array.isArray(opcoes) ? opcoes : JSON.parse(opcoes || '[]');
+      
+      for (const textoOpcao of listaOpcoes) {
+        if (textoOpcao && textoOpcao.trim() !== '') {
+          const idOpcao = crypto.randomUUID();
+          await conexao.query(
+            `INSERT INTO Opcao_enquete (id_opcao, texto_opcao, id_postagem) VALUES (?, ?, ?)`,
+            [idOpcao, textoOpcao.trim(), idPostagem]
+          );
+        }
       }
     }
-
-    if (tags && tags.length > 0) {
-      for (const nomeTag of tags) {
-        const tagLimpa = nomeTag.replace('#','').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-        const [linhasBanco] = await conexao.query(`SELECT id_tag FROM Tag WHERE nome_tag = ?`, [tagLimpa]);
-        const dadosTag = linhasBanco || [];
-        
-        if (dadosTag.length > 0) {
-            const idTagReal = dadosTag[0].id_tag;
-            try {
-              await conexao.query(`INSERT INTO postagem_tag (id_postagem, id_tag) VALUES (?, ?)`, [idPostagem, idTagReal]);
-            } catch (errTagIntermediaria) {
-              console.error(errTagIntermediaria);
-            }
+    if (tags) {
+      const listaTags = Array.isArray(tags) ? tags : JSON.parse(tags || '[]');
+      
+      for (const nomeTag of listaTags) {
+        if (nomeTag && nomeTag.trim() !== '') {
+          const tagLimpa = nomeTag.replace('#','').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+          const [linhasBanco] = await conexao.query(`SELECT id_tag FROM Tag WHERE nome_tag = ?`, [tagLimpa]);
+          const dadosTag = linhasBanco || [];
+          
+          if (dadosTag.length > 0 && dadosTag[0]) {
+              const idTagReal = dadosTag[0].id_tag;
+              try {
+                await conexao.query(`INSERT INTO postagem_tag (id_postagem, id_tag) VALUES (?, ?)`, [idPostagem, idTagReal]);
+              } catch (errTagIntermediaria) {
+                console.error(errTagIntermediaria)
+              }
+          }
         }
       }
     }
     await conexao.commit();
     return res.status(201).json({ mensagem: 'Postagem completa publicada com sucesso no IFchat!' });
-
   } catch (error) { 
     if (conexao) await conexao.rollback();
     console.error('Erro ao processar postagem complexa:', error);

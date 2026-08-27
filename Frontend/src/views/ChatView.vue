@@ -302,7 +302,10 @@ onUnmounted(() => {
             ]"
             @dblclick="tratarDuploCliqueNaMensagem(msg)">
             <div v-if="msg.id_remetente !== meuIdLogado && msg.texto !== 'Mensagem apagada'" class="wrapper-avatar-mensagem-outro">
-              <img :src="conversaAtiva.foto_profile || '/icons/userBlackFull.svg'" alt="Avatar" class="avatar-mural-mini-chat">
+              <img
+                :src="conversaAtiva && conversaAtiva.foto_profile && conversaAtiva.foto_profile.startsWith('data:') ? conversaAtiva.foto_profile : '/icons/userBlackFull.svg'"
+                alt="Avatar"
+                class="avatar-mural-mini-chat">
             </div>
             <div class="corpo-balao-conteudo">
               <p v-if="msg.texto === 'Mensagem apagada'" class="texto-mensagem-deletada">

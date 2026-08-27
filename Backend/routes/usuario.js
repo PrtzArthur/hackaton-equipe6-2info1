@@ -1,26 +1,8 @@
 import express from 'express';
 import pool from '../database.js';
-import multer from 'multer';
-import path from 'path';
-import fs from 'fs';
 import crypto from 'crypto';
 
 const router = express.Router();
-
-async function verificarConteudoImagem() {
-  return { seguro: true };
-}
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, path.resolve('./uploads')); 
-  },
-  filename: (req, file, cb) => {
-    const sufixoUnico = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    cb(null, file.fieldname + '-' + sufixoUnico + path.extname(file.originalname));
-  }
-});
-const upload = multer({ storage: storage });
 
 router.post('/logout', async (req, res) => {
   const { idUsuario } = req.body;
@@ -179,58 +161,33 @@ router.delete('/perfil/mural/deletar/:idComentario', async (req, res) => {
     return res.status(500).json({ erro: 'Erro interno ao processar exclusão.' });
   }
 });
-router.put('/perfil/:id/midias', upload.fields([{ name: 'foto', maxCount: 1 }, { name: 'banner', maxCount: 1 }]), async (req, res) => {
+router.put('/perfil/:id/midias', async (req, res) => {
   const { id } = req.params;
   
   try {
-    const removerFoto = req.body.removerFoto === 'true';
-    const removerBanner = req.body.removerBanner === 'true';
-
-    const arquivosRecebidos = req.files || {};
-    const fotoEnviada = arquivosRecebidos['foto'] ? arquivosRecebidos['foto'][0] : null;
-    const bannerEnviado = arquivosRecebidos['banner'] ? arquivosRecebidos['banner'][0] : null;
-
-    if (fotoEnviada) {
-      const checagemFoto = await verificarConteudoImagem();
-      if (!checagemFoto.seguro) {
-        fs.unlinkSync(fotoEnviada.path); 
-        return res.status(400).json({ erro: `Foto de perfil recusada: ${checagemFoto.motivo}` });
-      }
-    }
-    if (bannerEnviado) {
-      const checagemBanner = await verificarConteudoImagem();
-      if (!checagemBanner.seguro) {
-        fs.unlinkSync(bannerEnviado.path);
-        return res.status(400).json({ erro: `Banner recusado: ${checagemBanner.motivo}` });
-      }
-    }
+    const removerFoto = req.body.removerFoto === 'true' || req.body.removerFoto === true;
+    const removerBanner = req.body.removerBanner === 'true' || req.body.removerBanner === true;
+    const fotoEnviadaBase64 = req.body.foto;
+    const bannerEnviadoBase64 = req.body.banner;
 
     const [resultados] = await pool.query('SELECT foto_profile, banner_fundo FROM Usuario WHERE id_usuario = ?', [id]);
     const linhasResultados = resultados || [];
 
     if (linhasResultados.length === 0) {
-      if (fotoEnviada) fs.unlinkSync(fotoEnviada.path);
-      if (bannerEnviado) fs.unlinkSync(bannerEnviado.path);
       return res.status(404).json({ erro: 'Usuário não encontrado.' });
     }
 
     let urlFoto = linhasResultados[0]?.foto_profile;
     let urlBanner = linhasResultados[0]?.banner_fundo;
-
     if (removerFoto) {
       urlFoto = null; 
-    } else if (fotoEnviada) {
-      const dadosFoto = fs.readFileSync(fotoEnviada.path);
-      urlFoto = `data:${fotoEnviada.mimetype};base64,${dadosFoto.toString('base64')}`;
-      fs.unlinkSync(fotoEnviada.path); 
+    } else if (fotoEnviadaBase64 && fotoEnviadaBase64.trim() !== '') {
+      urlFoto = fotoEnviadaBase64.trim();
     }
-
     if (removerBanner) {
       urlBanner = null;
-    } else if (bannerEnviado) {
-      const dadosBanner = fs.readFileSync(bannerEnviado.path);
-      urlBanner = `data:${bannerEnviado.mimetype};base64,${dadosBanner.toString('base64')}`;
-      fs.unlinkSync(bannerEnviado.path); 
+    } else if (bannerEnviadoBase64 && bannerEnviadoBase64.trim() !== '') {
+      urlBanner = bannerEnviadoBase64.trim();
     }
     await pool.query(
       'UPDATE Usuario SET foto_profile = ?, banner_fundo = ? WHERE id_usuario = ?',
@@ -278,14 +235,14 @@ router.get('/perfil/:id', async (req, res) => {
       [idPerfilVisitado]
     );
     const linhasSeguidores = resultadoSeguidores || [];
-    const totalVotosSeguidores = linhasSeguidores.length > 0 ? (linhasSeguidores.total || 0) : 0;
+    const totalVotosSeguidores = linhasSeguidores.length > 0 && linhasSeguidores[0] ? (linhasSeguidores[0].total || 0) : 0;
 
     const [resultadoSeguindo] = await pool.query(
       'SELECT COUNT(*) as total FROM seguidores WHERE id_seguidor = ?', 
       [idPerfilVisitado]
     );
     const linhasSeguindo = resultadoSeguindo || [];
-    const totalVotosSeguindo = linhasSeguindo.length > 0 ? (linhasSeguindo.total || 0) : 0;
+    const totalVotosSeguindo = linhasSeguindo.length > 0 && linhasSeguindo[0] ? (linhasSeguindo[0].total || 0) : 0;
 
     let jaSegue = false;
     if (meuIdLogado && meuIdLogado !== idPerfilVisitado) {
@@ -321,6 +278,7 @@ router.get('/perfil/:id', async (req, res) => {
        console.error('Tabela de notificações do sino não processada:', erro.message);
       }
     }
+
     return res.json({
       id_usuario: usuarioTarget.id_usuario,
       nome: usuarioTarget.nome,
@@ -338,6 +296,7 @@ router.get('/perfil/:id', async (req, res) => {
       jaSino: jaAtivouSino,
       usuarioBloqueado: euBloqueei
     });
+
   } catch (error) {
     console.error('Erro ao carregar cabeçalho do perfil:', error);
     return res.status(500).json({ erro: 'Erro interno ao processar dados do perfil.' });
