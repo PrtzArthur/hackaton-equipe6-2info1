@@ -397,13 +397,16 @@ router.post('/postagens/:id', upload.single('imagem_post'), async (req, res) => 
       [idPostagem, tipo, descricao, id]
     );
 
-    if (req.file) {
+    const arquivoEnviado = req.files && req.files.length > 0 ? req.files[0] : null;
+
+    if (arquivoEnviado) {
       const idMidia = crypto.randomUUID();
+      
       const protocolo = req.secure || req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
       const dominioAtual = `${protocolo}://${req.headers.host}`;
-      const urlImagemPost = `${dominioAtual}/imagens/${req.file.filename}`;
+      const urlImagemPost = `${dominioAtual}/imagens/${arquivoEnviado.filename}`;
 
-      await conexao.query(
+      await pool.query(
         `INSERT INTO Midia_Postagem (id_midia, imagem_anexada, id_postagem) VALUES (?, ?, ?)`,
         [idMidia, urlImagemPost, idPostagem]
       );
