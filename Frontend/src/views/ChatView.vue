@@ -531,6 +531,10 @@ onUnmounted(() => {
   filter: invert(1);
   transition: filter 0.3s ease;
 }
+[data-theme="dark"] .img-perfil-chat {
+  filter: invert(1);
+  transition: filter 0.3s ease;
+}
 main {
   height: 100vh;
   flex-grow: 1;
