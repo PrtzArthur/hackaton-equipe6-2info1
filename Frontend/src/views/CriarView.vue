@@ -78,12 +78,6 @@ const nomeDaComunidade = ref('');
 const descricaoDaComunidade = ref('');
 const tagsDaComunidade = ref([]);
 const mostrarPainelTagsComunidade = ref(false);
-const arquivoBannerComunidade = ref(null);
-
-function capturarBannerComunidade(event) {
-  arquivoBannerComunidade.value = event.target.files;
-}
-
 
 function adicionarNovasTagsComunidade() {
   mostrarPainelTagsComunidade.value = !mostrarPainelTagsComunidade.value;
@@ -111,30 +105,28 @@ const enviarComunidade = async () => {
     toast.error("Usuário não identificado. Faça login novamente.");
     return;
   }
-
+  if (!nomeDaComunidade.value.trim() || !descricaoDaComunidade.value.trim()) {
+    toast.warning("Nome e descrição da comunidade são obrigatórios.");
+    return;
+  }
   try {
-    const formDataComunidade = new FormData();
-
-    formDataComunidade.append('nome', nomeDaComunidade.value.trim());
-    formDataComunidade.append('descricao', descricaoDaComunidade.value.trim());
-    formDataComunidade.append('tags', JSON.stringify(tagsDaComunidade.value));
-    if (arquivoBannerComunidade.value && arquivoBannerComunidade.value.length > 0) {
-      formDataComunidade.append('banner_comunidade', arquivoBannerComunidade.value[0]);
-    }
-
+    const dadosFormularioJson = {
+      nome: nomeDaComunidade.value.trim(),
+      descricao: descricaoDaComunidade.value.trim()
+    };
     const resposta = await fetch(`${import.meta.env.VITE_API_URL}/api/criar/comunidades/nova/${idUsuarioCriador}`, {
       method: 'POST',
-      body: formDataComunidade
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(dadosFormularioJson)
     });
 
     const dados = await resposta.json();
 
     if (resposta.ok) {
-      toast.success('Comunidade completa criada com sucesso!');
+      toast.success('Comunidade criada com sucesso!');
       nomeDaComunidade.value = '';
       descricaoDaComunidade.value = '';
       tagsDaComunidade.value = [];
-      arquivoBannerComunidade.value = null;
 
       router.push('/home');
     } else {

@@ -68,7 +68,7 @@ io.on('connection', (socket) => {
         conexaoQueda = await pool.getConnection();
         await conexaoQueda.query("UPDATE Usuario SET status_online = 0 WHERE id_usuario = ?", [idUsuarioLogado]);
         io.emit('usuario_status_mudou', { id_usuario: idUsuarioLogado, status_online: 0 });
-        console.log(`🚨 CRONÔMETRO: Aluno ${idUsuarioLogado} sumiu da rede. Status: OFFLINE.`);
+        console.log(`CRONÔMETRO: Aluno ${idUsuarioLogado} sumiu da rede. Status: OFFLINE.`);
         cronometrosDeQueda.delete(idUsuarioLogado);
       } catch (errTimer) {
         console.error('Erro no cronômetro de queda do status:', errTimer.message);

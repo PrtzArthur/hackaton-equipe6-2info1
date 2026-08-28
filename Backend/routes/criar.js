@@ -2,7 +2,7 @@ import express from 'express';
 import pool from '../database.js';
 import crypto from 'crypto';
 import multer from 'multer';
-import path from 'path';   
+import path from 'path';
 
 const router = express.Router();
 
@@ -443,7 +443,7 @@ router.post('/postagens/:id', upload.single('imagem_post'), async (req, res) => 
             }
             if (idTagReal) {
               valoresParaInserirEmLote.push([idPostagem, idTagReal]);
-              console.log(`📌 Tag [${tagLimpa}] mapeada com ID: ${idTagReal}`);
+              console.log(`Tag [${tagLimpa}] mapeada com ID: ${idTagReal}`);
             } else {
               console.warn(`[Aviso] A tag "${tagLimpa}" não foi encontrada na tabela global Tag.`);
             }
@@ -693,6 +693,81 @@ router.post('/postagens/comentarios/votar', async (req, res) => {
   } catch (error) {
     console.error('Erro ao processar transação de voto em comentário:', error);
     return res.status(500).json({ erro: 'Erro interno ao salvar voto.' });
+  }
+});
+router.get('/comunidades/listar', async (req, res) => {
+  const meuIdLogado = req.query.meuId || '';
+
+  try {
+    const protocolo = req.secure || req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
+    const linkServidorHost = `${protocolo}://${req.headers.host}`;
+
+    const querySQL = `
+      SELECT 
+        c.id_comunidade, 
+        c.nome_comunidade, 
+        c.descricao,
+        CASE 
+          WHEN c.banner_fundo IS NOT NULL THEN CONCAT(?, c.banner_fundo)
+          ELSE NULL 
+        END AS banner_url,
+        (SELECT COUNT(*) FROM Participacao WHERE id_comunidade = c.id_comunidade) AS total_membros,
+        u.nome AS nome_admin,
+        u.username AS username_admin,
+        u.foto_profile AS foto_admin,
+        IF((SELECT COUNT(*) FROM comunidades_favoritas WHERE id_usuario = ? AND id_comunidade = c.id_comunidade) > 0, TRUE, FALSE) AS favoritadoPorMim
+      FROM Comunidade c
+      LEFT JOIN Participacao p ON c.id_comunidade = p.id_comunidade
+      LEFT JOIN Usuario u ON p.id_usuario = u.id_usuario -- Assume que o primeiro membro a entrar é o criador/admin
+      GROUP BY c.id_comunidade
+      ORDER BY c.nome_comunidade ASC
+    `;
+
+    const [linhas] = await pool.query(querySQL, [linkServidorHost, meuIdLogado]);
+    return res.json(Array.isArray(linhas) ? linhas : (linhas ? [linhas] : []));
+
+  } catch (error) {
+    console.error('Erro no MySQL ao listar comunidades no feed global:', error);
+    return res.status(500).json({ erro: 'Erro interno ao carregar canais de comunidades.' });
+  }
+});
+router.post('/comunidades/nova/:idUsuarioCriador', async (req, res) => {
+  const { idUsuarioCriador } = req.params;
+  let conexao = null;
+
+  try {
+    const { nome, descricao } = req.body;
+
+    if (!nome || !nome.trim() || !descricao || !descricao.trim()) {
+      return res.status(400).json({ erro: 'O nome e a descrição da comunidade são obrigatórios.' });
+    }
+
+    conexao = await pool.getConnection();
+    await conexao.beginTransaction();
+
+    const idComunidade = crypto.randomUUID();
+    await conexao.query(
+      `INSERT INTO Comunidade (id_comunidade, nome_comunidade, descricao) 
+       VALUES (?, ?, ?)`,
+      [idComunidade, nome.trim(), descricao.trim()]
+    );
+    await conexao.query(
+      `INSERT INTO Participacao (id_comunidade, id_usuario) VALUES (?, ?)`,
+      [idComunidade, idUsuarioCriador]
+    );
+
+    await conexao.commit();
+    return res.status(201).json({ 
+      mensagem: 'Comunidade criada com sucesso no IFChat!', 
+      idComunidade 
+    });
+
+  } catch (error) {
+    if (conexao) await conexao.rollback();
+    console.error('Erro no MySQL ao instanciar nova comunidade sem banner:', error);
+    return res.status(500).json({ erro: 'Erro interno ao salvar dados da comunidade.' });
+  } finally {
+    if (conexao) conexao.release();
   }
 });
 
