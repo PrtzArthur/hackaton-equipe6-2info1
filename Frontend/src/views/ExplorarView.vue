@@ -3,29 +3,41 @@ import { ref } from 'vue'
 
 const searchQuery = ref('')
 
+
+const extensoesVideo = ['mp4', 'webm', 'ogg', 'mov']
+
+// Recebe a URL do arquivo (ex: 'banner.mp4' ou 'banner.png')
+// e devolve 'video' ou 'imagem' olhando só a extensão.
+function detectarTipoMidia(url) {
+  if (!url) return 'imagem'
+  const extensao = url.split('.').pop().toLowerCase()
+  return extensoesVideo.includes(extensao) ? 'video' : 'imagem'
+}
+
 // Dados fictícios para só pra renderizar os cards, thanks Bruno!
+
 const favoritas = ref([
-  { id: 1, nome: 'Nome comunidade', membros: '12.213' },
-  { id: 2, nome: 'Nome comunidade', membros: '12.213' },
-  { id: 3, nome: 'Nome comunidade', membros: '12.213' },
-  { id: 4, nome: 'Nome comunidade', membros: '12.213' },
-  { id: 5, nome: 'Nome comunidade', membros: '12.213' },
-  { id: 6, nome: 'Nome comunidade', membros: '12.213' }
+  { id: 1, nome: 'Nome comunidade', membros: '12.213', midia: '' },
+  { id: 2, nome: 'Nome comunidade', membros: '12.213', midia: '' },
+  { id: 3, nome: 'Nome comunidade', membros: '12.213', midia: '' },
+  { id: 4, nome: 'Nome comunidade', membros: '12.213', midia: '' },
+  { id: 5, nome: 'Nome comunidade', membros: '12.213', midia: '' },
+  { id: 6, nome: 'Nome comunidade', membros: '12.213', midia: '' }
 ])
 
 const comunidades = ref([
-  { id: 4, nome: 'Nome comunidade', membros: '12.213' },
-  { id: 5, nome: 'Nome comunidade', membros: '12.213' },
-  { id: 6, nome: 'Nome comunidade', membros: '12.213' },
-  { id: 7, nome: 'Nome comunidade', membros: '12.213' },
-  { id: 8, nome: 'Nome comunidade', membros: '12.213' },
-  { id: 9, nome: 'Nome comunidade', membros: '12.213' },
-  { id: 10, nome: 'Nome comunidade', membros: '12.213' },
-  { id: 11, nome: 'Nome comunidade', membros: '12.213' },
-  { id: 12, nome: 'Nome comunidade', membros: '12.213' },
-  { id: 13, nome: 'Nome comunidade', membros: '12.213' },
-  { id: 14, nome: 'Nome comunidade', membros: '12.213' },
-  { id: 15, nome: 'Nome comunidade', membros: '12.213' }
+  { id: 4, nome: 'Nome comunidade', membros: '12.213', midia: '' },
+  { id: 5, nome: 'Nome comunidade', membros: '12.213', midia: '' },
+  { id: 6, nome: 'Nome comunidade', membros: '12.213', midia: '' },
+  { id: 7, nome: 'Nome comunidade', membros: '12.213', midia: '' },
+  { id: 8, nome: 'Nome comunidade', membros: '12.213', midia: '' },
+  { id: 9, nome: 'Nome comunidade', membros: '12.213', midia: '' },
+  { id: 10, nome: 'Nome comunidade', membros: '12.213', midia: '' },
+  { id: 11, nome: 'Nome comunidade', membros: '12.213', midia: '' },
+  { id: 12, nome: 'Nome comunidade', membros: '12.213', midia: '' },
+  { id: 13, nome: 'Nome comunidade', membros: '12.213', midia: '' },
+  { id: 14, nome: 'Nome comunidade', membros: '12.213', midia: '' },
+  { id: 15, nome: 'Nome comunidade', membros: '12.213', midia: '' }
 ])
 </script>
 
@@ -54,7 +66,21 @@ const comunidades = ref([
               :key="item.id"
               class="community-card"
             >
-              <div class="card-banner"></div>
+              <div class="card-banner">
+                <video
+                  v-if="detectarTipoMidia(item.midia) === 'video'"
+                  :src="item.midia"
+                  muted
+                  loop
+                  autoplay
+                  playsinline
+                />
+                <img
+                  v-else-if="item.midia"
+                  :src="item.midia"
+                  :alt="item.nome"
+                />
+              </div>
               <div class="card-info">
                 <strong>{{ item.nome }}</strong>
                 <span>{{ item.membros }} membros</span>
@@ -71,7 +97,21 @@ const comunidades = ref([
               :key="item.id"
               class="community-card"
             >
-              <div class="card-banner"></div>
+              <div class="card-banner">
+                <video
+                  v-if="detectarTipoMidia(item.midia) === 'video'"
+                  :src="item.midia"
+                  muted
+                  loop
+                  autoplay
+                  playsinline
+                />
+                <img
+                  v-else-if="item.midia"
+                  :src="item.midia"
+                  :alt="item.nome"
+                />
+              </div>
               <div class="card-info">
                 <strong>{{ item.nome }}</strong>
                 <span>{{ item.membros }} membros</span>
@@ -90,7 +130,7 @@ const comunidades = ref([
 main {
   height: 100vh;
   flex-grow: 1;
-  padding: 1.5vw;
+  padding: 0;
   margin-left: 12vw;
   width: calc(100% - 12vw);
   position: fixed;
@@ -100,18 +140,12 @@ main {
   box-sizing: border-box;
   overflow: hidden;
   overflow-x: hidden;
-  display: flex;
-  justify-content: center;
-  align-items: center;
 }
 
 .explore-card {
   width: 100%;
-  max-width: 580px;
-  height: 80vh;
+  height: 100%;
   background-color: #ffffff;
-  border: 1px solid #000000;
-  border-radius: 4px;
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
@@ -185,9 +219,17 @@ main {
 
 .card-banner {
   background-color: #a3ff99;
-  height: 110px;
   width: 100%;
+  min-height: 60px;
   border-bottom: 1px solid #000000;
+  overflow: hidden;
+}
+
+.card-banner img,
+.card-banner video {
+  width: 100%;
+  height: auto;
+  display: block;
 }
 
 .card-info {
