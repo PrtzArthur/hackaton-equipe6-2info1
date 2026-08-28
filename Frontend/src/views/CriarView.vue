@@ -58,10 +58,14 @@ function deletarTag(index) {
 const arquivoImagemPost = ref(null);
 
 function moverTagParaListaUsuario(tagUniversal) {
-  if (!tagsDaPostagem.value.includes(tagUniversal)) {
-    tagsDaPostagem.value.push(tagUniversal);
+  const textoObjetoTag = typeof tagUniversal === 'object' ? tagUniversal.nome_tag : tagUniversal;
+  const tagTratadaLimpa = textoObjetoTag.replace('#', '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+
+  if (!tagsDaPostagem.value.includes(tagTratadaLimpa)) {
+    tagsDaPostagem.value.push(tagTratadaLimpa);
+    console.log(`Tag adicionada ao rascunho: ${tagTratadaLimpa}`);
   } else {
-    console.log('Esta tag já existe.')
+    toast.warning('Esta tag já foi adicionada ao post.');
   }
 }
 function capturarImagemPost(event) {
@@ -70,9 +74,85 @@ function capturarImagemPost(event) {
 
 const descricaoDaPostagem = ref('');
 
-const enviarPost = async () => {
-  const idUsuarioDaURL = route.params.id;
+const nomeDaComunidade = ref('');
+const descricaoDaComunidade = ref('');
+const tagsDaComunidade = ref([]);
+const mostrarPainelTagsComunidade = ref(false);
+const arquivoBannerComunidade = ref(null);
 
+function capturarBannerComunidade(event) {
+  arquivoBannerComunidade.value = event.target.files;
+}
+
+
+function adicionarNovasTagsComunidade() {
+  mostrarPainelTagsComunidade.value = !mostrarPainelTagsComunidade.value;
+}
+
+function moverTagParaComunidade(tagUniversal) {
+  const textoObjetoTag = typeof tagUniversal === 'object' ? tagUniversal.nome_tag : tagUniversal;
+  const tagTratadaLimpa = textoObjetoTag.replace('#', '').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+
+  if (!tagsDaComunidade.value.includes(tagTratadaLimpa)) {
+    tagsDaComunidade.value.push(tagTratadaLimpa);
+  } else {
+    toast.warning('Esta categoria já foi adicionada.');
+  }
+}
+
+function deletarTagComunidade(index) {
+  tagsDaComunidade.value.splice(index, 1);
+}
+
+const enviarComunidade = async () => {
+  const idUsuarioCriador = localStorage.getItem('ifchat_user_id') || route.params.id;
+
+  if (!idUsuarioCriador || idUsuarioCriador === 'undefined') {
+    toast.error("Usuário não identificado. Faça login novamente.");
+    return;
+  }
+
+  try {
+    const formDataComunidade = new FormData();
+
+    formDataComunidade.append('nome', nomeDaComunidade.value.trim());
+    formDataComunidade.append('descricao', descricaoDaComunidade.value.trim());
+    formDataComunidade.append('tags', JSON.stringify(tagsDaComunidade.value));
+    if (arquivoBannerComunidade.value && arquivoBannerComunidade.value.length > 0) {
+      formDataComunidade.append('banner_comunidade', arquivoBannerComunidade.value[0]);
+    }
+
+    const resposta = await fetch(`${import.meta.env.VITE_API_URL}/api/criar/comunidades/nova/${idUsuarioCriador}`, {
+      method: 'POST',
+      body: formDataComunidade
+    });
+
+    const dados = await resposta.json();
+
+    if (resposta.ok) {
+      toast.success('Comunidade completa criada com sucesso!');
+      nomeDaComunidade.value = '';
+      descricaoDaComunidade.value = '';
+      tagsDaComunidade.value = [];
+      arquivoBannerComunidade.value = null;
+
+      router.push('/home');
+    } else {
+      toast.error(dados.erro || "Erro ao fazer o cadastro do grupo.");
+    }
+  } catch (erro) {
+    console.error('Falha de rede ao criar comunidade:', erro);
+    toast.error("Falha ao se conectar com o servidor.");
+  }
+};
+
+const enviarPost = async () => {
+  const idUsuarioReal = localStorage.getItem('ifchat_user_id') || route.params.id;
+
+  if (!idUsuarioReal || idUsuarioReal === 'undefined') {
+    toast.error("Usuário não identificado. Faça login novamente.");
+    return;
+  }
   const opcoesValidas = opcoesEnquete.value
     .map(o => o.texto.trim())
     .filter(texto => texto !== '');
@@ -91,8 +171,7 @@ const enviarPost = async () => {
     if (arquivoImagemPost.value && arquivoImagemPost.value.length > 0) {
       formDataCompleto.append('imagem_post', arquivoImagemPost.value[0]);
     }
-
-    const resposta = await fetch(`${import.meta.env.VITE_API_URL}/api/criar/postagens/${idUsuarioDaURL}`, {
+    const resposta = await fetch(`${import.meta.env.VITE_API_URL}/api/criar/postagens/${idUsuarioReal}`, {
       method: 'POST',
       body: formDataCompleto
     });
@@ -101,6 +180,10 @@ const enviarPost = async () => {
 
     if (resposta.ok) {
       toast.success('Postagem completa criada com sucesso!');
+      descricaoDaPostagem.value = '';
+      tagsDaPostagem.value = [];
+      arquivoImagemPost.value = null;
+
       router.push('/home');
     } else {
       toast.error(dados.erro || "Erro ao fazer postagem.");
@@ -108,6 +191,7 @@ const enviarPost = async () => {
 
   } catch(erro) {
     console.error('Não foi possível fazer a postagem.', erro);
+    toast.error("Falha ao se conectar com o servidor.");
   }
 };
 </script>
@@ -174,16 +258,78 @@ const enviarPost = async () => {
         </div>
       </form>
     </section>
-    <section v-if="mostrarComunidadeTela" class="criarComunidade">
-      <h2 class="tituloPrincipal">Painel de criação</h2>
-      <form @submit.prevent="">
-        <label for="nomeComunidade">Nome da Comunidade</label>
-        <input type="text" maxlength="50" id="nomeComunidade">
-
-        <label for=""></label>
-        <input type="text">
-      </form>
-    </section>
+<section v-if="mostrarComunidadeTela" class="criarPost">
+  <h2 class="tituloPrincipal">Painel de criação</h2>
+  <form @submit.prevent="enviarComunidade" class="form-posts">
+    <div class="areaDescricaoPost">
+      <label for="nomeComunidade" class="titulos-Da-tela-Postagem">Nome comunidade*</label>
+      <input
+        v-model="nomeDaComunidade"
+        type="text"
+        id="nomeComunidade"
+        placeholder="Nome"
+        maxlength="50"
+        required
+        class="input-enquete-borda-normal"
+        style="width: 100%; height: 40px; padding: 0 12px; border-radius: 4px;"
+      >
+    </div>
+    <div class="areaDescricaoPost" style="margin-top: 16px;">
+      <label for="descComunidade" class="titulos-Da-tela-Postagem">Descrição</label>
+      <div style="position: relative; width: 100%;">
+        <textarea
+          v-model="descricaoDaComunidade"
+          placeholder="Descrição"
+          maxlength="1500"
+          id="descComunidade"
+          required
+          rows="4"
+          class="textarea"
+          style="width: 100%; border-radius: 4px; padding-bottom: 24px;"
+        ></textarea>
+        <span style="position: absolute; bottom: 8px; right: 12px; font-size: 11px; color: #888;">
+          {{ descricaoDaComunidade.length }}/1500
+        </span>
+      </div>
+    </div>
+    <div class="campo-form" style="margin-top: 16px;">
+      <label class="titulos-Da-tela-Postagem">Banner da comunidade (Opcional):</label>
+      <input
+        type="file"
+        accept="image/*"
+        @change="capturarBannerComunidade"
+      >
+    </div>
+    <div class="tags" style="margin-top: 16px;">
+      <h3 class="tituloTags" style="font-size: 14px; font-weight: bold; margin-bottom: 8px;">Tags</h3>
+      <div class="divDasTagsDoUsuario" style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center;">
+        <div v-for="(tag, index) in tagsDaComunidade" :key="index">
+          <button type="button" class="tag" @click="deletarTagComunidade(index)">
+            #{{ tag }}
+          </button>
+        </div>
+        <div>
+          <button type="button" @click="adicionarNovasTagsComunidade" class="tag" style="width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; padding: 0;">
+            <img :src="plus" alt="adicionar-tag" class="adicionar-tag" style="width: 14px; height: 14px;">
+          </button>
+        </div>
+      </div>
+      <div v-show="mostrarPainelTagsComunidade === true" class="listaParaAdicionarTags" style="margin-top: 12px;">
+        <div v-for="(tagUniversal, index) in listaTagsTotais" :key="index">
+          <button type="button" @click="moverTagParaComunidade(tagUniversal)" class="tag">
+            {{ tagUniversal }}
+          </button>
+        </div>
+        <button type="button" @click="mostrarPainelTagsComunidade = false" class="btnTagsFechar">
+          fechar
+        </button>
+      </div>
+    </div>
+    <div class="botaoPostar" style="margin-top: 24px;">
+      <button type="submit" class="deFatoOBotaoPostar">Criar Comunidade</button>
+    </div>
+  </form>
+</section>
     <button v-if="!mostrarTelaDeCriacao"  @click="voltarAoPainel" class="botaoVoltar">
           <img :src="voltar" alt="" class="setaVoltar">
       </button>

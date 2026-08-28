@@ -98,7 +98,7 @@ router.get('/feed/global', async (req, res) => {
       try {
         const [tagsBanco] = await pool.query(
           `SELECT t.nome_tag 
-           FROM postagem_tag pt 
+           FROM Postagem_tag pt 
            JOIN Tag t ON pt.id_tag = t.id_tag 
            WHERE pt.id_postagem = ?`,
           [post.id_postagem]
@@ -419,21 +419,37 @@ router.post('/postagens/:id', upload.single('imagem_post'), async (req, res) => 
     }
 
     if (tags && tags.length > 0) {
-      for (const nomeTag of tags) {
-        const tagLimpa = nomeTag.replace('#','').normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-        const [linhasBanco] = await conexao.query(`SELECT id_tag FROM Tag WHERE nome_tag = ?`, [tagLimpa]);
-        const dadosTag = linhasBanco || [];
-        
-        if (dadosTag.length > 0) {
-            const idTagReal = dadosTag[0].id_tag;
+      const valoresParaInserirEmLote = [];
+      const listaTagsReal = Array.isArray(tags) ? tags : JSON.parse(tags);
+
+      for (const nomeTag of listaTagsReal) {
+        if (nomeTag && String(nomeTag).trim() !== '') {
+          const tagLimpa = String(nomeTag).replace('#', '').toLowerCase().trim();
+          
+          try {
+            const [linhasBanco] = await conexao.query(`SELECT id_tag FROM Tag WHERE nome_tag = ?`, [tagLimpa]);
+            const dadosTag = linhasBanco || [];
             
-            try {
-              await conexao.query(`INSERT INTO Postagem_Tag (id_postagem, id_tag) VALUES (?, ?)`, [idPostagem, idTagReal]);
-            } catch (errTagIntermediaria) {
-              console.error(errTagIntermediaria);
+            if (dadosTag.length > 0 && dadosTag[0]) {
+              const idTagReal = dadosTag[0].id_tag;
+              valoresParaInserirEmLote.push([idPostagem, idTagReal]);
+            } else {
+              console.warn(`[Aviso] A tag "${tagLimpa}" não existe na tabela global do IFChat.`);
             }
-        } else {
-          console.warn(`Aviso: A tag "${tagLimpa}" não foi encontrada na tabela global Tag.`);
+          } catch (errLoop) {
+            console.error(`Erro ao buscar tag individual [${tagLimpa}]:`, errLoop.message);
+          }
+        }
+      }
+      if (valoresParaInserirEmLote.length > 0) {
+        try {
+          await conexao.query(
+            `INSERT INTO postagem_tag (id_postagem, id_tag) VALUES ?`,
+            [valoresParaInserirEmLote]
+          );
+          console.log(`SUCESSO: ${valoresParaInserirEmLote.length} tags vinculadas ao post em lote!`);
+        } catch (errTagBulk) {
+          console.error("Erro crítico no Bulk Insert de tags no MySQL:", errTagBulk.message);
         }
       }
     }

@@ -135,13 +135,13 @@ async function confirmarBloqueio() {
     if (resposta.ok) {
       usuarioBloqueado.value = true;
       mostrarConfirmacaoBloqueio.value = false;
-      alert('Usuário bloqueado com sucesso!');
+      toast.success('Usuário bloqueado com sucesso!');
     } else {
-      alert(dados.erro || 'Não foi possível bloquear o usuário.');
+      toast.error(dados.erro || 'Não foi possível bloquear o usuário.');
     }
   } catch (erro) {
     console.error('Erro ao bloquear usuário:', erro);
-    alert('Erro de comunicação com o servidor.');
+    toast.error('Erro de comunicação com o servidor.');
   }
 }
 
@@ -155,14 +155,14 @@ async function desbloquearUsuario() {
 
     if (resposta.ok) {
       usuarioBloqueado.value = false;
-      alert('Usuário desbloqueado.');
+      toast.success('Usuário desbloqueado.');
     } else {
       const dados = await resposta.json();
-      alert(dados.erro || 'Não foi possível desbloquear o usuário.');
+      toast.error(dados.erro || 'Não foi possível desbloquear o usuário.');
     }
   } catch (erro) {
     console.error('Erro ao desbloquear usuário:', erro);
-    alert('Erro de comunicação com o servidor.');
+    toast.error('Erro de comunicação com o servidor.');
   }
 }
 function mostrarTelaConfiguracao() {
@@ -1403,7 +1403,7 @@ main {
   flex-direction: column;
   border: var(--borda-padrao);
   background-color: var(--fundo-card-modal);
-  height: 20vh;
+  height: auto;
   width: 35vw;
   border-radius: 7px;
   overflow: hidden;

@@ -1,6 +1,39 @@
 <script setup>
 import { RouterView, useRoute } from 'vue-router';
 import AppHeader from './components/AppHeader.vue';
+import { onMounted, onUnmounted } from 'vue';
+import { io } from 'socket.io-client';
+
+const socket = io(import.meta.env.VITE_API_URL);
+let temporizadorMuralPresenca = null;
+
+onMounted(() => {
+  const meuIdLogadoSessao = localStorage.getItem('ifchat_user_id') || '';
+
+  if (meuIdLogadoSessao) {
+    socket.emit('entrar_no_chat', meuIdLogadoSessao);
+    temporizadorMuralPresenca = setInterval(() => {
+      socket.emit('ping_presenca', meuIdLogadoSessao);
+    }, 4000);
+  }
+  socket.on('usuario_status_mudou', (dados) => {
+    console.log(`[STATUS ALTERADO] Usuário ${dados.id_usuario} agora está ${dados.status_online}`);
+  });
+  window.addEventListener('beforeunload', () => {
+  const meuIdLogadoSessao = localStorage.getItem('ifchat_user_id') || '';
+  if (meuIdLogadoSessao) {
+    socket.emit('aluno_parou_digitando', { id_destinatario: 'todos' });
+    socket.disconnect();
+  }
+});
+});
+
+onUnmounted(() => {
+  if (temporizadorMuralPresenca) {
+    clearInterval(temporizadorMuralPresenca);
+  }
+  socket.off('usuario_status_mudou');
+});
 
 const route = useRoute();
 </script>

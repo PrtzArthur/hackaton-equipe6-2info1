@@ -1,7 +1,9 @@
 <script setup>
 import { ref } from 'vue';
 import { RouterLink, useRouter } from 'vue-router';
+import { useToast } from 'vue-toastification';
 
+const toast = useToast();
 const router = useRouter();
 
 const nome = ref('');
@@ -13,11 +15,11 @@ const email = ref('');
 
 const realizarCadastro = async () => {
   if (senha.value !== confirmarSenha.value) {
-    alert('As senhas não coincidem!')
+    toast.warning('As senhas não coincidem!')
     return;
   }
   if (!aceitouTermos.value) {
-    alert('Você precisa aceitar os termos para prosseguir!')
+    toast.warning('Você precisa aceitar os termos para prosseguir!')
     return;
   }
 
@@ -38,15 +40,15 @@ const realizarCadastro = async () => {
 
       localStorage.setItem('ifchat_token', dados.token);
       localStorage.setItem('ifchat_user_id', dados.id_usuario);
-      alert('Sua conta foi criada com sucesso!');
+      toast.success('Sua conta foi criada com sucesso!');
 
       router.push('/home');
     } else {
-      alert(dados.erro || 'Falha ao realizar o cadastro.');
+      toast.error(dados.erro || 'Falha ao realizar o cadastro.');
     }
   } catch (erro) {
     console.error('Erro ao conectar com a API:', erro);
-    alert('Erro de conexão: Verifique se o servidor do backend está ligado.');
+    toast.error('Erro de conexão: Verifique se o servidor do backend está ligado.');
   }
 };
 
