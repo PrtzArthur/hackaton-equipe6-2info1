@@ -399,7 +399,10 @@ onUnmounted(() => {
             ]"
             @dblclick="tratarDuploCliqueNaMensagem(msg)">
             <div v-if="msg.id_remetente !== meuIdLogado && msg.texto !== 'Mensagem apagada'" class="wrapper-avatar-mensagem-outro">
-              <img :src="conversaAtiva.foto_profile || '/src/icons/userBlackFull.svg'" alt="Avatar" class="avatar-mural-mini-chat">
+              <div class="avatar-mural-mini-chat">
+                <img v-if="conversaAtiva.foto_profile && conversaAtiva.foto_profile !== ''" :src="conversaAtiva.foto_profile" alt="Avatar" class="foto-perfil-chat">
+                <img v-else :src="userBlackFull" alt="" class="img-perfil-chat">
+              </div>
             </div>
             <div class="corpo-balao-conteudo">
               <p v-if="msg.texto === 'Mensagem apagada'" class="texto-mensagem-deletada">
@@ -553,6 +556,10 @@ main {
 .input-pesquisa {
   background-color: var(--fundo-card) !important;
   color: var(--texto-principal);
+}
+.img-perfil-chat {
+  width: 2.8vw;
+  height: 2.8vw;
 }
 .botaoVoltar {
   width: 3vw;
@@ -946,6 +953,7 @@ main {
   flex-shrink: 0;
   justify-content: center;
   align-items: center;
+  overflow: hidden;
 }
 .trilho-scroll-conversas {
   flex-grow: 1;
@@ -970,6 +978,10 @@ main {
   background-color: var(--hover-botoes, #f1f5f9);
   transform: translateY(-1px);
 }
+.foto-perfil-chat {
+  width: 100%;
+  height: 100%;
+}
 .card-selecionado {
   background-color: var(--fundo-opcao-enquete) !important;
   border-color: var(--fundo-card-va) !important;
@@ -993,8 +1005,8 @@ main {
   transition: filter 0.3s ease;
 }
 .avatar-chat-img {
-  width: 100%;
-  height: 100%;
+  width: 3vw;
+  height: 3vw;
   border-radius: 50%;
   object-fit: cover;
   border: 1px solid var(--borda-padrao);
@@ -1113,12 +1125,17 @@ main {
   height: 100%;
   object-fit: cover;
 }
-.avatar-mural-mini-chat[src$="userBlackFull.svg"] {
+.avatar-mural-mini-chat {
   object-fit: contain !important;
   width: 3.3vw;
   height: 3.3vw;
   padding: 4px;
   box-sizing: border-box;
+  overflow: hidden;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 [data-theme="dark"] .avatar-mural-mini-chat[src$='userBlackFull.svg'] {
   filter: invert(1);

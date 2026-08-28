@@ -418,7 +418,7 @@ router.post('/postagens/:id', upload.single('imagem_post'), async (req, res) => 
       }
     }
 
-    if (tags && tags.length > 0) {
+  if (tags && tags.length > 0) {
       const valoresParaInserirEmLote = [];
       const listaTagsReal = Array.isArray(tags) ? tags : JSON.parse(tags);
 
@@ -429,9 +429,8 @@ router.post('/postagens/:id', upload.single('imagem_post'), async (req, res) => 
           try {
             const [linhasBanco] = await conexao.query(`SELECT id_tag FROM Tag WHERE nome_tag = ?`, [tagLimpa]);
             const dadosTag = linhasBanco || [];
-            
-            if (dadosTag.length > 0 && dadosTag) {
-              const idTagReal = dadosTag.id_tag;
+            if (dadosTag.length > 0 && dadosTag[0]) {
+              const idTagReal = dadosTag[0].id_tag;
               valoresParaInserirEmLote.push([idPostagem, idTagReal]);
             } else {
               console.warn(`[Aviso] A tag "${tagLimpa}" não existe na tabela global do IFChat.`);

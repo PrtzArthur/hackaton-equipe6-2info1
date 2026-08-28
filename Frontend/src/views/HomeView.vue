@@ -451,7 +451,7 @@ onUnmounted(() => {
             <div v-for="perfil in listaSugestaoPerfis" :key="perfil.id_usuario" class="card-sugestao-linha">
               <div class="div-imagem-perfil">
                 <img v-if="perfil.foto_profile && perfil.foto_profile !== ''" :src="perfil.foto_profile" alt="Avatar" class="avatar-sugestao-mini" @click="irParaPerfilDoAutor(perfil.id_usuario)">
-                <img v-else :src="userBlackFull" alt="Avatar" class="avatar-sugestao-mini" @click="irParaPerfilDoAutor(perfil.id_usuario)">
+                <img v-else :src="userBlackFull" alt="Avatar" class="avatar-sugestao-mini-default" @click="irParaPerfilDoAutor(perfil.id_usuario)">
               </div>
               <div class="info-sugestao-texto">
                 <div class="bloco-nomes-user">
@@ -511,12 +511,9 @@ onUnmounted(() => {
   filter: invert(1);
   transition: filter 0.3s ease;
 }
-[data-theme="dark"] .avatar-sugestao-mini {
+[data-theme="dark"] .avatar-sugestao-mini-default {
   filter: invert(1);
   transition: filter 0.3s ease;
-}
-[data-theme="dark"] .avatar-sugestao-mini[src$="userBlackFull.svg"] {
-  filter: invert(1);
 }
 [data-theme="dark"] .folder {
   filter: invert(1);
@@ -714,6 +711,10 @@ main {
   box-sizing: border-box;
   overflow: hidden;
   overflow-x: hidden;
+}
+.avatar-sugestao-mini-default {
+  width: 4vw;
+  height: 4vw;
 }
 .coluna-central-feed {
   background-color: var(--fundo-card);
