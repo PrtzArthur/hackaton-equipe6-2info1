@@ -98,7 +98,7 @@ router.get('/feed/global', async (req, res) => {
       try {
         const [tagsBanco] = await pool.query(
           `SELECT t.nome_tag 
-           FROM Postagem_tag pt 
+           FROM postagem_tag pt 
            JOIN Tag t ON pt.id_tag = t.id_tag 
            WHERE pt.id_postagem = ?`,
           [post.id_postagem]
@@ -227,7 +227,7 @@ router.get('/sidebar/topicos', async (req, res) => {
       const querySQL = `
         SELECT t.nome_tag AS nome, COUNT(pt.id_postagem) AS total
         FROM Tag t
-        LEFT JOIN Postagem_Tag pt ON t.id_tag = pt.id_tag
+        LEFT JOIN postagem_Tag pt ON t.id_tag = pt.id_tag
         GROUP BY t.id_tag, t.nome_tag
         ORDER BY total DESC, t.nome_tag ASC
         LIMIT 6
@@ -430,8 +430,8 @@ router.post('/postagens/:id', upload.single('imagem_post'), async (req, res) => 
             const [linhasBanco] = await conexao.query(`SELECT id_tag FROM Tag WHERE nome_tag = ?`, [tagLimpa]);
             const dadosTag = linhasBanco || [];
             
-            if (dadosTag.length > 0 && dadosTag[0]) {
-              const idTagReal = dadosTag[0].id_tag;
+            if (dadosTag.length > 0 && dadosTag) {
+              const idTagReal = dadosTag.id_tag;
               valoresParaInserirEmLote.push([idPostagem, idTagReal]);
             } else {
               console.warn(`[Aviso] A tag "${tagLimpa}" não existe na tabela global do IFChat.`);
