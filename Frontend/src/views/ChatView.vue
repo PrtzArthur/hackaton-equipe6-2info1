@@ -349,7 +349,7 @@ onUnmounted(() => {
           <div class="avatar-chat-container">
             <div class="avatar-chat-img-fundo">
               <img v-if="chat.foto_profile && chat.foto_profile !== ''" :src="chat.foto_profile" alt="Avatar" class="avatar-chat-img">
-              <img :src="userBlackFull" alt="" class="avatar-chat-img-default">
+              <img v-else :src="userBlackFull" alt="" class="avatar-chat-img-default">
             </div>
             <span class="ponto-status-online" :class="{ 'online': chat.status_online }"></span>
           </div>
