@@ -101,10 +101,12 @@ async function selecionarConversa(usuario) {
 function enviarMensagem() {
   if (!textoMensagem.value.trim() || !conversaAtiva.value) return;
 
+  const mensagemLimpa = textoMensagem.value.trim();
   socket.emit('enviar_mensagem_privada', {
     id_remetente: meuIdLogado.value,
     id_destinatario: conversaAtiva.value.id_usuario,
-    texto: textoMensagem.value.trim()
+    texto: mensagemLimpa,
+    conteudo_mensagem: mensagemLimpa
   });
 
   textoMensagem.value = '';
@@ -134,26 +136,16 @@ async function processarEnvioDeImagemDoChat(evento) {
     if (resposta.ok) {
       const dadosRetorno = await resposta.json();
       const urlMidiaFisica = dadosRetorno.urlImagem;
-
       socket.emit('enviar_mensagem_privada', {
         id_remetente: meuIdLogado.value,
         id_destinatario: conversaAtiva.value.id_usuario,
         texto: urlMidiaFisica,
         conteudo_mensagem: urlMidiaFisica
       });
-      historicoMensagens.value.push({
-        id_mensagem: String(Date.now()),
-        id_remetente: meuIdLogado.value,
-        id_destinatario: conversaAtiva.value.id_usuario,
-        texto: urlMidiaFisica,
-        data: new Date()
-      });
-
-      rolarChatParaBaixo();
+      evento.target.value = '';
     }
   } catch (erro) {
     console.error("Erro ao fazer upload da imagem no chat:", erro);
-    toast.error("Falha ao enviar arquivo de imagem.");
   }
 }
 async function tratarDuploCliqueNaMensagem(msg) {
@@ -413,13 +405,12 @@ onUnmounted(() => {
               <p v-if="msg.texto === 'Mensagem apagada'" class="texto-mensagem-deletada">
                 Mensagem apagada
               </p>
-              <div v-else-if="msg.texto.startsWith('/imagens/')" class="container-imagem-chat-balao">
+              <div v-else-if="msg.texto && msg.texto.includes('/imagens/')" class="container-imagem-chat-balao">
                 <img :src="msg.texto" alt="Imagem enviada" class="img-enviada-chat-midia">
-              </div>
-              <p v-else>{{ msg.texto }}</p>
-
-              <span class="tag-tempo-data-balao">
-                {{ new Date(msg.data).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) }}
+             </div>
+             <p v-else>{{ msg.texto }}</p>
+             <span class="tag-tempo-data-balao">
+               {{ new Date(msg.data).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) }}
               </span>
             </div>
           </div>
