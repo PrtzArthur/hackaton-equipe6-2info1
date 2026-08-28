@@ -724,8 +724,8 @@ main {
   border: var(--borda-padrao);
 }
 [data-theme="dark"] .img-default {
-  filter: invert(1);
-  transition: filter 0.3s ease;
+  filter: invert(1) !important;
+  transition: filter 0.3s ease !important;
 }
 [data-theme="dark"] .gear {
   filter: invert(1);
