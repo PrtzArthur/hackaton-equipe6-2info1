@@ -9,6 +9,9 @@ import userBlackFull from '@/icons/userBlackFull.svg';
 import enviar from '@/icons/enviar.svg';
 import gear from '@/icons/gear.svg';
 import { useToast } from 'vue-toastification';
+import { useRouter } from 'vue-router';
+
+const router = useRouter();
 
 const toast = useToast();
 
@@ -230,6 +233,9 @@ watch(mostrarTelaPesquisaUsuarios, (ficouVisivel) => {
 function reordenarUsuarios() {
   mostrarDropdownOrdenacao.value = false;
 }
+function irParaPerfilDoAutor(idUsuario) {
+  router.push(`/usuario/${idUsuario}`);
+}
 async function alternarSeguirUsuarioNaLista(userAlvo) {
   try {
     const r = await fetch(`${import.meta.env.VITE_API_URL}/api/usuario/seguir`, {
@@ -281,6 +287,17 @@ onMounted(() => {
     const index = listaConversas.value.findIndex(c => c.id_usuario === dados.id_remetente);
     if (index !== -1) { listaConversas.value[index] = { ...listaConversas.value[index], digitando: false }; }
   });
+
+   socket.on('usuario_status_mudou', (dadosRecebidos) => {
+    const usuarioAlvoNaBusca = listaDeTodosOsUsuariosDoBanco.value.find(u => u.id_usuario === dadosRecebidos.id_usuario);
+    if (usuarioAlvoNaBusca) {
+      usuarioAlvoNaBusca.status_online = dadosRecebidos.status_online;
+    }
+    const chatAtivoNaSidebar = listaConversas.value.find(c => c.id_usuario === dadosRecebidos.id_usuario);
+    if (chatAtivoNaSidebar) {
+      chatAtivoNaSidebar.status_online = dadosRecebidos.status_online;
+    }
+  });
 });
 
 onUnmounted(() => {
@@ -288,6 +305,7 @@ onUnmounted(() => {
   socket.off('mensagem_foi_apagada');
   socket.off('aluno_esta_digitando');
   socket.off('aluno_parou_de_digitando');
+  socket.off('usuario_status_mudou');
 });
 </script>
 
@@ -419,7 +437,7 @@ onUnmounted(() => {
     <section v-if="mostrarTelaPesquisaUsuarios" class="notifications-card">
   <div class="topo-pesquisa-filtro">
     <div class="container-input-busca">
-      <input v-model="usuarioFiltrado" type="text" placeholder="Procurar por usuário...">
+      <input v-model="usuarioFiltrado" type="text" placeholder="Procurar por usuário..." class="input-pesquisa">
       <i v-if="usuarioFiltrado.length === ''" class="icone-lupa"><img :src="iconeLupa" alt=""></i>
     </div>
     <div class="dropdown-ordenacao-container">
@@ -445,9 +463,11 @@ onUnmounted(() => {
   </div>
   <div class="lista-de-usuarios-container">
     <div v-for="user in usuariosFiltradosEOrdenados" :key="user.id_usuario" class="card-usuario-linha">
-      <div class="bloco-info-esquerda" @click="irParaPerfilDoAutor(user.id_usuario)">
-        <img :src="user.foto_profile" class="avatar-aluno-lista">
-        <img :src="userBlackFull" alt="">
+      <div class="bloco-info-esquerda">
+        <div class="avatar-aluno-lista" @click="irParaPerfilDoAutor(user.id_usuario)">
+          <img v-if="user.foto_profile && user.foto_profile !== ''" :src="user.foto_profile">
+          <img v-else :src="userBlackFull" alt="" class="img-default">
+        </div>
         <div class="detalhes-texto-aluno">
           <h4 class="nome-aluno-titulo">{{ user.nome }}</h4>
           <span :class="['status-badge', user.status_online ? 'online' : 'offline']">
@@ -505,6 +525,10 @@ main {
   width: 2vw;
   height: 2vw;
 }
+.input-pesquisa {
+  background-color: var(--fundo-card) !important;
+  color: var(--texto-principal);
+}
 .botaoVoltar {
   width: 3vw;
   height: 3vw;
@@ -513,8 +537,8 @@ main {
   border-radius: 5px;
   top: 0 !important;
   left: 0 !important;
-  margin-top: 2.5vw !important;
-  margin-left: 12.5vw !important;
+  margin-top: -45.2vw !important;
+  margin-left: -56vw !important;
   z-index: 9999 !important;
   cursor: pointer;
 }
@@ -551,8 +575,10 @@ main {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 16px;
+  gap: 2vw;
+  padding: 0 0.5vw;
   width: 100%;
+  height: 4vw;
 }
 .container-input-busca {
   position: relative;
@@ -561,7 +587,7 @@ main {
 }
 .container-input-busca input {
   width: 100%;
-  padding: 10px 40px 10px 16px;
+  padding: 0.8vw 3vw 0.8vw 1vw;
   border: 1px solid #ccc;
   border-radius: 20px;
   font-size: 14px;
@@ -585,8 +611,9 @@ main {
   align-items: center;
   gap: 8px;
   padding: 10px 16px;
-  background: #fff;
-  border: 1px solid #000;
+  background: var(--fundo-card);
+  border: var(--borda-padrao);
+  color: var(--texto-principal);
   border-radius: 8px;
   font-size: 14px;
   font-weight: bold;
@@ -594,15 +621,15 @@ main {
 }
 .botao-dropdown-ordenar span {
   font-weight: normal;
-  color: #555;
+  color: var(--texto-mais-suave);
 }
 .painel-opcoes-ordenar {
   position: absolute;
   top: 110%;
   right: 0;
   width: 220px;
-  background: #fff;
-  border: 1px solid #000;
+  background: var(--fundo-card);
+  border: var(--borda-padrao);
   border-radius: 8px;
   padding: 12px;
   display: flex;
@@ -616,14 +643,15 @@ main {
   align-items: center;
   gap: 8px;
   font-size: 13px;
-  color: #333;
+  color: var(--texto-mais-suave);
   cursor: pointer;
+  background-color: var(--fundo-card);
 }
 .lista-de-usuarios-container {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  background-color: #f2f9f2;
+  background-color: var(--fundo-card-modal);
   border: 1px solid #ccc;
   border-radius: 12px;
   padding: 20px;
@@ -634,10 +662,10 @@ main {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: #fff;
+  background: var(--fundo-card);
   border: 1px solid #e0e0e0;
   border-radius: 25px;
-  padding: 12px 24px;
+  padding: 1vw 1.5vw;
   transition: transform 0.2s, box-shadow 0.2s;
 }
 .card-usuario-linha:hover {
@@ -652,11 +680,28 @@ main {
   flex: 1;
 }
 .avatar-aluno-lista {
-  width: 48px;
-  height: 48px;
+  width: 3vw;
+  height: 3vw;
   border-radius: 50%;
+  display: flex;
+  overflow: hidden;
+  justify-content: center;
+  align-items: center;
   object-fit: cover;
-  border: 2px solid #000;
+  flex-shrink: 0;
+  border: var(--borda-padrao);
+}
+[data-theme="dark"] .img-default {
+  filter: invert(1);
+  transition: filter 0.3s ease;
+}
+[data-theme="dark"] .gear {
+  filter: invert(1);
+  transition: filter 0.3s ease;
+}
+.img-default {
+  width: 4.5vw;
+  height: 4.5vw;
 }
 .detalhes-texto-aluno {
   display: flex;
@@ -667,7 +712,7 @@ main {
   margin: 0;
   font-size: 15px;
   font-weight: bold;
-  color: #000;
+  color: var(--texto-principal);
 }
 .status-badge {
   font-size: 11px;
@@ -681,7 +726,7 @@ main {
   color: #888;
 }
 .btn-seguir-lista {
-  background-color: #44cc11;
+  background-color: var(--fundo-card-va);
   color: #fff;
   border: none;
   border-radius: 20px;
@@ -689,11 +734,11 @@ main {
   font-size: 14px;
   font-weight: bold;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: background-color 0.2s;
   min-width: 100px;
 }
 .btn-seguir-lista:hover {
-  background-color: #33aa08;
+  background-color: var(--fundo-card-va-hover);
 }
 .btn-seguir-lista.seguindo {
   background-color: #757775;
@@ -987,6 +1032,10 @@ main {
 .gear {
   width: auto;
   height: 100%;
+}
+[dark-theme="dark"] .gear {
+  filter: invert(1);
+  transition: filter 0.3s ease;
 }
 .mural-scroll-mensagens-historico {
   flex-grow: 1 !important;

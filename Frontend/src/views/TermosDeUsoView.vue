@@ -17,7 +17,7 @@ function voltar() {
 <template>
   <main>
     <div class="policy-card">
-      
+
       <header class="policy-header">
         <div class="header-left">
           <button class="back-btn" @click="voltar" title="Voltar">
@@ -29,27 +29,27 @@ function voltar() {
       </header>
 
       <div class="scroll-content">
-        
+
         <p class="last-updated">
           <strong>Última atualização:</strong> {{ termsData.lastUpdated }}
         </p>
 
         <p class="intro-text">
-          Bem-vindo ao <strong>IFchat</strong>. Estes Termos de Uso ("Termos") regem o uso do nosso site localizado em 
+          Bem-vindo ao <strong>IFchat</strong>. Estes Termos de Uso ("Termos") regem o uso do nosso site localizado em
           <a :href="termsData.url" target="_blank" rel="noopener">{{ termsData.url }}</a> (o "Serviço") operado por <strong>{{ termsData.team }}</strong>.
         </p>
 
         <hr class="divider" />
 
-        <PolicySection 
-          v-for="(section, index) in termsData.sections" 
+        <PolicySection
+          v-for="(section, index) in termsData.sections"
           :key="index"
           :title="section.title"
           :content="section.content"
           :items="section.items"
         />
 
-        <PolicySection 
+        <PolicySection
           title="Contato"
           content="Se você tiver alguma dúvida sobre estes Termos de Uso, entre em contato conosco:"
           :items="[
@@ -70,7 +70,6 @@ function voltar() {
 
 <style scoped>
 main {
-  background-color: rgba(85, 255, 51, 0.14);
   height: 100vh;
   flex-grow: 1;
   padding: 1.5vw;
@@ -88,8 +87,8 @@ main {
   width: 100%;
   max-width: 580px;
   height: 80vh;
-  background-color: #ffffff;
-  border: 1px solid #000000;
+  background-color: var(--fundo-card);
+  border: var(--borda-padrao);
   border-radius: 4px;
   display: flex;
   flex-direction: column;
@@ -102,7 +101,7 @@ main {
 
 .policy-header {
   padding: 16px 20px;
-  border-bottom: 1px solid #000000;
+  border-bottom: var(--borda-padrao);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -119,7 +118,7 @@ main {
   border: none;
   font-size: 1.2rem;
   font-weight: bold;
-  color: #000000;
+  color: var(--texto-principal);
   cursor: pointer;
   padding: 0;
   display: flex;
@@ -136,14 +135,14 @@ main {
   margin: 0;
   font-size: 1.4rem;
   font-weight: bold;
-  color: #000000;
+  color: var(--texto-principal);
 }
 
 .sub-title {
   font-size: 0.85rem;
   font-weight: bold;
-  color: #55ff33;
-  background-color: #000000;
+  color: #fff;
+  background-color: var(--fundo-card-va);
   padding: 2px 8px;
   border-radius: 4px;
 }
@@ -159,9 +158,9 @@ main {
 
 .last-updated {
   font-size: 0.85rem;
-  color: #444444;
+  color: var(--texto-suave);
   margin: 0;
-  background-color: #f5f5f5;
+  background-color: var(--hover-botoes);
   padding: 8px 12px;
   border-radius: 4px;
 }
@@ -169,12 +168,12 @@ main {
 .intro-text {
   font-size: 0.88rem;
   line-height: 1.5;
-  color: #333333;
+  color: var(--texto-suave);
   margin: 0;
 }
 
 .intro-text a {
-  color: #000000;
+  color: var(--texto-principal);
   text-decoration: underline;
   word-break: break-all;
 }
@@ -187,7 +186,7 @@ main {
 
 .effective-date {
   font-size: 0.8rem;
-  color: #666666;
+  color: var(--texto-suave);
   text-align: center;
   margin-top: 8px;
 }
