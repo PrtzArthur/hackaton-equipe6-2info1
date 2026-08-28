@@ -45,43 +45,43 @@ const router = createRouter({
       path: '/salvar',
       name: 'Salvar',
       component: SalvarView,
-      meta: { requiresAuth: false }
+      meta: { requiresAuth: true }
     },
     {
       path: '/avisos',
       name: 'Avisos',
       component: AvisosView,
-      meta: { requiresAuth: false }
+      meta: { requiresAuth: true }
     },
     {
       path: '/criar/:id',
       name: 'Criar',
       component: CriarView,
-      meta: { requiresAuth: false }
+      meta: { requiresAuth: true }
     },
     {
       path: '/usuario/:id',
       name: 'Usuário',
       component: UsuarioView,
-      meta: { requiresAuth: false }
+      meta: { requiresAuth: true }
     },
     {
       path: '/chat',
       name: 'Chat',
       component: ChatView,
-      meta: { requiresAuth: false }
+      meta: { requiresAuth: true }
     },
     {
       path: '/eventos',
       name: 'Eventos',
       component: EventosView,
-      meta: { requiresAuth: false }
+      meta: { requiresAuth: true }
     },
     {
       path: '/explorar',
       name: 'Explorar',
       component: ExplorarView,
-      meta: { requiresAuth: false }
+      meta: { requiresAuth: true }
     },
     {
       path: '/politica-de-privacidade',
@@ -99,7 +99,7 @@ const router = createRouter({
       path: '/:pathMatch(.*)*',
       name: 'PaginaErro',
       component: paginaErroView,
-      meta: { ocultarHeader: true, requiresAuth: false }
+      meta: { ocultarHeader: true, requiresAuth: true }
     }
   ],
 })

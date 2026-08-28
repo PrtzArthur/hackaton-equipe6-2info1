@@ -31,71 +31,65 @@ const httpServer = createServer(app);
 const io = new Server(httpServer, {
   cors: { origin: '*', methods: ['GET', 'POST', 'PUT', 'DELETE'] }
 });
+
 app.set('io', io);
+const usuariosConectadosNoSocket = new Map();
+const cronometrosDeQueda = new Map();
 
 io.on('connection', (socket) => {
   console.log(`Usuário conectado ao WebSocket: ${socket.id}`);
+  socket.on('entrar_no_chat', async (idUsuarioLogado) => {
+    if (!idUsuarioLogado || idUsuarioLogado === 'undefined') return;
 
-  socket.on('entrar_no_chat', (idUsuarioLogado) => {
-    if (idUsuarioLogado) {
-      socket.join(idUsuarioLogado);
-      console.log(`Aluno ${idUsuarioLogado} entrou em sua sala privada de escuta.`);
-    }
-  });
-
-  socket.on('enviar_mensagem_privada', async (data) => {
-    const mensagemTexto = data.texto || data.conteudo_mensagem;
-    const { id_remetente, id_destinatario } = data;
-
-    if (!mensagemTexto || !id_remetente || !id_destinatario) return;
+    socket.join(idUsuarioLogado);
+    usuariosConectadosNoSocket.set(socket.id, idUsuarioLogado);
 
     try {
-      const id_mensagem = String(Date.now() + Math.round(Math.random() * 1000));
-
-      await pool.query(
-        `INSERT INTO Mensagem (id_mensagem, conteudo_mensagem, id_remetente, id_destinatario) 
-         VALUES (?, ?, ?, ?)`,
-        [id_mensagem, mensagemTexto.trim(), id_remetente, id_destinatario]
-      );
-
-      const objetoMensagemTransmitida = {
-        id_mensagem,
-        id_remetente,
-        id_destinatario,
-        texto: mensagemTexto.trim(),
-        conteudo_mensagem: mensagemTexto.trim(),
-        data: new Date()
-      };
-      io.to(id_remetente).to(id_destinatario).emit('receber_mensagem_privada', objetoMensagemTransmitida);
-
-    } catch (errSocket) {
-      console.error('Falha ao processar streaming do chat no MySQL:', errSocket.message);
+      await pool.query("UPDATE Usuario SET status_online = 1 WHERE id_usuario = ?", [idUsuarioLogado]);
+      io.emit('usuario_status_mudou', { id_usuario: idUsuarioLogado, status_online: 1 });
+      console.log(`Aluno ${idUsuarioLogado} está oficialmente ONLINE.`);
+    } catch (err) {
+      console.error(err.message);
     }
   });
-  socket.on('aluno_digitando', (dados) => {
-    if (dados.id_destinatario) {
-      io.to(dados.id_destinatario).emit('aluno_esta_digitando', { id_remetente: dados.id_remetente });
+  socket.on('ping_presenca', (idUsuarioLogado) => {
+    if (!idUsuarioLogado) return;
+    if (cronometrosDeQueda.has(idUsuarioLogado)) {
+      clearTimeout(cronometrosDeQueda.get(idUsuarioLogado));
     }
-  });
-  socket.on('aluno_parou_digitando', (dados) => {
-    if (dados.id_destinatario) {
-      io.to(dados.id_destinatario).emit('aluno_parou_de_digitando', { id_remetente: dados.id_remetente });
-    }
-  });
-  socket.on('apagar_mensagem_realtime', (dados) => {
-    if (dados.id_destinatario) {
-      io.to(dados.id_destinatario).emit('mensagem_foi_apagada', { id_mensagem: dados.id_mensagem });
-    }
-  });
+    const timer = setTimeout(async () => {
+      try {
+        await pool.query("UPDATE Usuario SET status_online = 0 WHERE id_usuario = ?", [idUsuarioLogado]);
+        io.emit('usuario_status_mudou', { id_usuario: idUsuarioLogado, status_online: 0 });
+        console.log(`CRONÔMETRO: Aluno ${idUsuarioLogado} sumiu da rede. Status: OFFLINE.`);
+        cronometrosDeQueda.delete(idUsuarioLogado);
+      } catch (errTimer) {
+        console.error(errTimer.message);
+      }
+    }, 8000);
 
-  socket.on('disconnect', () => {
-    console.log(`Usuário desconectado do WebSocket: ${socket.id}`);
+    cronometrosDeQueda.set(idUsuarioLogado, timer);
+  });
+  socket.on('disconnect', async () => {
+    const idUsuarioDesconectado = usuariosConectadosNoSocket.get(socket.id);
+    if (idUsuarioDesconectado) {
+      try {
+        await pool.query("UPDATE Usuario SET status_online = 0 WHERE id_usuario = ?", [idUsuarioDesconectado]);
+        io.emit('usuario_status_mudou', { id_usuario: idUsuarioDesconectado, status_online: 0 });
+        
+        if (cronometrosDeQueda.has(idUsuarioDesconectado)) {
+          clearTimeout(cronometrosDeQueda.get(idUsuarioDesconectado));
+          cronometrosDeQueda.delete(idUsuarioDesconectado);
+        }
+        usuariosConectadosNoSocket.delete(socket.id);
+      } catch (e) { console.error(e.message); }
+    }
   });
 });
 
 async function inicializarBancoDeDados() {
   try {
-    console.log('⏳ Iniciando migração e criação das tabelas na Aiven...');
+    console.log('Iniciando migração e criação das tabelas na Aiven...');
 
     const tabelas = [
       `CREATE TABLE IF NOT EXISTS Usuario (
@@ -111,7 +105,6 @@ async function inicializarBancoDeDados() {
         foto_profile VARCHAR(255),
         banner_fundo VARCHAR(255)
       );`,
-
       `CREATE TABLE IF NOT EXISTS Postagem (
         id_postagem VARCHAR(50) PRIMARY KEY,
         tipo VARCHAR(50) NOT NULL,
@@ -120,14 +113,12 @@ async function inicializarBancoDeDados() {
         id_usuario VARCHAR(50) NOT NULL,
         FOREIGN KEY (id_usuario) REFERENCES Usuario(id_usuario) ON DELETE CASCADE
       );`,
-
       `CREATE TABLE IF NOT EXISTS Midia_Postagem (
         id_midia VARCHAR(50) PRIMARY KEY,
         imagem_anexada VARCHAR(255) NOT NULL,
         id_postagem VARCHAR(50) NOT NULL,
         FOREIGN KEY (id_postagem) REFERENCES Postagem(id_postagem) ON DELETE CASCADE
       );`,
-
       `CREATE TABLE IF NOT EXISTS Notificacao (
         id_notificacao VARCHAR(50) PRIMARY KEY,
         lido BOOLEAN DEFAULT FALSE,
@@ -137,13 +128,11 @@ async function inicializarBancoDeDados() {
         id_usuario VARCHAR(50) NOT NULL,
         FOREIGN KEY (id_usuario) REFERENCES Usuario(id_usuario) ON DELETE CASCADE
       );`,
-
       `CREATE TABLE IF NOT EXISTS Comunidade (
         id_comunidade VARCHAR(50) PRIMARY KEY,
         nome_comunidade VARCHAR(100) NOT NULL,
         descricao TEXT
       );`,
-
       `CREATE TABLE IF NOT EXISTS Evento (
         id_evento VARCHAR(50) PRIMARY KEY,
         data_hora_evento TIMESTAMP NOT NULL,
@@ -152,7 +141,6 @@ async function inicializarBancoDeDados() {
         id_comunidade VARCHAR(50) NOT NULL,
         FOREIGN KEY (id_comunidade) REFERENCES Comunidade(id_comunidade) ON DELETE CASCADE
       );`,
-
       `CREATE TABLE IF NOT EXISTS Mensagem (
         id_mensagem VARCHAR(50) PRIMARY KEY,
         lido BOOLEAN DEFAULT FALSE,
@@ -163,21 +151,18 @@ async function inicializarBancoDeDados() {
         FOREIGN KEY (id_remetente) REFERENCES Usuario(id_usuario) ON DELETE CASCADE,
         FOREIGN KEY (id_destinatario) REFERENCES Usuario(id_usuario) ON DELETE CASCADE
       );`,
-
       `CREATE TABLE IF NOT EXISTS Lista_salvos (
         id_lista VARCHAR(50) PRIMARY KEY,
         nome_lista VARCHAR(100) NOT NULL,
         id_usuario VARCHAR(50) NOT NULL,
         FOREIGN KEY (id_usuario) REFERENCES Usuario(id_usuario) ON DELETE CASCADE
       );`,
-
       `CREATE TABLE IF NOT EXISTS Opcao_enquete (
         id_opcao VARCHAR(50) PRIMARY KEY,
         texto_opcao VARCHAR(255) NOT NULL,
         id_postagem VARCHAR(50) NOT NULL,
         FOREIGN KEY (id_postagem) REFERENCES Postagem(id_postagem) ON DELETE CASCADE
       );`,
-
       `CREATE TABLE IF NOT EXISTS Voto (
         id_usuario VARCHAR(50),
         id_opcao VARCHAR(50),
@@ -186,7 +171,6 @@ async function inicializarBancoDeDados() {
         FOREIGN KEY (id_usuario) REFERENCES Usuario(id_usuario) ON DELETE CASCADE,
         FOREIGN KEY (id_opcao) REFERENCES Opcao_enquete(id_opcao) ON DELETE CASCADE
       );`,
-
       `CREATE TABLE IF NOT EXISTS seguidores (
         id_seguidor VARCHAR(50),
         id_seguido VARCHAR(50),
@@ -194,7 +178,6 @@ async function inicializarBancoDeDados() {
         FOREIGN KEY (id_seguidor) REFERENCES Usuario(id_usuario) ON DELETE CASCADE,
         FOREIGN KEY (id_seguido) REFERENCES Usuario(id_usuario) ON DELETE CASCADE
       );`,
-
       `CREATE TABLE IF NOT EXISTS salvar_post (
         id_lista VARCHAR(50),
         id_postagem VARCHAR(50),
@@ -202,7 +185,6 @@ async function inicializarBancoDeDados() {
         FOREIGN KEY (id_lista) REFERENCES Lista_salvos(id_lista) ON DELETE CASCADE,
         FOREIGN KEY (id_postagem) REFERENCES Postagem(id_postagem) ON DELETE CASCADE
       );`,
-
       `CREATE TABLE IF NOT EXISTS Participacao (
         id_comunidade VARCHAR(50),
         id_usuario VARCHAR(50),
@@ -210,7 +192,6 @@ async function inicializarBancoDeDados() {
         FOREIGN KEY (id_comunidade) REFERENCES Comunidade(id_comunidade) ON DELETE CASCADE,
         FOREIGN KEY (id_usuario) REFERENCES Usuario(id_usuario) ON DELETE CASCADE
       );`,
-
       `CREATE TABLE IF NOT EXISTS Presenca_em_evento (
         id_evento VARCHAR(50),
         id_usuario VARCHAR(50),
@@ -218,12 +199,10 @@ async function inicializarBancoDeDados() {
         FOREIGN KEY (id_evento) REFERENCES Evento(id_evento) ON DELETE CASCADE,
         FOREIGN KEY (id_usuario) REFERENCES Usuario(id_usuario) ON DELETE CASCADE
       );`,
-
       `CREATE TABLE IF NOT EXISTS Tag ( 
         id_tag INT AUTO_INCREMENT PRIMARY KEY,
         nome_tag VARCHAR(50) NOT NULL UNIQUE
       );`,
-
       `CREATE TABLE IF NOT EXISTS Usuario_Tag (
         id_usuario VARCHAR(50), 
         id_tag INT, 
@@ -231,7 +210,6 @@ async function inicializarBancoDeDados() {
         FOREIGN KEY (id_usuario) REFERENCES Usuario(id_usuario) ON DELETE CASCADE,
         FOREIGN KEY (id_tag) REFERENCES Tag(id_tag) ON DELETE CASCADE 
       );`,
-
       `CREATE TABLE IF NOT EXISTS Curtida ( 
         id_usuario VARCHAR(50), 
         id_postagem VARCHAR(50), 
@@ -241,7 +219,6 @@ async function inicializarBancoDeDados() {
         FOREIGN KEY (id_usuario) REFERENCES Usuario(id_usuario) ON DELETE CASCADE,
         FOREIGN KEY (id_postagem) REFERENCES Postagem(id_postagem) ON DELETE CASCADE 
       );`,
-
       `CREATE TABLE IF NOT EXISTS Comentario ( 
         id_comentario VARCHAR(50) PRIMARY KEY, 
         conteudo_comentario TEXT NOT NULL, 
@@ -251,7 +228,6 @@ async function inicializarBancoDeDados() {
         FOREIGN KEY (id_usuario) REFERENCES Usuario(id_usuario) ON DELETE CASCADE,
         FOREIGN KEY (id_postagem) REFERENCES Postagem(id_postagem) ON DELETE CASCADE 
       );`,
-
       `CREATE TABLE IF NOT EXISTS Interacao_Comentario (
         id_usuario VARCHAR(50),   
         id_comentario VARCHAR(50),
@@ -261,7 +237,6 @@ async function inicializarBancoDeDados() {
         FOREIGN KEY (id_usuario) REFERENCES Usuario(id_usuario) ON DELETE CASCADE,
         FOREIGN KEY (id_comentario) REFERENCES Comentario(id_comentario) ON DELETE CASCADE
       );`,
-
       `CREATE TABLE IF NOT EXISTS Mural_Perfil (    
         id_comentario VARCHAR(50) PRIMARY KEY,
         conteudo_comentario TEXT NOT NULL,    
@@ -270,6 +245,27 @@ async function inicializarBancoDeDados() {
         id_usuario_perfil VARCHAR(50) NOT NULL,
         FOREIGN KEY (id_usuario_autor) REFERENCES Usuario(id_usuario) ON DELETE CASCADE,
         FOREIGN KEY (id_usuario_perfil) REFERENCES Usuario(id_usuario) ON DELETE CASCADE
+      );`,
+      `CREATE TABLE IF NOT EXISTS postagem_tag (
+        id_postagem VARCHAR(50),
+        id_tag INT,
+        PRIMARY KEY (id_postagem, id_tag),
+        FOREIGN KEY (id_postagem) REFERENCES Postagem(id_postagem) ON DELETE CASCADE,
+        FOREIGN KEY (id_tag) REFERENCES Tag(id_tag) ON DELETE CASCADE
+      );`,
+      `CREATE TABLE IF NOT EXISTS usuario_bloqueado (
+        id_usuario_bloqueador VARCHAR(50),
+        id_usuario_bloqueado VARCHAR(50),
+        PRIMARY KEY (id_usuario_bloqueador, id_usuario_bloqueado),
+        FOREIGN KEY (id_usuario_bloqueador) REFERENCES Usuario(id_usuario) ON DELETE CASCADE,
+        FOREIGN KEY (id_usuario_bloqueado) REFERENCES Usuario(id_usuario) ON DELETE CASCADE
+      );`,
+      `CREATE TABLE IF NOT EXISTS notificacao_ativada (
+        id_usuario_seguidor VARCHAR(50),
+        id_usuario_criador VARCHAR(50),
+        PRIMARY KEY (id_usuario_seguidor, id_usuario_criador),
+        FOREIGN KEY (id_usuario_seguidor) REFERENCES Usuario(id_usuario) ON DELETE CASCADE,
+        FOREIGN KEY (id_usuario_criador) REFERENCES Usuario(id_usuario) ON DELETE CASCADE
       );`
     ];
     for (const sql of tabelas) {

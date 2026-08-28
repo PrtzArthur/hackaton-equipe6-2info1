@@ -115,14 +115,14 @@ async function confirmarSalvamentoNaPasta(idLista) {
     });
     const dados = await r.json();
     if (r.ok) {
-      alert(dados.mensagem || "Salvo com sucesso!");
+      toast.success(dados.mensagem || "Salvo com sucesso!");
       const postAlvo = postagensFeedGlobal.value.find(p => p.id_postagem === idPostagemAlvoParaSalvar.value);
       if (postAlvo) {
         postAlvo.naoSalvo = true;
       }
       mostrarModalSalvar.value = false;
     } else {
-      alert(dados.erro || "Falha ao salvar");
+      toast.error(dados.erro || "Falha ao salvar");
     }
   } catch (e) {
     console.error("Erro ao salvar post na pasta", e);
@@ -421,7 +421,7 @@ onUnmounted(() => {
             :key="lista.id_lista"
             @click="confirmarSalvamentoNaPasta(lista.id_lista)"
             class="btn-opcao-pasta-item">
-            <img :src="Folder" alt=""> {{ lista.nome_lista }}
+            <img :src="Folder" alt="" class="folder"> {{ lista.nome_lista }}
           </button>
         </div>
         <div class="bloco-criar-nova-lista-rapida">
@@ -511,7 +511,14 @@ onUnmounted(() => {
   filter: invert(1);
   transition: filter 0.3s ease;
 }
+[data-theme="dark"] .avatar-sugestao-mini {
+  filter: invert(1);
+  transition: filter 0.3s ease;
+}
 [data-theme="dark"] .avatar-sugestao-mini[src$="userBlackFull.svg"] {
+  filter: invert(1);
+}
+[data-theme="dark"] .folder {
   filter: invert(1);
 }
 .avatar-sugestao-mini[src$="userBlackFull.svg"] {
