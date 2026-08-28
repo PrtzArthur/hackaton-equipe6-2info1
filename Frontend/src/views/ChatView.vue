@@ -133,17 +133,29 @@ async function processarEnvioDeImagemDoChat(evento) {
 
     if (resposta.ok) {
       const dadosRetorno = await resposta.json();
+      const urlMidiaFisica = dadosRetorno.urlImagem;
+
       socket.emit('enviar_mensagem_privada', {
         id_remetente: meuIdLogado.value,
         id_destinatario: conversaAtiva.value.id_usuario,
-        texto: dadosRetorno.urlImagem
+        texto: urlMidiaFisica,
+        conteudo_mensagem: urlMidiaFisica
       });
+      historicoMensagens.value.push({
+        id_mensagem: String(Date.now()),
+        id_remetente: meuIdLogado.value,
+        id_destinatario: conversaAtiva.value.id_usuario,
+        texto: urlMidiaFisica,
+        data: new Date()
+      });
+
+      rolarChatParaBaixo();
     }
   } catch (erro) {
     console.error("Erro ao fazer upload da imagem no chat:", erro);
+    toast.error("Falha ao enviar arquivo de imagem.");
   }
 }
-
 async function tratarDuploCliqueNaMensagem(msg) {
   if (msg.id_remetente !== meuIdLogado.value) return;
   if (msg.texto === 'Mensagem apagada') return;
@@ -185,7 +197,6 @@ function avisarQueEstouDigitando() {
     });
   }, 1500);
 }
-
 const usuarioFiltrado = ref('');
 const mostrarDropdownOrdenacao = ref(false);
 const filtroOrdenacaoSelecionado = ref('Mais recente');
@@ -241,22 +252,39 @@ async function alternarSeguirUsuarioNaLista(userAlvo) {
     const r = await fetch(`${import.meta.env.VITE_API_URL}/api/usuario/seguir`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ idSeguidor: meuIdLogado.value, idCriador: userAlvo.id_usuario })
+      body: JSON.stringify({
+        idSeguidor: meuIdLogado.value,
+        idSeguido: userAlvo.id_usuario,
+        idCriador: userAlvo.id_usuario
+      })
     });
+
     if (r.ok) {
       const dados = await r.json();
       userAlvo.jaSeguindo = (dados.status === 'seguiu');
       userAlvo.total_seguidores = dados.contadorSeguidoresDoPerfil;
       toast.success(dados.status === 'seguiu' ? `Seguindo ${userAlvo.nome}!` : `Parou de seguir.`);
     }
-  } catch (e) { console.error(e); }
+  } catch (e) {
+    console.error("Erro ao seguir usuário na listagem:", e);
+  }
 }
 
 onMounted(() => {
   carregarListaConversas();
-  if (meuIdLogado.value) { socket.emit('entrar_no_chat', meuIdLogado.value); }
+  socket.on('connect', () => {
+    if (meuIdLogado.value) {
+      socket.emit('entrar_no_chat', meuIdLogado.value);
+    }
+  });
+
+  if (meuIdLogado.value && socket.connected) {
+    socket.emit('entrar_no_chat', meuIdLogado.value);
+  }
 
   socket.on('receber_mensagem_privada', (novaMsg) => {
+    const textoMensagemTratado = novaMsg.texto || novaMsg.conteudo_mensagem || '';
+
     if (
       (novaMsg.id_remetente === meuIdLogado.value && novaMsg.id_destinatario === conversaAtiva.value?.id_usuario) ||
       (novaMsg.id_remetente === conversaAtiva.value?.id_usuario && novaMsg.id_destinatario === meuIdLogado.value)
@@ -265,7 +293,7 @@ onMounted(() => {
         id_mensagem: novaMsg.id_mensagem,
         id_remetente: novaMsg.id_remetente,
         id_destinatario: novaMsg.id_destinatario,
-        texto: novaMsg.texto,
+        texto: textoMensagemTratado,
         data: novaMsg.data
       });
       rolarChatParaBaixo();
@@ -282,17 +310,19 @@ onMounted(() => {
     const index = listaConversas.value.findIndex(c => c.id_usuario === dados.id_remetente);
     if (index !== -1) { listaConversas.value[index] = { ...listaConversas.value[index], digitando: true }; }
   });
-
   socket.on('aluno_parou_de_digitando', (dados) => {
     const index = listaConversas.value.findIndex(c => c.id_usuario === dados.id_remetente);
     if (index !== -1) { listaConversas.value[index] = { ...listaConversas.value[index], digitando: false }; }
   });
 
-   socket.on('usuario_status_mudou', (dadosRecebidos) => {
-    const usuarioAlvoNaBusca = listaDeTodosOsUsuariosDoBanco.value.find(u => u.id_usuario === dadosRecebidos.id_usuario);
-    if (usuarioAlvoNaBusca) {
-      usuarioAlvoNaBusca.status_online = dadosRecebidos.status_online;
+  socket.on('usuario_status_mudou', (dadosRecebidos) => {
+    if (listaDeTodosOsUsuariosDoBanco.value) {
+      const usuarioAlvoNaBusca = listaDeTodosOsUsuariosDoBanco.value.find(u => u.id_usuario === dadosRecebidos.id_usuario);
+      if (usuarioAlvoNaBusca) {
+        usuarioAlvoNaBusca.status_online = dadosRecebidos.status_online;
+      }
     }
+
     const chatAtivoNaSidebar = listaConversas.value.find(c => c.id_usuario === dadosRecebidos.id_usuario);
     if (chatAtivoNaSidebar) {
       chatAtivoNaSidebar.status_online = dadosRecebidos.status_online;
@@ -301,6 +331,7 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+  socket.off('connect');
   socket.off('receber_mensagem_privada');
   socket.off('mensagem_foi_apagada');
   socket.off('aluno_esta_digitando');
@@ -324,7 +355,10 @@ onUnmounted(() => {
       <div class="trilho-scroll-conversas">
         <div v-for="chat in conversasFiltradas" :key="chat.id_usuario" @click="selecionarConversa(chat)" class="card-conversa-linha" :class="{ 'card-selecionado': conversaAtiva?.id_usuario === chat.id_usuario }">
           <div class="avatar-chat-container">
-            <img :src="chat.foto_profile || '/src/icons/userBlackFull.svg'" alt="Avatar" class="avatar-chat-img">
+            <div class="avatar-chat-img-fundo">
+              <img v-if="chat.foto_profile && chat.foto_profile !== ''" :src="chat.foto_profile" alt="Avatar" class="avatar-chat-img">
+              <img :src="userBlackFull" alt="" class="avatar-chat-img-default">
+            </div>
             <span class="ponto-status-online" :class="{ 'online': chat.status_online }"></span>
           </div>
           <div class="info-corpo-chat-card">
@@ -916,6 +950,12 @@ main {
   height: 1.4vw;
   width: 1.4vw;
 }
+.avatar-chat-img-fundo {
+  display: flex;
+  flex-shrink: 0;
+  justify-content: center;
+  align-items: center;
+}
 .trilho-scroll-conversas {
   flex-grow: 1;
   overflow-y: auto;
@@ -953,11 +993,11 @@ main {
   align-items: center;
   object-fit: cover;
 }
-.avatar-chat-img[src$='userBlackFull.svg'] {
+.avatar-chat-img-default {
   width: 3.73vw;
   height: 3.73vw;
 }
-[data-theme="dark"] .avatar-chat-img[src$='userBlackFull.svg'] {
+[data-theme="dark"] .avatar-chat-img-default {
   filter: invert(1);
   transition: filter 0.3s ease;
 }
