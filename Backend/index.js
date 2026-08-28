@@ -38,18 +38,23 @@ const cronometrosDeQueda = new Map();
 
 io.on('connection', (socket) => {
   console.log(`Usuário conectado ao WebSocket: ${socket.id}`);
+
   socket.on('entrar_no_chat', async (idUsuarioLogado) => {
     if (!idUsuarioLogado || idUsuarioLogado === 'undefined') return;
 
     socket.join(idUsuarioLogado);
     usuariosConectadosNoSocket.set(socket.id, idUsuarioLogado);
 
+    let conexaoStatus = null;
     try {
-      await pool.query("UPDATE Usuario SET status_online = 1 WHERE id_usuario = ?", [idUsuarioLogado]);
+      conexaoStatus = await pool.getConnection();
+      await conexaoStatus.query("UPDATE Usuario SET status_online = 1 WHERE id_usuario = ?", [idUsuarioLogado]);
       io.emit('usuario_status_mudou', { id_usuario: idUsuarioLogado, status_online: 1 });
       console.log(`Aluno ${idUsuarioLogado} está oficialmente ONLINE.`);
     } catch (err) {
-      console.error(err.message);
+      console.error('Erro ao atualizar status online no pool:', err.message);
+    } finally {
+      if (conexaoStatus) conexaoStatus.release();
     }
   });
   socket.on('ping_presenca', (idUsuarioLogado) => {
@@ -58,23 +63,76 @@ io.on('connection', (socket) => {
       clearTimeout(cronometrosDeQueda.get(idUsuarioLogado));
     }
     const timer = setTimeout(async () => {
+      let conexaoQueda = null;
       try {
-        await pool.query("UPDATE Usuario SET status_online = 0 WHERE id_usuario = ?", [idUsuarioLogado]);
+        conexaoQueda = await pool.getConnection();
+        await conexaoQueda.query("UPDATE Usuario SET status_online = 0 WHERE id_usuario = ?", [idUsuarioLogado]);
         io.emit('usuario_status_mudou', { id_usuario: idUsuarioLogado, status_online: 0 });
-        console.log(`CRONÔMETRO: Aluno ${idUsuarioLogado} sumiu da rede. Status: OFFLINE.`);
+        console.log(`🚨 CRONÔMETRO: Aluno ${idUsuarioLogado} sumiu da rede. Status: OFFLINE.`);
         cronometrosDeQueda.delete(idUsuarioLogado);
       } catch (errTimer) {
-        console.error(errTimer.message);
+        console.error('Erro no cronômetro de queda do status:', errTimer.message);
+      } finally {
+        if (conexaoQueda) conexaoQueda.release();
       }
     }, 8000);
 
     cronometrosDeQueda.set(idUsuarioLogado, timer);
   });
+  socket.on('enviar_mensagem_privada', async (data) => {
+    const mensagemTexto = data.texto || data.conteudo_mensagem;
+    const { id_remetente, id_destinatario } = data;
+
+    if (!mensagemTexto || !id_remetente || !id_destinatario) return;
+
+    try {
+      const id_mensagem = String(Date.now() + Math.round(Math.random() * 1000000));
+
+      await pool.query(
+        `INSERT INTO Mensagem (id_mensagem, conteudo_mensagem, id_remetente, id_destinatario) 
+         VALUES (?, ?, ?, ?)`,
+        [id_mensagem, mensagemTexto.trim(), id_remetente, id_destinatario]
+      );
+
+      const objetoMensagemTransmitida = {
+        id_mensagem,
+        id_remetente,
+        id_destinatario,
+        texto: mensagemTexto.trim(),
+        conteudo_mensagem: mensagemTexto.trim(),
+        data: new Date()
+      };
+      io.to(id_remetente).emit('receber_mensagem_privada', objetoMensagemTransmitida);
+      io.to(id_destinatario).emit('receber_mensagem_privada', objetoMensagemTransmitida);
+
+    } catch (errSocket) {
+      console.error('Falha ao processar streaming do chat no MySQL:', errSocket.message);
+    }
+  });
+  socket.on('aluno_digitando', (dados) => {
+    if (dados.id_destinatario) {
+      io.to(dados.id_destinatario).emit('aluno_esta_digitando', { id_remetente: dados.id_remetente });
+    }
+  });
+  
+  socket.on('aluno_parou_digitando', (dados) => {
+    if (dados.id_destinatario) {
+      io.to(dados.id_destinatario).emit('aluno_parou_de_digitando', { id_remetente: dados.id_remetente });
+    }
+  });
+  
+  socket.on('apagar_mensagem_realtime', (dados) => {
+    if (dados.id_destinatario) {
+      io.to(dados.id_destinatario).emit('mensagem_foi_apagada', { id_mensagem: dados.id_mensagem });
+    }
+  });
   socket.on('disconnect', async () => {
     const idUsuarioDesconectado = usuariosConectadosNoSocket.get(socket.id);
     if (idUsuarioDesconectado) {
+      let conexaoDisconnect = null;
       try {
-        await pool.query("UPDATE Usuario SET status_online = 0 WHERE id_usuario = ?", [idUsuarioDesconectado]);
+        conexaoDisconnect = await pool.getConnection();
+        await conexaoDisconnect.query("UPDATE Usuario SET status_online = 0 WHERE id_usuario = ?", [idUsuarioDesconectado]);
         io.emit('usuario_status_mudou', { id_usuario: idUsuarioDesconectado, status_online: 0 });
         
         if (cronometrosDeQueda.has(idUsuarioDesconectado)) {
@@ -82,7 +140,11 @@ io.on('connection', (socket) => {
           cronometrosDeQueda.delete(idUsuarioDesconectado);
         }
         usuariosConectadosNoSocket.delete(socket.id);
-      } catch (e) { console.error(e.message); }
+      } catch (e) { 
+        console.error('Erro ao derrubar status na desconexão natural:', e.message); 
+      } finally {
+        if (conexaoDisconnect) conexaoDisconnect.release();
+      }
     }
   });
 });
