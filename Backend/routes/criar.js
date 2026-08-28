@@ -96,16 +96,21 @@ router.get('/feed/global', async (req, res) => {
       }
 
       try {
-        const [tagsBanco] = await pool.query(
+        const [linhasTags] = await pool.query(
           `SELECT t.nome_tag 
            FROM postagem_tag pt 
            JOIN Tag t ON pt.id_tag = t.id_tag 
            WHERE pt.id_postagem = ?`,
           [post.id_postagem]
         );
-        tagsFormatadas = (tagsBanco || []).map(t => `#${t.nome_tag}`);
+        const dadosTagsLimpos = Array.isArray(linhasTags) ? linhasTags : [linhasTags];
+        
+        tagsFormatadas = dadosTagsLimpos
+          .filter(t => t && t.nome_tag)
+          .map(t => `#${t.nome_tag}`);
+          
       } catch (e) { 
-        console.error(e)
+        console.error("Falha fatal ao extrair mapeamento de tags no feed global:", e.message);
         tagsFormatadas = []; 
       }
       
@@ -227,7 +232,7 @@ router.get('/sidebar/topicos', async (req, res) => {
       const querySQL = `
         SELECT t.nome_tag AS nome, COUNT(pt.id_postagem) AS total
         FROM Tag t
-        LEFT JOIN postagem_Tag pt ON t.id_tag = pt.id_tag
+        LEFT JOIN postagem_tag pt ON t.id_tag = pt.id_tag
         GROUP BY t.id_tag, t.nome_tag
         ORDER BY total DESC, t.nome_tag ASC
         LIMIT 6
@@ -418,7 +423,7 @@ router.post('/postagens/:id', upload.single('imagem_post'), async (req, res) => 
       }
     }
 
-  if (tags && tags.length > 0) {
+ if (tags && tags.length > 0) {
       const valoresParaInserirEmLote = [];
       const listaTagsReal = Array.isArray(tags) ? tags : JSON.parse(tags);
 
@@ -429,11 +434,18 @@ router.post('/postagens/:id', upload.single('imagem_post'), async (req, res) => 
           try {
             const [linhasBanco] = await conexao.query(`SELECT id_tag FROM Tag WHERE nome_tag = ?`, [tagLimpa]);
             const dadosTag = linhasBanco || [];
-            if (dadosTag.length > 0 && dadosTag[0]) {
-              const idTagReal = dadosTag[0].id_tag;
+
+            let idTagReal = null;
+            if (Array.isArray(dadosTag) && dadosTag.length > 0) {
+              idTagReal = dadosTag[0].id_tag;
+            } else if (dadosTag && dadosTag.id_tag) {
+              idTagReal = dadosTag.id_tag;
+            }
+            if (idTagReal) {
               valoresParaInserirEmLote.push([idPostagem, idTagReal]);
+              console.log(`📌 Tag [${tagLimpa}] mapeada com ID: ${idTagReal}`);
             } else {
-              console.warn(`[Aviso] A tag "${tagLimpa}" não existe na tabela global do IFChat.`);
+              console.warn(`[Aviso] A tag "${tagLimpa}" não foi encontrada na tabela global Tag.`);
             }
           } catch (errLoop) {
             console.error(`Erro ao buscar tag individual [${tagLimpa}]:`, errLoop.message);
@@ -446,7 +458,7 @@ router.post('/postagens/:id', upload.single('imagem_post'), async (req, res) => 
             `INSERT INTO postagem_tag (id_postagem, id_tag) VALUES ?`,
             [valoresParaInserirEmLote]
           );
-          console.log(`SUCESSO: ${valoresParaInserirEmLote.length} tags vinculadas ao post em lote!`);
+          console.log(`SUCESSO COLETIVO: ${valoresParaInserirEmLote.length} tags cimentadas no MySQL!`);
         } catch (errTagBulk) {
           console.error("Erro crítico no Bulk Insert de tags no MySQL:", errTagBulk.message);
         }
