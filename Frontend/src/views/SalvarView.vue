@@ -213,7 +213,10 @@ onMounted(() => {
               </span>
             </div>
             <div class="corpo-perfil-postagem-header">
-              <img :src="post.foto_profile || userBlackFull" alt="Avatar" class="avatar-posts-salvos-mini">
+              <div class="fundo-div">
+                <img v-if="post.foto_profile && post.foto_profile !== ''" :src="post.foto_profile" alt="Avatar" class="avatar-posts-salvos-mini">
+                <img v-else :src="userBlackFull" alt="Avatar default" class="avatar-default">
+              </div>
               <strong>{{ post.nome_usuario }}</strong>
             </div>
             <p class="texto-postagem-conteudo-reaproveitado">{{ post.conteudo }}</p>
@@ -277,6 +280,22 @@ onMounted(() => {
 [data-theme="dark"] .lupa {
   filter: invert(1);
   transition: filter 0.3s ease;
+}
+[data-theme="dark"] .img-preenchido {
+  filter: hue-rotate(135deg) saturate(1.8) brightness(1.1);
+  transition: filter 0.3s ease;
+}
+[data-theme="dark"] .btn-post-img {
+  filter: invert(1);
+  transition: filter 0.3s ease;
+}
+[data-theme="dark"] .avatar-default {
+  filter: invert(1);
+  transition: filter 0.3s ease;
+}
+.avatar-default {
+  width: 2.5vw;
+  height: 2.5vw;
 }
 .lupa {
   width: 1.5vw;
@@ -475,9 +494,18 @@ main {
   gap: 8px;
 }
 .avatar-posts-salvos-mini {
-  width: 28px;
-  height: 28px;
+  width: 2vw;
+  height: 2vw;
   border-radius: 50%;
+}
+.fundo-div {
+  width: 2vw;
+  height: 2vw;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-shrink: 0;
 }
 .texto-postagem-conteudo-reaproveitado {
   font-size: 0.9rem;
