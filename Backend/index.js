@@ -335,6 +335,34 @@ async function inicializarBancoDeDados() {
     }
 
     console.log('MODELO FÍSICO DO IFCAT IMPLANTADO COM SUCESSO ABSOLUTO NA AIVEN!');
+
+    const [linhasTag] = await pool.query('SELECT COUNT(*) AS total FROM Tag');
+    const totalTagsNoBanco = linhasTag && linhasTag[0] ? linhasTag[0].total : 0;
+
+    if (totalTagsNoBanco === 0) {
+      console.log('tabela Tag vazia. Injetando tags...');
+      
+      const tagsParaInserir = [
+        ['souifc'],
+        ['volei'],
+        ['informatica'],
+        ['quimica'],
+        ['agropecuaria'],
+        ['ifchat'],
+        ['xadrez'],
+        ['python'],
+        ['agronegocio'],
+        ['veteninaria'],
+        ['javascript'],
+        ['sinuca'],
+        ['jifc'],
+        ['c++']
+      ];
+      await pool.query('INSERT INTO Tag (nome_tag) VALUES ?', [tagsParaInserir]);
+      console.log(`inserção feita ${tagsParaInserir.length} tags registradas na Aiven.`);
+    } else {
+      console.log(`tabela Tag já tem ${totalTagsNoBanco} registros ativos.`);
+    }
   } catch (error) {
     console.error('Erro crítico ao injetar modelo físico:', error);
   }

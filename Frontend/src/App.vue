@@ -103,6 +103,10 @@ body {
   margin: 0 !important;
   padding: 0 !important;
 }
+body::selection {
+  background-color: #3CBC00;
+  color: #fff;
+}
 @media (max-width: 728px) {
   body {
     padding-top: 11vw !important;

@@ -13,6 +13,9 @@ import UsuarioView from '@/views/UsuarioView.vue'
 import AvisosView from '@/views/AvisosView.vue'
 import RecSenhaView from '@/views/RecSenhaView.vue'
 import paginaErroView from '@/views/PaginaErroView.vue'
+import { useToast } from 'vue-toastification'
+
+const toast = useToast();
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -108,7 +111,7 @@ router.beforeEach((to) => {
   const usuarioLogado = localStorage.getItem('ifchat_token')
 
   if (to.meta.requiresAuth && !usuarioLogado) {
-    alert('Acesso negado. Por favor, faça login primeiro!')
+    toast.warning('Acesso negado. Por favor, faça login primeiro!')
     return '/'
   }
 
