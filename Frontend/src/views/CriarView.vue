@@ -555,7 +555,7 @@ main {
   display: flex;
   flex-direction: column;
   margin-top: 1vw;
-  gap: 0.5vw;
+  gap: 0.8vw;
   margin-left: 0.5vw;
   margin-right: 0.5vw;
 }
@@ -567,12 +567,26 @@ main {
   font-weight: bolder;
   font-size: 1vw;
   border: none;
+  transition: 0.3s ease;
 }
 .btnTDC:hover {
   background-color: var(--fundo-card-va-hover);
   transition: 0.3s;
-  transform: scale(1.02);
+  scale: 1.01;
   cursor: pointer;
+  animation: flutuar 1.3s infinite cubic-bezier(0.445, 0.05, 0.55, 0.95);
+}
+
+@keyframes flutuar {
+  0% {
+    transform: translateY(0vw);
+  }
+  50% {
+    transform: translateY(-0.3vw) ;
+  }
+  100% {
+    transform: translateY(0vw);
+  }
 }
 .btnTDC:active {
   transform: scale(0.98);
