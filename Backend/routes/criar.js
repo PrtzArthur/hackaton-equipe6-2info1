@@ -699,18 +699,12 @@ router.get('/comunidades/listar', async (req, res) => {
   const meuIdLogado = req.query.meuId || '';
 
   try {
-    const protocolo = req.secure || req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
-    const linkServidorHost = `${protocolo}://${req.headers.host}`;
-
     const querySQL = `
       SELECT 
         c.id_comunidade, 
         c.nome_comunidade, 
         c.descricao,
-        CASE 
-          WHEN c.banner_fundo IS NOT NULL THEN CONCAT(?, c.banner_fundo)
-          ELSE NULL 
-        END AS banner_url,
+        c.banner_url AS banner_url,
         (SELECT COUNT(*) FROM Participacao WHERE id_comunidade = c.id_comunidade) AS total_membros,
         u.nome AS nome_admin,
         u.username AS username_admin,
@@ -718,12 +712,12 @@ router.get('/comunidades/listar', async (req, res) => {
         IF((SELECT COUNT(*) FROM comunidades_favoritas WHERE id_usuario = ? AND id_comunidade = c.id_comunidade) > 0, TRUE, FALSE) AS favoritadoPorMim
       FROM Comunidade c
       LEFT JOIN Participacao p ON c.id_comunidade = p.id_comunidade
-      LEFT JOIN Usuario u ON p.id_usuario = u.id_usuario -- Assume que o primeiro membro a entrar é o criador/admin
+      LEFT JOIN Usuario u ON p.id_usuario = u.id_usuario 
       GROUP BY c.id_comunidade
       ORDER BY c.nome_comunidade ASC
     `;
 
-    const [linhas] = await pool.query(querySQL, [linkServidorHost, meuIdLogado]);
+    const [linhas] = await pool.query(querySQL, [meuIdLogado]);
     return res.json(Array.isArray(linhas) ? linhas : (linhas ? [linhas] : []));
 
   } catch (error) {
