@@ -193,7 +193,8 @@ async function inicializarBancoDeDados() {
       `CREATE TABLE IF NOT EXISTS Comunidade (
         id_comunidade VARCHAR(50) PRIMARY KEY,
         nome_comunidade VARCHAR(100) NOT NULL,
-        descricao TEXT
+        descricao TEXT,
+        banner_url TEXT
       );`,
       `CREATE TABLE IF NOT EXISTS Evento (
         id_evento VARCHAR(50) PRIMARY KEY,
