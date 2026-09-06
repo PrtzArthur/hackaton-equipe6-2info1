@@ -6,6 +6,7 @@ export default {
 
 <template>
   <div class="not-found">
+    <span class="brand">IFChat</span>
     <h1>404</h1>
     <p>Ops... Página não encontrada!</p>
     <router-link to="/">Voltar para a Home</router-link>
@@ -14,36 +15,68 @@ export default {
 
 <style scoped>
 .not-found {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  height: 100vh;
-  background: linear-gradient(135deg, #f8e9a1, #f8e9a1);
-  color: #333;
-  font-family: 'Arial', sans-serif;
+  min-height: 100vh;
+  padding: 2rem;
+  background: var(--fundo-site);
+  color: var(--texto-principal);
+}
+
+.brand {
+  position: absolute;
+  top: 1.5rem;
+  left: 2rem;
+  color: var(--fundo-card-va);
+  font-size: 1.75rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
 }
 
 .not-found h1 {
-  font-size: 8rem;
+  color: var(--fundo-card-va);
+  font-size: clamp(6rem, 16vw, 10rem);
+  line-height: 0.9;
   margin: 0;
 }
 
 .not-found p {
-  font-size: 1.5rem;
-  margin: 1rem 0;
+  margin: 1.25rem 0 2rem;
+  font-size: 1.25rem;
+  text-align: center;
 }
 
 .not-found a {
-  text-decoration: none;
-  color: #fff;
-  background: #3CBC00;
-  padding: 0.8rem 1.2rem;
   border-radius: 5px;
-  transition: background 0.3s;
+  padding: 0.85rem 1.4rem;
+  text-decoration: none;
+  color: var(--texto-principal-reverso);
+  background: var(--fundo-card-va);
+  font-weight: 700;
+  transition: background-color 0.3s ease, transform 0.3s ease;
 }
 
 .not-found a:hover {
-  background: #555;
+  background: var(--fundo-card-va-hover);
+  transform: translateY(-2px);
+}
+
+@media (max-width: 728px) {
+  .brand {
+    top: 1rem;
+    left: 1.25rem;
+    font-size: 1.4rem;
+  }
+
+  .not-found {
+    padding: 1.5rem;
+  }
+
+  .not-found p {
+    font-size: 1.1rem;
+  }
 }
 </style>
