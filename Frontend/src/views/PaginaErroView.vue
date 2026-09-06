@@ -67,18 +67,31 @@ export default {
   transform: translateY(-2px);
 }
 
-@media (max-width: 728px) {
-  .brand {
-    padding: 1rem 1.25rem;
-    font-size: 1.5rem;
+@media (max-width: 728px) and (orientation: portrait) {
+  .not-found {
+    min-height: calc(100vh - 11vw);
+    padding: 1rem;
   }
 
-  .not-found {
-    padding: 1.5rem;
+  .brand {
+    padding: 0.8rem 1.25rem;
+    font-size: 1.4rem;
+  }
+
+  .not-found h1 {
+    font-size: clamp(5rem, 24vw, 7rem);
   }
 
   .not-found p {
+    max-width: 90vw;
+    margin: 1rem 0 1.5rem;
     font-size: 1.1rem;
+  }
+
+  .not-found a {
+    max-width: 90vw;
+    padding: 0.8rem 1.1rem;
+    text-align: center;
   }
 }
 </style>
