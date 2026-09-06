@@ -70,7 +70,7 @@ function voltar() {
 
 <style scoped>
 main {
-  background-color: rgba(85, 255, 51, 0.14);
+  background: #e0ffe3;
   height: 100vh;
   flex-grow: 1;
   padding: 1.5vw;
