@@ -1,12 +1,12 @@
 <script>
 export default {
-  name: "NotFound"
+  name: 'NotFound',
 }
 </script>
 
 <template>
   <div class="not-found">
-    <span class="brand">IFChat</span>
+    <span class="brand">IFchat</span>
     <h1>404</h1>
     <p>Ops... Página não encontrada!</p>
     <router-link to="/">Voltar para a Home</router-link>
@@ -22,18 +22,19 @@ export default {
   justify-content: center;
   min-height: 100vh;
   padding: 2rem;
-  background: var(--fundo-site);
+  background: #ffffff;
   color: var(--texto-principal);
 }
 
 .brand {
   position: absolute;
-  top: 1.5rem;
-  left: 2rem;
-  color: var(--fundo-card-va);
-  font-size: 1.75rem;
-  font-weight: 800;
-  letter-spacing: 0.02em;
+  top: 0;
+  left: 0;
+  padding: 1.25rem 2rem;
+  color: #ffffff;
+  background: var(--fundo-card-va);
+  font-size: 2rem;
+  font-weight: bold;
 }
 
 .not-found h1 {
@@ -56,7 +57,9 @@ export default {
   color: var(--texto-principal-reverso);
   background: var(--fundo-card-va);
   font-weight: 700;
-  transition: background-color 0.3s ease, transform 0.3s ease;
+  transition:
+    background-color 0.3s ease,
+    transform 0.3s ease;
 }
 
 .not-found a:hover {
@@ -66,9 +69,8 @@ export default {
 
 @media (max-width: 728px) {
   .brand {
-    top: 1rem;
-    left: 1.25rem;
-    font-size: 1.4rem;
+    padding: 1rem 1.25rem;
+    font-size: 1.5rem;
   }
 
   .not-found {
