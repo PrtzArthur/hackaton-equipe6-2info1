@@ -6,7 +6,7 @@ export default {
 
 <template>
   <div class="not-found">
-    <span class="brand">IFchat</span>
+    <span class="brand">IFChat</span>
     <h1>404</h1>
     <p>Ops... Página não encontrada!</p>
     <router-link to="/">Voltar para a Home</router-link>
@@ -30,10 +30,10 @@ export default {
   position: absolute;
   top: 0;
   left: 0;
-  padding: 1.25rem 2rem;
+  padding: 1.2rem 5.1rem;
   color: #ffffff;
   background: var(--fundo-card-va);
-  font-size: 2rem;
+  font-size: 2.15rem;
   font-weight: bold;
 }
 
