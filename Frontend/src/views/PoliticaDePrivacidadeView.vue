@@ -75,7 +75,7 @@ main {
   flex-grow: 1;
   padding: 1.5vw;
   margin-left: 12vw;
-  width: calc(100% - 12vw);
+  width: calc(100%);
   position: fixed;
   top: 0;
   bottom: 0;
