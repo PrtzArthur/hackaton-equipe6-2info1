@@ -25,6 +25,8 @@ const postagensDaListaAtiva = ref([]);
 
 const modalAberto = ref(false);
 const postSelecionado = ref(null);
+const mostrarModalSalvar = ref(false);
+const nomeDaNovaLista = ref('');
 
 function abrirMural(post) {
   postSelecionado.value = post;
@@ -127,8 +129,16 @@ async function removerPostagemDaLista(idPostagemAlvo) {
     console.error("Erro técnico na remoção de salvos:", e);
   }
 }
+function cancelarCriacao() {
+  mostrarModalSalvar.value = !mostrarModalSalvar.value;
+  nomeDaNovaLista.value = '';
+}
+
 async function criarNovaListaPasta() {
-  const nome = prompt("Digite o nome da nova lista de postagens salvas:");
+  const nome = nomeDaNovaLista.value;
+  mostrarModalSalvar.value = !mostrarModalSalvar.value;
+  nomeDaNovaLista.value = '';
+
   if (!nome || !nome.trim()) return;
 
   try {
@@ -165,6 +175,20 @@ onMounted(() => {
 
 <template>
   <main>
+
+    <div v-if="mostrarModalSalvar" class="modal-salvar-lista">
+      <div class="modal-novo-nome">
+        <div class="titulo-modal">
+          <h2>Qual o nome da sua nova lista de postagens?</h2>
+        </div>
+        <input v-model="nomeDaNovaLista" type="text" class="input-modal" maxlength="50" placeholder="Nome da nova lista">
+        <div class="botoes-modal">
+          <button @click="cancelarCriacao" class="cancelar-modal">Cancelar</button>
+          <button @click="criarNovaListaPasta" class="criar-modal">Criar</button>
+        </div>
+      </div>
+    </div>
+
     <section class="coluna-lista-salvos" :class="{ 'mobile-oculto': listaSelecionada }">
       <div class="cabecalho-secao-salvar">
         <h2>Listas de postagens salvas</h2>
@@ -176,7 +200,7 @@ onMounted(() => {
         </span>
       </div>
       <div class="trilho-scroll-pastas">
-        <button type="button" @click="criarNovaListaPasta" class="btn-adicionar-pasta-tracejado">
+        <button type="button" @click="mostrarModalSalvar = !mostrarModalSalvar" class="btn-adicionar-pasta-tracejado">
           <span class="icone-mais-circulo">+</span>
         </button>
         <div
@@ -430,6 +454,11 @@ main {
 .card-pasta-linha:hover {
   background-color: var(--hover-botoes, #f8fafc);
 }
+.card-pasta-linha strong {
+  width: 80%;
+  max-width: 80%;
+  word-break: break-all;
+}
 .card-pasta-selecionada {
   background-color: var(--hover-botoes, #f1f5f9) !important;
   border-color: #3cbc00 !important;
@@ -441,8 +470,9 @@ main {
 .grade-mural-salvos-ativo {
   display: flex;
   flex-direction: column;
-  height: 100%;
   width: 100%;
+  flex-grow: 1;
+  overflow-y: auto;
 }
 .cabecalho-mural-salvos-ativo {
   display: flex;
@@ -588,6 +618,61 @@ main {
   border-radius: 8px;
   padding: 20px;
   box-sizing: border-box;
+}
+.modal-salvar-lista {
+  justify-content: center;
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  z-index: 1000;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  align-items: center;
+}
+.modal-novo-nome {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background-color: var(--fundo-card);
+  overflow: hidden;
+  border-radius: 7px;
+  gap: 1.2vw;
+}
+.titulo-modal {
+  background-color: var(--fundo-card-va);
+  padding: 1vw;
+  color: white;
+}
+.input-modal {
+  width: 95%;
+  outline: none;
+  height: 1.8vw;
+}
+.botoes-modal {
+  display: flex;
+  gap: 0.3vw;
+  margin-bottom: 1vw;
+}
+.cancelar-modal {
+  width: 8vw;
+  padding: 0.5vw;
+}
+.criar-modal {
+  width: 8vw;
+  padding: 0.5vw;
+}
+.cancelar-modal:hover {
+  transition: 0.3s;
+  transform: scale(1.02);
+}
+.criar-modal:hover {
+  transition: 0.3s;
+  transform: scale(1.02);
 }
 @media (max-width: 768px) {
   main {

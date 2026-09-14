@@ -871,7 +871,8 @@ onUnmounted(() => {
             <div v-for="recado in comentariosMural" :key="recado.id_comentario" class="card-resposta-linha">
               <div class="div-perfil-mural">
                 <div class="div-imagem">
-                <img :src="recado.foto_profile || '/src/icons/userBlackFull.svg'" alt="Avatar" class="avatar-mural-mini">
+                <img v-if="recado.foto_profile" :src="recado.foto_profile" alt="Avatar" class="avatar-mural-mini">
+                <img v-else :src="userBlackFull" alt="Avatar" class="avatar-mural-default-mini">
               </div>
               <div class="corpo-resposta-conteudo">
                 <div class="identidade-resposta-autor">
@@ -1643,12 +1644,15 @@ main {
   border: 1px solid #cbd5e1;
   transition: filter 0.3s ease;
 }
-.avatar-mural-mini[src$="userBlackFull.svg"] {
+.avatar-mural-default-mini {
   object-fit: contain !important;
   padding: 5px;
+  width: 4vw;
+  height: 4vw;
   box-sizing: border-box;
   border: none !important;
 }
+
 [data-theme="dark"] .avatar-mural-mini[src$="userBlackFull.svg"] {
   filter: invert(1);
 }
