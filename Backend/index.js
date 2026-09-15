@@ -194,7 +194,25 @@ async function inicializarBancoDeDados() {
         id_comunidade VARCHAR(50) PRIMARY KEY,
         nome_comunidade VARCHAR(100) NOT NULL,
         descricao TEXT,
-        banner_url TEXT
+        banner_url TEXT,
+        id_usuario VARCHAR(50),
+        data_criacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (id_usuario) REFERENCES Usuario(id_usuario) ON DELETE CASCADE
+      );`,
+      `CREATE TABLE IF NOT EXISTS Participacao (
+        id_comunidade VARCHAR(50),
+        id_usuario VARCHAR(50),
+        data_ingresso TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (id_comunidade, id_usuario),
+        FOREIGN KEY (id_comunidade) REFERENCES Comunidade(id_comunidade) ON DELETE CASCADE,
+        FOREIGN KEY (id_usuario) REFERENCES Usuario(id_usuario) ON DELETE CASCADE
+      );`,
+      `CREATE TABLE IF NOT EXISTS comunidades_favoritas (
+        id_usuario VARCHAR(50),
+        id_comunidade VARCHAR(50),
+        PRIMARY KEY (id_usuario, id_comunidade),
+        FOREIGN KEY (id_usuario) REFERENCES Usuario(id_usuario) ON DELETE CASCADE,
+        FOREIGN KEY (id_comunidade) REFERENCES Comunidade(id_comunidade) ON DELETE CASCADE
       );`,
       `CREATE TABLE IF NOT EXISTS Evento (
         id_evento VARCHAR(50) PRIMARY KEY,

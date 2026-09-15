@@ -795,7 +795,7 @@ main {
   transition: 0.3s;
 }
 .corpo-retratil-container {
-  max-height: 500px;
+  max-height: 38vh;
   opacity: 1;
   transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
   display: flex;
@@ -817,7 +817,7 @@ main {
   padding: 10px;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 0.8vw;
   background-color: var(--fundo-card);
 }
 .avatar-sugestao-mini {
@@ -1167,6 +1167,12 @@ main {
     padding-bottom: 75px !important;
     box-sizing: border-box !important;
     overflow-y: visible !important;
+    flex-direction: column !important;
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    grid-template-areas:
+      "topo"
+      "base" !important;
   }
   section {
     position: relative !important;
@@ -1183,10 +1189,29 @@ main {
     border-radius: 0 !important;
     overflow-y: visible !important;
     box-sizing: border-box !important;
+    grid-area: base !important;
+  }
+  aside {
+    position: relative !important;
+    transform: translate(-50%);
+    left: 50%;
+    margin: 5vw auto 5vw auto!important;
+    width: 100% !important;
+    grid-area: topo !important;
+  }
+  aside section {
+    height: auto !important;
   }
   .barra-de-pesquisa {
     top: auto !important;
-    position: relative;
+    width: 97%;
+    font-size: 3vw;
+    position: fixed;
+    height: 3.5%;
+    transform: translate(-50%);
+    left: 50%;
+    padding-left: -1vw;
+    z-index: 1000;
   }
 }
 </style>

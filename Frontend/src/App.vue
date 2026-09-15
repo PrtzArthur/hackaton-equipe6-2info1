@@ -104,7 +104,7 @@ body {
   padding: 0 !important;
 }
 body::selection {
-  background-color: #3CBC00;
+  background-color: var(--fundo-card-va);
   color: #fff;
 }
 @media (max-width: 728px) {
