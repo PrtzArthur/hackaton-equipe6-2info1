@@ -557,7 +557,6 @@ router.get('/postagens/:idPostagem/comentarios', async (req, res) => {
   const filtro = req.query.filtro || 'recente';
 
   try {
-    // 💡 AJUSTE DE AGRUPAMENTO: Todos os campos selecionados incluídos no GROUP BY para blindar contra o modo ONLY_FULL_GROUP_BY da nuvem
     let querySQL = `
       SELECT c.id_comentario, c.conteudo_comentario, c.data_comentario, c.id_usuario,
              u.nome, u.username, u.foto_profile,
@@ -575,8 +574,6 @@ router.get('/postagens/:idPostagem/comentarios', async (req, res) => {
     } else {
       querySQL += ` ORDER BY c.data_comentario DESC`;
     }
-
-    // 💡 ATALHO SEGURO: pool.query executa a busca e limpa o pool de conexões sozinho
     const [comentarios] = await pool.query(querySQL, [idPostagem]);
     const listaFinalComentarios = [];
 
@@ -589,8 +586,6 @@ router.get('/postagens/:idPostagem/comentarios', async (req, res) => {
           [meuIdLogado, c.id_comentario]
         );
         const linhasVotos = votos || [];
-        
-        // 🛡️ BLINDAGEM: Acessa a primeira posição de forma segura contra undefined
         if (linhasVotos.length > 0 && linhasVotos[0]) {
           votoDoVisitante = linhasVotos[0].tipo_interacao;
         }
@@ -697,26 +692,26 @@ router.post('/postagens/comentarios/votar', async (req, res) => {
 });
 router.get('/comunidades/listar', async (req, res) => {
   try {
-    const querySQL = `
+     const querySQL = `
       SELECT 
         id_comunidade, 
         nome_comunidade, 
         descricao,
-        NULL AS banner_url,
-        15 AS total_membros,
-        'Administrador' AS nome_admin,
-        'admin' AS username_admin,
-        NULL AS foto_admin,
+        banner_url AS banner_url,
+        (SELECT COUNT(*) FROM Participacao WHERE id_comunidade = c.id_comunidade) AS total_membros,
+        'Administrador' AS nome_admin, 
+        'admin' AS username_admin, 
+        NULL AS foto_admin, 
         FALSE AS favoritadoPorMim
-      FROM Comunidade
-      ORDER BY nome_comunidade ASC
+      FROM Comunidade c
+      ORDER BY c.data_criacao DESC
     `;
 
     const [linhas] = await pool.query(querySQL);
     return res.json(Array.isArray(linhas) ? linhas : (linhas ? [linhas] : []));
 
   } catch (error) {
-    console.error('Erro crítico no MySQL ao listar comunidades reais:', error.message);
+    console.error('Erro crítico no MySQL ao processar feed dinâmico:', error.message);
     return res.status(500).json({ erro: 'Erro interno ao carregar canais de comunidades.' });
   }
 });
@@ -725,7 +720,7 @@ router.post('/comunidades/nova/:idUsuarioCriador', async (req, res) => {
   let conexao = null;
 
   try {
-    const { nome, descricao } = req.body;
+    const { nome, descricao, banner_url } = req.body;
 
     if (!nome || !nome.trim() || !descricao || !descricao.trim()) {
       return res.status(400).json({ erro: 'O nome e a descrição da comunidade são obrigatórios.' });
@@ -736,9 +731,9 @@ router.post('/comunidades/nova/:idUsuarioCriador', async (req, res) => {
 
     const idComunidade = crypto.randomUUID();
     await conexao.query(
-      `INSERT INTO Comunidade (id_comunidade, nome_comunidade, descricao) 
-       VALUES (?, ?, ?)`,
-      [idComunidade, nome.trim(), descricao.trim()]
+      `INSERT INTO Comunidade (id_comunidade, nome_comunidade, descricao, banner_url) 
+       VALUES (?, ?, ?, ?)`,
+      [idComunidade, nome.trim(), descricao.trim(), banner_url || null]
     );
     await conexao.query(
       `INSERT INTO Participacao (id_comunidade, id_usuario) VALUES (?, ?)`,
@@ -746,15 +741,12 @@ router.post('/comunidades/nova/:idUsuarioCriador', async (req, res) => {
     );
 
     await conexao.commit();
-    return res.status(201).json({ 
-      mensagem: 'Comunidade criada com sucesso no IFChat!', 
-      idComunidade 
-    });
+    return res.status(201).json({ mensagem: 'Comunidade criada com sucesso!', idComunidade });
 
   } catch (error) {
     if (conexao) await conexao.rollback();
-    console.error('Erro no MySQL ao instanciar nova comunidade sem banner:', error);
-    return res.status(500).json({ erro: 'Erro interno ao salvar dados da comunidade.' });
+    console.error('Erro no MySQL ao registrar nova comunidade:', error);
+    return res.status(500).json({ erro: 'Erro interno ao salvar dados.' });
   } finally {
     if (conexao) conexao.release();
   }

@@ -457,7 +457,6 @@ onUnmounted(() => {
           </button>
         </div>
       </div>
-
       <div v-else class="janela-chat-vazia-estado">
         <span>Selecione uma conversa para iniciar o IFChat Realtime</span>
       </div>
@@ -834,7 +833,7 @@ main {
   left: 45%;
   transform: translateX(0);
   margin-left: 1.5vw;
-  padding: 1vw 1vw 0 1vw !important;
+  padding: 1vw !important;
 }
 .cabecalho-secao-chat h2 {
   font-size: 1.4rem;
@@ -1198,6 +1197,7 @@ main {
   width: 100% !important;
   box-sizing: border-box;
   margin-bottom: 0 !important;
+  bottom: 0 !important;
 }
 .tag-tempo-data-balao {
   font-size: 0.68rem;

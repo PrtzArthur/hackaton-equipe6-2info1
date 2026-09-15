@@ -78,6 +78,11 @@ const nomeDaComunidade = ref('');
 const descricaoDaComunidade = ref('');
 const tagsDaComunidade = ref([]);
 const mostrarPainelTagsComunidade = ref(false);
+const bannerUrlComunidade = ref('');
+
+function capturarBannerComunidade(event) {
+  bannerUrlComunidade.value = event.target.value;
+}
 
 function adicionarNovasTagsComunidade() {
   mostrarPainelTagsComunidade.value = !mostrarPainelTagsComunidade.value;
@@ -109,11 +114,15 @@ const enviarComunidade = async () => {
     toast.warning("Nome e descrição da comunidade são obrigatórios.");
     return;
   }
+
   try {
     const dadosFormularioJson = {
       nome: nomeDaComunidade.value.trim(),
-      descricao: descricaoDaComunidade.value.trim()
+      descricao: descricaoDaComunidade.value.trim(),
+      tags: tagsDaComunidade.value,
+      banner_url: bannerUrlComunidade.value.trim() || null
     };
+
     const resposta = await fetch(`${import.meta.env.VITE_API_URL}/api/criar/comunidades/nova/${idUsuarioCriador}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -124,11 +133,13 @@ const enviarComunidade = async () => {
 
     if (resposta.ok) {
       toast.success('Comunidade criada com sucesso!');
+
       nomeDaComunidade.value = '';
       descricaoDaComunidade.value = '';
       tagsDaComunidade.value = [];
+      bannerUrlComunidade.value = '';
 
-      router.push('/home');
+      router.push('/explorar');
     } else {
       toast.error(dados.erro || "Erro ao fazer o cadastro do grupo.");
     }
@@ -442,6 +453,7 @@ main {
   display: flex;
   flex-direction: column;
   gap: 0.7vw;
+  margin-left: 0.5vw;
 }
 .campo-form input::-webkit-file-upload-button {
   background-color: var(--fundo-card-va);
