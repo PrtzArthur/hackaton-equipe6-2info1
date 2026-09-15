@@ -258,9 +258,12 @@ header h1 {
     flex-direction: row;
     gap: 1.5vw;
     margin: 0 !important;
+    width: 50vh;
+    justify-content: center;
+    gap: 3.5vw;
   }
   h1 {
-    width: 50% !important;
+    width: 50vh !important;
     height: 100% !important;
     left: 0;
     font-size: 5vw !important;

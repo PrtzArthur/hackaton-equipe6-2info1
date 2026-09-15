@@ -40,18 +40,31 @@ async function buscarComunidadesDoBanco() {
     const r = await fetch(`${import.meta.env.VITE_API_URL}/api/criar/comunidades/listar?meuId=${meuId}`)
     if (r.ok) {
       const dados = await r.json()
-      listaDeTodasAsComunidades.value = dados
-      console.log("Comunidades carregadas com sucesso no Front-end:", dados)
+
+      listaDeTodasAsComunidades.value = dados.map(c => ({
+        ...c,
+        favoritadoPorMim: false
+      }))
+      console.log("Comunidades carregadas com sucesso no Front-end:", listaDeTodasAsComunidades.value)
     }
   } catch (e) {
     console.error("Erro ao listar canais de comunidades no MySQL:", e)
   }
 }
 async function alternarCurtidaComunidade(grupo) {
-  grupo.favoritadoPorMim = !grupo.favoritadoPorMim
-  toast.success(grupo.favoritadoPorMim ? "Comunidade favoritada!" : "Removida dos favoritos.")
+  listaDeTodasAsComunidades.value = listaDeTodasAsComunidades.value.map(c => {
+    if (c.id_comunidade === grupo.id_comunidade) {
+      const novoStatus = !c.favoritadoPorMim
+      if (comunidadeSelecionada.value && comunidadeSelecionada.value.id_comunidade === grupo.id_comunidade) {
+        comunidadeSelecionada.value.favoritadoPorMim = novoStatus
+      }
+      return { ...c, favoritadoPorMim: novoStatus }
+    }
+    return c
+  })
+  const statusAtual = listaDeTodasAsComunidades.value.find(c => c.id_comunidade === grupo.id_comunidade)?.favoritadoPorMim
+  toast.success(statusAtual ? "Comunidade favoritada!" : "Removida dos favoritos.")
 }
-
 onMounted(() => {
   buscarComunidadesDoBanco()
 })
@@ -59,7 +72,7 @@ onMounted(() => {
 
 <template>
   <main>
-    <div v-if="comunidadeSelecionada === null" class="explore-card">
+    <div v-if="!comunidadeSelecionada" class="explore-card">
       <div class="search-section">
         <div class="search-box">
           <input
@@ -71,9 +84,9 @@ onMounted(() => {
         </div>
       </div>
       <div class="scroll-content">
-        <section v-if="comunidadesFavoritas.length > 0" class="community-section">
+        <section class="community-section">
           <h2>Comunidades favoritas</h2>
-          <div class="horizontal-scroll">
+          <div v-if="comunidadesFavoritas.length > 0" class="horizontal-scroll">
             <div
               v-for="item in comunidadesFavoritas"
               :key="item.id_comunidade"
@@ -92,6 +105,9 @@ onMounted(() => {
                 <span>{{ item.total_membros || 15 }} membros</span>
               </div>
             </div>
+          </div>
+          <div v-else class="aviso-comunidade-favorita">
+            <span>Nenhuma comunidade favoritada</span>
           </div>
         </section>
         <section class="community-section">
@@ -112,7 +128,7 @@ onMounted(() => {
               </div>
               <div class="card-info">
                 <strong>{{ item.nome_comunidade }}</strong>
-                <span>{{ item.total_membros || 15 }} membros</span>
+                <span>{{ item.total_membros }} membros</span>
               </div>
             </div>
           </div>
@@ -244,6 +260,13 @@ main {
   color: var(--texto-principal);
   margin-left: 8px;
   cursor: pointer;
+}
+.aviso-comunidade-favorita {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  justify-content: center;
+  margin: 4vw auto;
 }
 .scroll-content {
   flex: 1;

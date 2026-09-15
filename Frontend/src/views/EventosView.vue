@@ -1,6 +1,4 @@
 <script setup>
-// Opa Bruno, não consegui identificar uma página de criação de novos eventos no Figma, então criei uma tela de detalhes ao invés de uma tela de criação, ainda posso aprimorar essa tela caso necessário, a barra de pesquisa está funcionando varrendo aquele array temporário também. Thanks Bruno.
-
 import { ref, computed } from 'vue'
 
 const searchQuery = ref('')

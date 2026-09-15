@@ -1619,8 +1619,8 @@ main {
 }
 .div-imagem {
   background-color: var(--hover-botoes, #f1f5f9);
-  width: 42px;
-  height: 42px;
+  width: 3vw;
+  height: 3vw;
   border-radius: 50%;
   display: flex;
   justify-content: center;
@@ -1647,12 +1647,11 @@ main {
 .avatar-mural-default-mini {
   object-fit: contain !important;
   padding: 5px;
-  width: 4vw;
-  height: 4vw;
+  width: 4.5vw;
+  height: 4.5vw;
   box-sizing: border-box;
   border: none !important;
 }
-
 [data-theme="dark"] .avatar-mural-mini[src$="userBlackFull.svg"] {
   filter: invert(1);
 }
