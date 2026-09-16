@@ -174,14 +174,19 @@ onMounted(() => {
         </section>
       </div>
     </div>
+
+    <!-- TELA INTERNA DA COMUNIDADE (reorganizada) -->
     <div v-else class="tela-interna-comunidade-container">
       <div class="barra-voltar-topo">
         <button class="btn-voltar-estilizado" @click="fecharDetalhesComunidade">
           <img :src="voltar" alt="">
         </button>
       </div>
+
       <div class="scroll-content-interno">
         <div class="moldura-central-comunidade">
+
+          <!-- 1. BANNER NO TOPO -->
           <div class="banner-interno-grupo">
             <img
               v-if="comunidadeSelecionada.banner_url"
@@ -190,6 +195,8 @@ onMounted(() => {
               style="object-fit: cover; width: 100%; height: 100%; display: block;"
             />
           </div>
+
+          <!-- 2. NOME + BOTÃO FAVORITO -->
           <div class="linha-titulo-favorito">
             <h1 class="titulo-nome-comunidade">
               {{ comunidadeSelecionada.nome_comunidade }}
@@ -199,6 +206,16 @@ onMounted(() => {
               <span v-else style="font-size: 24px; cursor: pointer;">🤍</span>
             </button>
           </div>
+
+          <!-- 3. BIOGRAFIA / DESCRIÇÃO, LOGO ABAIXO DO NOME -->
+          <div class="secao-info-bloco secao-biografia">
+            <h3>Sobre a comunidade</h3>
+            <p class="caixa-texto-descricao-grupo">
+              {{ comunidadeSelecionada.descricao || 'Sem descrição fornecida para esta comunidade.' }}
+            </p>
+          </div>
+
+          <!-- 4. ADMINISTRADOR -->
           <div class="secao-info-bloco">
             <span class="label-badge-verde">
               Administrador
@@ -215,6 +232,8 @@ onMounted(() => {
               </span>
             </div>
           </div>
+
+          <!-- 5. GRUPOS + CRIAR GRUPO NO FINAL -->
           <div class="secao-info-bloco" style="margin-top: 16px;">
             <h3>Grupos</h3>
             <div class="lista-subgrupos-comunidade">
@@ -226,12 +245,7 @@ onMounted(() => {
               </div>
             </div>
           </div>
-          <div class="secao-info-bloco" style="margin-top: 20px;">
-            <h3>Descrição</h3>
-            <div class="caixa-texto-descricao-grupo">
-              {{ comunidadeSelecionada.descricao || 'Sem descrição fornecida para esta comunidade.' }}
-            </div>
-          </div>
+
         </div>
       </div>
     </div>
@@ -386,5 +400,107 @@ main {
   color: var(--texto-suave);
   font-weight: 500;
 }
-</style>
 
+/* ===== TELA INTERNA DA COMUNIDADE ===== */
+.tela-interna-comunidade-container {
+  width: 100%;
+  height: 100%;
+  background-color: var(--fundo-card);
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+}
+.barra-voltar-topo {
+  padding: 12px 16px;
+  border-bottom: var(--borda-padrao);
+}
+.btn-voltar-estilizado {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+}
+.scroll-content-interno {
+  flex: 1;
+  overflow-y: auto;
+}
+.moldura-central-comunidade {
+  max-width: 700px;
+  margin: 0 auto;
+  padding-bottom: 32px;
+}
+.banner-interno-grupo {
+  width: 100%;
+  height: 180px;
+  background-color: var(--fundo-opcao-enquete);
+  overflow: hidden;
+  border-bottom: var(--borda-padrao);
+}
+.linha-titulo-favorito {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px 0 20px;
+}
+.titulo-nome-comunidade {
+  font-size: 1.4rem;
+  margin: 0;
+  color: var(--texto-principal);
+}
+.btn-coracao-comunidade {
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+.secao-info-bloco {
+  padding: 16px 20px 0 20px;
+}
+.secao-info-bloco h3 {
+  margin: 0 0 8px 0;
+  font-size: 0.95rem;
+  color: var(--texto-principal);
+}
+.secao-biografia {
+  border-bottom: var(--borda-padrao);
+  padding-bottom: 16px;
+  margin-bottom: 4px;
+}
+.label-badge-verde {
+  display: inline-block;
+  background-color: #d4f4dd;
+  color: #1a7d3a;
+  font-size: 0.75rem;
+  font-weight: bold;
+  padding: 3px 10px;
+  border-radius: 12px;
+  margin-bottom: 8px;
+}
+.card-administrador-mini {
+  display: flex;
+  align-items: center;
+  margin-top: 6px;
+}
+.caixa-texto-descricao-grupo {
+  background-color: var(--fundo-opcao-enquete);
+  border: var(--borda-padrao);
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 0.9rem;
+  color: var(--texto-suave);
+  margin: 0;
+  line-height: 1.4;
+}
+.lista-subgrupos-comunidade {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.item-subgrupo-caixa {
+  border: var(--borda-padrao);
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 0.9rem;
+  color: var(--texto-principal);
+  background-color: var(--fundo-card);
+}
+</style>
