@@ -834,11 +834,12 @@ main {
   justify-content: space-between;
   flex-grow: 1;
   box-sizing: border-box;
+  max-width: 14vw;
 }
 .bloco-nomes-user {
   display: flex;
   flex-direction: column;
-  max-width: 65%;
+  max-width: 55%;
 }
 .info-sugestao-texto strong {
   font-size: 0.88rem;
@@ -850,6 +851,9 @@ main {
 .info-sugestao-texto span {
   font-size: 0.78rem;
   color: var(--texto-suave);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .btn-seguir-sidebar {
   background-color: var(--fundo-card-va);
