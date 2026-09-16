@@ -169,7 +169,6 @@ router.put('/perfil/:id/midias', uploadCamposPerfil.fields([{ name: 'foto', maxC
     const removerBanner = req.body.removerBanner === 'true';
 
     const arquivosRecebidos = req.files || {};
-    
     const fotoEnviada = arquivosRecebidos['foto'] && arquivosRecebidos['foto'].length > 0 ? arquivosRecebidos['foto'][0] : null;
     const bannerEnviado = arquivosRecebidos['banner'] && arquivosRecebidos['banner'].length > 0 ? arquivosRecebidos['banner'][0] : null;
 
@@ -187,6 +186,7 @@ router.put('/perfil/:id/midias', uploadCamposPerfil.fields([{ name: 'foto', maxC
       urlFoto = null; 
     } else if (fotoEnviada) {
       console.log('[ImgBB] Despachando foto de perfil via Multipart Form...');
+      
       const imagemBase64 = fotoEnviada.buffer.toString('base64');
       
       const corpoForm = new FormData();
@@ -202,7 +202,7 @@ router.put('/perfil/:id/midias', uploadCamposPerfil.fields([{ name: 'foto', maxC
         urlFoto = jsonImgbb.data.url;
         console.log('foto de perfil salva na nuvem:', urlFoto);
       } else {
-        console.error('erro reportado pelo ImgBB no avatar:', jsonImgbb);
+        console.error('Erro reportado pelo ImgBB no avatar:', jsonImgbb);
       }
     }
     if (removerBanner) {
@@ -240,7 +240,7 @@ router.put('/perfil/:id/midias', uploadCamposPerfil.fields([{ name: 'foto', maxC
     });
   
   } catch(error) {
-    console.error('Falha massiva ao processar mídias do perfil:', error.message);
+    console.error('Falha fatal ao processar mídias do perfil:', error.message);
     return res.status(500).json({ erro: 'Erro ao salvar as imagens.' });
   }
 });
