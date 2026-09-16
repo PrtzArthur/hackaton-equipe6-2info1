@@ -1,21 +1,9 @@
 import express from 'express';
 import pool from '../database.js';
 import crypto from 'crypto';
-import multer from 'multer';
-import path from 'path';
 
 const router = express.Router();
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, path.resolve('./uploads')); 
-  },
-  filename: (req, file, cb) => {
-    const sufixoUnico = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    cb(null, file.fieldname + '-' + sufixoUnico + path.extname(file.originalname));
-  }
-});
-const upload = multer({ storage: storage });
 router.get('/feed/global', async (req, res) => {
   const meuIdLogado = req.query.meuId || '';
   const pagina = parseInt(req.query.page, 10) || 1;
@@ -380,7 +368,8 @@ router.delete('/comentarios/deletar/:idComentario', async (req, res) => {
     return res.status(500).json({ erro: 'Erro interno ao remover comentário.' });
   }
 });
-router.post('/postagens/:id', upload.single('imagem_post'), async (req, res) => {
+
+router.post('/postagens/:id', uploadPostagem.single('imagem_post'), async (req, res) => {
   const { id } = req.params;
   let conexao = null;
 
@@ -398,19 +387,33 @@ router.post('/postagens/:id', upload.single('imagem_post'), async (req, res) => 
       `INSERT INTO Postagem (id_postagem, tipo, conteudo, id_usuario) VALUES (?, ?, ?, ?)`,
       [idPostagem, tipo, descricao, id]
     );
+
     const arquivoEnviado = req.file;
 
     if (arquivoEnviado) {
+      console.log('[ImgBB] Despachando imagem da postagem via Axios...');
       const idMidia = crypto.randomUUID();
       
-      const protocolo = req.secure || req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
-      const dominioAtual = `${protocolo}://${req.headers.host}`;
-      const urlImagemPost = `${dominioAtual}/imagens/${arquivoEnviado.filename}`;
+      const imagemBase64 = arquivoEnviado.buffer.toString('base64');
+      
+      const corpoParams = new URLSearchParams();
+      corpoParams.append('image', imagemBase64);
 
-      await conexao.query(
-        `INSERT INTO Midia_Postagem (id_midia, imagem_anexada, id_postagem) VALUES (?, ?, ?)`,
-        [idMidia, urlImagemPost, idPostagem]
-      );
+      const respostaImgbb = await axios.post(`https://api.imgbb.com/1/upload?key=${process.env.IMGBB_API_KEY}`, corpoParams, {
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+      });
+
+      if (respostaImgbb.data && respostaImgbb.data.success) {
+        const urlImagemNuvem = respostaImgbb.data.data.url; 
+        console.log('✅ Imagem do post salva com link da nuvem:', urlImagemNuvem);
+
+        await conexao.query(
+          `INSERT INTO Midia_Postagem (id_midia, imagem_anexada, id_postagem) VALUES (?, ?, ?)`,
+          [idMidia, urlImagemNuvem, idPostagem]
+        );
+      } else {
+        console.error('falha reportada pelo ImgBB no upload da postagem:', respostaImgbb.data);
+      }
     }
 
     if (tipo === 'postagemComEnquete' && opcoes.length >= 2) {
@@ -423,7 +426,7 @@ router.post('/postagens/:id', upload.single('imagem_post'), async (req, res) => 
       }
     }
 
- if (tags && tags.length > 0) {
+    if (tags && tags.length > 0) {
       const valoresParaInserirEmLote = [];
       const listaTagsReal = Array.isArray(tags) ? tags : JSON.parse(tags);
 
@@ -458,7 +461,7 @@ router.post('/postagens/:id', upload.single('imagem_post'), async (req, res) => 
             `INSERT INTO postagem_tag (id_postagem, id_tag) VALUES ?`,
             [valoresParaInserirEmLote]
           );
-          console.log(`SUCESSO COLETIVO: ${valoresParaInserirEmLote.length} tags cimentadas no MySQL!`);
+          console.log(`SUCESSO COLETIVO: ${valoresParaInserirEmLote.length} tags vinculadas no MySQL!`);
         } catch (errTagBulk) {
           console.error("Erro crítico no Bulk Insert de tags no MySQL:", errTagBulk.message);
         }
@@ -487,7 +490,7 @@ router.post('/postagens/:id', upload.single('imagem_post'), async (req, res) => 
         }
       }
     } catch (erroSino) {
-      console.error(erroSino);
+      console.error("Aviso: Falha ao despachar gatilho de notificações de sino:", erroSino.message);
     }
 
     await conexao.commit();
@@ -495,7 +498,7 @@ router.post('/postagens/:id', upload.single('imagem_post'), async (req, res) => 
 
   } catch (error) { 
     if (conexao) await conexao.rollback();
-    console.error('Erro ao processar postagem complexa:', error);
+    console.error('Erro ao processar postagem complexa na nuvem:', error);
     return res.status(500).json({ erro: 'Erro interno ao salvar dados da postagem.' });
   } finally {
     if (conexao) conexao.release(); 
@@ -691,31 +694,33 @@ router.post('/postagens/comentarios/votar', async (req, res) => {
   }
 });
 router.get('/comunidades/listar', async (req, res) => {
+  const meuIdLogado = req.query.meuId || '';
+  
   try {
-     const querySQL = `
+    const querySQL = `
       SELECT 
-        id_comunidade, 
-        nome_comunidade, 
-        descricao,
-        banner_url AS banner_url,
+        c.id_comunidade, 
+        c.nome_comunidade, 
+        c.descricao,
+        c.banner_url AS banner_url,
         (SELECT COUNT(*) FROM Participacao WHERE id_comunidade = c.id_comunidade) AS total_membros,
         'Administrador' AS nome_admin, 
         'admin' AS username_admin, 
         NULL AS foto_admin, 
-        FALSE AS favoritadoPorMim
+        IF((SELECT COUNT(*) FROM comunidades_favoritas WHERE id_usuario = ? AND id_comunidade = c.id_comunidade) > 0, TRUE, FALSE) AS favoritadoPorMim
       FROM Comunidade c
       ORDER BY c.data_criacao DESC
     `;
 
-    const [linhas] = await pool.query(querySQL);
-    return res.json(Array.isArray(linhas) ? linhas : (linhas ? [linhas] : []));
+    const [linhas] = await pool.query(querySQL, [meuIdLogado]);
+    return res.json(Array.isArray(linhas) ? linhas : []);
 
   } catch (error) {
     console.error('Erro crítico no MySQL ao processar feed dinâmico:', error.message);
     return res.status(500).json({ erro: 'Erro interno ao carregar canais de comunidades.' });
   }
 });
-router.post('/comunidades/nova/:idUsuarioCriador', upload.single('banner_comunidade'), async (req, res) => {
+router.post('/comunidades/nova/:idUsuarioCriador', uploadPostagem.single('banner_comunidade'), async (req, res) => {
   const { idUsuarioCriador } = req.params;
   let conexao = null;
 
@@ -726,9 +731,23 @@ router.post('/comunidades/nova/:idUsuarioCriador', upload.single('banner_comunid
       return res.status(400).json({ erro: 'O nome e a descrição da comunidade são obrigatórios.' });
     }
 
-    let linkFisicoDoBanner = null;
+    let urlPublicaDoBanner = null;
+
     if (req.file) {
-      linkFisicoDoBanner = `/uploads/${req.file.filename}`;
+      console.log('[ImgBB] Despachando banner da comunidade via Axios...');
+      const imagemBase64 = req.file.buffer.toString('base64');
+      
+      const corpoParams = new URLSearchParams();
+      corpoParams.append('image', imagemBase64);
+
+      const respostaImgbb = await axios.post(`https://api.imgbb.com/1/upload?key=${process.env.IMGBB_API_KEY}`, corpoParams, {
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+      });
+
+      if (respostaImgbb.data && respostaImgbb.data.success) {
+        urlPublicaDoBanner = respostaImgbb.data.data.url;
+        console.log('banner da comunidade salvo na nuvem:', urlPublicaDoBanner);
+      }
     }
 
     conexao = await pool.getConnection();
@@ -739,25 +758,24 @@ router.post('/comunidades/nova/:idUsuarioCriador', upload.single('banner_comunid
     await conexao.query(
       `INSERT INTO Comunidade (id_comunidade, nome_comunidade, descricao, banner_url, id_usuario) 
        VALUES (?, ?, ?, ?, ?)`,
-      [idComunidade, nome.trim(), descricao.trim(), linkFisicoDoBanner, idUsuarioCriador]
+      [idComunidade, nome.trim(), descricao.trim(), urlPublicaDoBanner, idUsuarioCriador]
     );
+
     try {
       await conexao.query(
         `INSERT INTO Participacao (id_comunidade, id_usuario) VALUES (?, ?)`,
         [idComunidade, idUsuarioCriador]
       );
     } catch (erroMembro) {
-      console.warn("aviso: O usuário criador não foi encontrado na tabela Usuario. Pulando vínculo de membro.", erroMembro);
+      console.warn("Aviso: Vínculo automático de membro pulado.", erroMembro.message );
     }
 
     await conexao.commit();
-    console.log(`[MySQL] Comunidade "${nome.trim()}" vinculada com sucesso ao criador ${idUsuarioCriador}!`);
-
-    return res.status(201).json({ mensagem: 'Comunidade criada com sucesso!', idComunidade });
+    return res.status(201).json({ mensagem: 'Comunidade criada com sucesso na nuvem!', idComunidade });
 
   } catch (error) {
     if (conexao) await conexao.rollback();
-    console.error('Erro no MySQL ao registrar nova comunidade com criador:', error);
+    console.error('Erro no MySQL ao registrar nova comunidade:', error);
     return res.status(500).json({ erro: 'Erro interno ao salvar dados.' });
   } finally {
     if (conexao) conexao.release();
