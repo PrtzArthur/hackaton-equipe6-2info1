@@ -715,38 +715,85 @@ router.get('/comunidades/listar', async (req, res) => {
     return res.status(500).json({ erro: 'Erro interno ao carregar canais de comunidades.' });
   }
 });
-router.post('/comunidades/nova/:idUsuarioCriador', async (req, res) => {
+router.post('/comunidades/nova/:idUsuarioCriador', upload.single('banner_comunidade'), async (req, res) => {
   const { idUsuarioCriador } = req.params;
   let conexao = null;
 
   try {
-    const { nome, descricao, banner_url } = req.body;
+    const { nome, descricao } = req.body;
 
     if (!nome || !nome.trim() || !descricao || !descricao.trim()) {
       return res.status(400).json({ erro: 'O nome e a descrição da comunidade são obrigatórios.' });
+    }
+
+    let linkFisicoDoBanner = null;
+    if (req.file) {
+      linkFisicoDoBanner = `/uploads/${req.file.filename}`;
     }
 
     conexao = await pool.getConnection();
     await conexao.beginTransaction();
 
     const idComunidade = crypto.randomUUID();
+
     await conexao.query(
-      `INSERT INTO Comunidade (id_comunidade, nome_comunidade, descricao, banner_url) 
-       VALUES (?, ?, ?, ?)`,
-      [idComunidade, nome.trim(), descricao.trim(), banner_url || null]
+      `INSERT INTO Comunidade (id_comunidade, nome_comunidade, descricao, banner_url, id_usuario) 
+       VALUES (?, ?, ?, ?, ?)`,
+      [idComunidade, nome.trim(), descricao.trim(), linkFisicoDoBanner, idUsuarioCriador]
     );
-    await conexao.query(
-      `INSERT INTO Participacao (id_comunidade, id_usuario) VALUES (?, ?)`,
-      [idComunidade, idUsuarioCriador]
-    );
+    try {
+      await conexao.query(
+        `INSERT INTO Participacao (id_comunidade, id_usuario) VALUES (?, ?)`,
+        [idComunidade, idUsuarioCriador]
+      );
+    } catch (erroMembro) {
+      console.warn("aviso: O usuário criador não foi encontrado na tabela Usuario. Pulando vínculo de membro.", erroMembro);
+    }
 
     await conexao.commit();
+    console.log(`[MySQL] Comunidade "${nome.trim()}" vinculada com sucesso ao criador ${idUsuarioCriador}!`);
+
     return res.status(201).json({ mensagem: 'Comunidade criada com sucesso!', idComunidade });
 
   } catch (error) {
     if (conexao) await conexao.rollback();
-    console.error('Erro no MySQL ao registrar nova comunidade:', error);
+    console.error('Erro no MySQL ao registrar nova comunidade com criador:', error);
     return res.status(500).json({ erro: 'Erro interno ao salvar dados.' });
+  } finally {
+    if (conexao) conexao.release();
+  }
+});
+router.post('/comunidades/curtir', async (req, res) => {
+  const { idUsuario, idComunidade } = req.body;
+
+  if (!idUsuario || !idComunidade) {
+    return res.status(400).json({ erro: 'Parâmetros inválidos para favoritar.' });
+  }
+
+  let conexao = null;
+  try {
+    conexao = await pool.getConnection();
+    const [existente] = await conexao.query(
+      `SELECT * FROM comunidades_favoritas WHERE id_usuario = ? AND id_comunidade = ?`,
+      [idUsuario, idComunidade]
+    );
+
+    if (existente.length > 0) {
+      await conexao.query(
+        `DELETE FROM comunidades_favoritas WHERE id_usuario = ? AND id_comunidade = ?`,
+        [idUsuario, idComunidade]
+      );
+      return res.json({ favoritado: false });
+    } else {
+      await conexao.query(
+        `INSERT INTO comunidades_favoritas (id_usuario, id_comunidade) VALUES (?, ?)`,
+        [idUsuario, idComunidade]
+      );
+      return res.json({ favoritado: true });
+    }
+  } catch (error) {
+    console.error('Erro ao alternar favoritos no MySQL:', error.message);
+    return res.status(500).json({ erro: 'Erro interno ao salvar favorito.' });
   } finally {
     if (conexao) conexao.release();
   }

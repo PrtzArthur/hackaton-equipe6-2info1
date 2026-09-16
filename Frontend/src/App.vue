@@ -57,7 +57,7 @@ const route = useRoute();
   min-height: 100vh;
 }
 :root {
-  --fundo-site: rgba(92, 254, 22, 0.185);
+  --fundo-site: rgba(96, 248, 26, 0.204);
   --fundo-card: #ffffff;
   --opcao-escolhida: #319e00;
   --fundo-opcao-enquete: rgba(60, 188, 0, 0.22);

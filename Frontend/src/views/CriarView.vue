@@ -78,10 +78,10 @@ const nomeDaComunidade = ref('');
 const descricaoDaComunidade = ref('');
 const tagsDaComunidade = ref([]);
 const mostrarPainelTagsComunidade = ref(false);
-const bannerUrlComunidade = ref('');
+const bannerUrlComunidade = ref(null);
 
 function capturarBannerComunidade(event) {
-  bannerUrlComunidade.value = event.target.value;
+  bannerUrlComunidade.value = event.target.files;
 }
 
 function adicionarNovasTagsComunidade() {
@@ -116,17 +116,18 @@ const enviarComunidade = async () => {
   }
 
   try {
-    const dadosFormularioJson = {
-      nome: nomeDaComunidade.value.trim(),
-      descricao: descricaoDaComunidade.value.trim(),
-      tags: tagsDaComunidade.value,
-      banner_url: bannerUrlComunidade.value.trim() || null
-    };
+    const formDataComunidade = new FormData();
+    formDataComunidade.append('nome', nomeDaComunidade.value.trim());
+    formDataComunidade.append('descricao', descricaoDaComunidade.value.trim());
+    formDataComunidade.append('tags', JSON.stringify(tagsDaComunidade.value));
+
+    if (bannerUrlComunidade.value && bannerUrlComunidade.value.length > 0) {
+      formDataComunidade.append('banner_comunidade', bannerUrlComunidade.value[0]);
+    }
 
     const resposta = await fetch(`${import.meta.env.VITE_API_URL}/api/criar/comunidades/nova/${idUsuarioCriador}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(dadosFormularioJson)
+      body: formDataComunidade
     });
 
     const dados = await resposta.json();
