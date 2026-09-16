@@ -169,6 +169,7 @@ router.put('/perfil/:id/midias', uploadCamposPerfil.fields([{ name: 'foto', maxC
     const removerBanner = req.body.removerBanner === 'true';
 
     const arquivosRecebidos = req.files || {};
+    
     const fotoEnviada = arquivosRecebidos['foto'] && arquivosRecebidos['foto'].length > 0 ? arquivosRecebidos['foto'][0] : null;
     const bannerEnviado = arquivosRecebidos['banner'] && arquivosRecebidos['banner'].length > 0 ? arquivosRecebidos['banner'][0] : null;
 
@@ -185,46 +186,48 @@ router.put('/perfil/:id/midias', uploadCamposPerfil.fields([{ name: 'foto', maxC
     if (removerFoto) {
       urlFoto = null; 
     } else if (fotoEnviada) {
-      console.log('[ImgBB] Despachando foto de perfil via Multipart Form...');
-      
+      console.log('[ImgBB] Despachando foto de perfil em Base64 estável...');
       const imagemBase64 = fotoEnviada.buffer.toString('base64');
       
-      const corpoForm = new FormData();
-      corpoForm.append('image', imagemBase64);
+      const corpoParams = new URLSearchParams();
+      corpoParams.append('image', imagemBase64);
 
       const rImgbb = await fetch(`https://imgbb.com{process.env.IMGBB_API_KEY}`, {
         method: 'POST',
-        body: corpoForm
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: corpoParams
       });
       
       const jsonImgbb = await rImgbb.json();
-      if (jsonImgbb && jsonImgbb.success) {
+      if (jsonImgbb && jsonImgbb.success && jsonImgbb.data) {
         urlFoto = jsonImgbb.data.url;
-        console.log('foto de perfil salva na nuvem:', urlFoto);
+        console.log('foto de perfil salva com link da nuvem:', urlFoto);
       } else {
-        console.error('Erro reportado pelo ImgBB no avatar:', jsonImgbb);
+        console.error('falha reportada pelo ImgBB no avatar:', jsonImgbb);
       }
     }
+
     if (removerBanner) {
       urlBanner = null;
     } else if (bannerEnviado) {
-      console.log('[ImgBB] Despachando banner de fundo via Multipart Form...');
+      console.log('[ImgBB] Despachando banner de fundo em Base64 estável...');
       const imagemBase64 = bannerEnviado.buffer.toString('base64');
       
-      const corpoForm = new FormData();
-      corpoForm.append('image', imagemBase64);
+      const corpoParams = new URLSearchParams();
+      corpoParams.append('image', imagemBase64);
 
       const rImgbb = await fetch(`https://imgbb.com{process.env.IMGBB_API_KEY}`, {
         method: 'POST',
-        body: corpoForm
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: corpoParams
       });
       
       const jsonImgbb = await rImgbb.json();
-      if (jsonImgbb && jsonImgbb.success) {
+      if (jsonImgbb && jsonImgbb.success && jsonImgbb.data) {
         urlBanner = jsonImgbb.data.url;
-        console.log('banner de fundo salvo na nuvem:', urlBanner);
+        console.log('banner de fundo salvo com link da nuvem:', urlBanner);
       } else {
-        console.error('erro reportado pelo ImgBB no banner:', jsonImgbb);
+        console.error('falha reportada pelo ImgBB no banner:', jsonImgbb);
       }
     }
 
@@ -240,8 +243,8 @@ router.put('/perfil/:id/midias', uploadCamposPerfil.fields([{ name: 'foto', maxC
     });
   
   } catch(error) {
-    console.error('Falha fatal ao processar mídias do perfil:', error.message);
-    return res.status(500).json({ erro: 'Erro ao salvar as imagens.' });
+    console.error('Falha crítica capturada no duto de mídias:', error.message);
+    return res.status(500).json({ erro: 'Erro ao salvar as imagens de perfil.' });
   }
 });
 router.get('/perfil/:id', async (req, res) => {
