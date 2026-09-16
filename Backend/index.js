@@ -4,11 +4,16 @@ import fs from 'fs';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import pool from './database.js';
 import authRoutes from './routes/auth.js';
 import usuarioRoutes from './routes/usuario.js';
 import criarRoutes from './routes/criar.js';
 import chatRoutes from './routes/chat.js';
+import multer from 'multer';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 
@@ -19,6 +24,49 @@ app.use(cors({
 }));
 app.use(express.json());
 
+const storageMemoria = multer.memoryStorage();
+const uploadBuffer = multer({ storage: storageMemoria });
+
+export const fazerUploadParaNuvem = (nomeDoCampoForm) => {
+  return [
+    uploadBuffer.single(nomeDoCampoForm),
+    async (req, res, next) => {
+      if (!req.file) {
+        return next();
+      }
+
+      try {
+        console.log(`enviando, da nuvem, binário do campo ${nomeDoCampoForm} para o ImgBB...`);
+        
+        const imagemBase64 = req.file.buffer.toString('base64');
+        
+        const dadosForm = new URLSearchParams();
+        dadosForm.append('image', imagemBase64);
+        const resposta = await fetch(`https://imgbb.com{process.env.IMGBB_API_KEY}`, {
+          method: 'POST',
+          body: dadosForm
+        });
+
+        const dadosJson = await resposta.json();
+
+        if (dadosJson && dadosJson.success) {
+          req.file.filename = dadosJson.data.url; 
+          req.file.path = dadosJson.data.url;
+          
+          console.log('sucesso: link gerado:', dadosJson.data.url);
+          next();
+        } else {
+          console.error('Falha na API do ImgBB:', dadosJson);
+          return res.status(500).json({ erro: 'Falha ao processar armazenamento de mídias.' });
+        }
+      } catch (error) {
+        console.error('Erro no duto do middleware de imagem:', error.message);
+        return res.status(500).json({ erro: 'Erro interno no servidor de uploads.' });
+      }
+    }
+  ];
+};
+
 const dirUploads = path.resolve('./uploads');
 if (!fs.existsSync(dirUploads)){
     fs.mkdirSync(dirUploads, { recursive: true });
@@ -26,6 +74,7 @@ if (!fs.existsSync(dirUploads)){
 }
 
 app.use('/imagens', express.static(dirUploads));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
