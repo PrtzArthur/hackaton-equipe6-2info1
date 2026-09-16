@@ -1,6 +1,10 @@
 import express from 'express';
 import pool from '../database.js';
 import crypto from 'crypto';
+import multer from 'multer';
+import axios from 'axios';
+
+const uploadPostagem = multer({ storage: multer.memoryStorage() });
 
 const router = express.Router();
 
