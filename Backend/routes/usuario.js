@@ -2,6 +2,7 @@ import express from 'express';
 import pool from '../database.js';
 import multer from 'multer'
 import crypto from 'crypto';
+import axios from 'axios';
 
 const router = express.Router();
 
@@ -186,48 +187,38 @@ router.put('/perfil/:id/midias', uploadCamposPerfil.fields([{ name: 'foto', maxC
     if (removerFoto) {
       urlFoto = null; 
     } else if (fotoEnviada) {
-      console.log('[ImgBB] Despachando foto de perfil em Base64 estável...');
+      console.log('[ImgBB] Despachando foto de perfil via Axios...');
       const imagemBase64 = fotoEnviada.buffer.toString('base64');
       
       const corpoParams = new URLSearchParams();
       corpoParams.append('image', imagemBase64);
 
-      const rImgbb = await fetch(`https://imgbb.com{process.env.IMGBB_API_KEY}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: corpoParams
+      const respostaImgbb = await axios.post(`https://imgbb.com{process.env.IMGBB_API_KEY}`, corpoParams, {
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
       });
       
-      const jsonImgbb = await rImgbb.json();
-      if (jsonImgbb && jsonImgbb.success && jsonImgbb.data) {
-        urlFoto = jsonImgbb.data.url;
-        console.log('foto de perfil salva com link da nuvem:', urlFoto);
-      } else {
-        console.error('falha reportada pelo ImgBB no avatar:', jsonImgbb);
+      if (respostaImgbb.data && respostaImgbb.data.success) {
+        urlFoto = respostaImgbb.data.data.url;
+        console.log('foto de perfil salva via Axios na nuvem:', urlFoto);
       }
     }
 
     if (removerBanner) {
       urlBanner = null;
     } else if (bannerEnviado) {
-      console.log('[ImgBB] Despachando banner de fundo em Base64 estável...');
+      console.log('[ImgBB] Despachando banner de fundo via Axios...');
       const imagemBase64 = bannerEnviado.buffer.toString('base64');
       
       const corpoParams = new URLSearchParams();
       corpoParams.append('image', imagemBase64);
 
-      const rImgbb = await fetch(`https://imgbb.com{process.env.IMGBB_API_KEY}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: corpoParams
+      const respostaImgbb = await axios.post(`https://imgbb.com{process.env.IMGBB_API_KEY}`, corpoParams, {
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
       });
       
-      const jsonImgbb = await rImgbb.json();
-      if (jsonImgbb && jsonImgbb.success && jsonImgbb.data) {
-        urlBanner = jsonImgbb.data.url;
-        console.log('banner de fundo salvo com link da nuvem:', urlBanner);
-      } else {
-        console.error('falha reportada pelo ImgBB no banner:', jsonImgbb);
+      if (respostaImgbb.data && respostaImgbb.data.success) {
+        urlBanner = respostaImgbb.data.data.url;
+        console.log('banner de fundo salvo via Axios na nuvem:', urlBanner);
       }
     }
 
@@ -243,8 +234,12 @@ router.put('/perfil/:id/midias', uploadCamposPerfil.fields([{ name: 'foto', maxC
     });
   
   } catch(error) {
-    console.error('Falha crítica capturada no duto de mídias:', error.message);
-    return res.status(500).json({ erro: 'Erro ao salvar as imagens de perfil.' });
+    if (error.response) {
+      console.error('erro de resposta do ImgBB:', error.response.data);
+    } else {
+      console.error('falha crítica no duto Axios/Rede:', error.message);
+    }
+    return res.status(500).json({ erro: 'Erro interno ao salvar as imagens de perfil.' });
   }
 });
 router.get('/perfil/:id', async (req, res) => {
