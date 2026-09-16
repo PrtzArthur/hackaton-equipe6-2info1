@@ -187,7 +187,7 @@ router.put('/perfil/:id/midias', uploadCamposPerfil.fields([{ name: 'foto', maxC
     if (removerFoto) {
       urlFoto = null; 
     } else if (fotoEnviada) {
-      console.log('📡 [ImgBB] Despachando foto de perfil via Axios...');
+      console.log('[ImgBB] Despachando foto de perfil via Axios...');
       const imagemBase64 = fotoEnviada.buffer.toString('base64');
       
       const corpoParams = new URLSearchParams();
