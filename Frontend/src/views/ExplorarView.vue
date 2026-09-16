@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { useToast } from 'vue-toastification'
+import voltar from '@/icons/voltar.svg'
 import userBlackFull from '@/icons/userBlackFull.svg'
 
 const toast = useToast()
@@ -20,6 +21,7 @@ const comunidadesFiltradas = computed(() => {
   }
   return resultado
 })
+
 const comunidadesFavoritas = computed(() => {
   return listaDeTodasAsComunidades.value.filter(c => c.favoritadoPorMim)
 })
@@ -42,9 +44,14 @@ async function buscarComunidadesDoBanco() {
       const dados = await r.json()
 
       listaDeTodasAsComunidades.value = dados.map(c => ({
-        ...c,
-        favoritadoPorMim: false
+        id_comunidade: c.id_comunidade,
+        nome_comunidade: c.nome_comunidade,
+        descricao: c.descricao,
+        banner_url: c.banner_url || null,
+        total_membros: c.total_membros || 1,
+        favoritadoPorMim: !!c.favoritadoPorMim
       }))
+
       console.log("Comunidades carregadas com sucesso no Front-end:", listaDeTodasAsComunidades.value)
     }
   } catch (e) {
@@ -52,19 +59,42 @@ async function buscarComunidadesDoBanco() {
   }
 }
 async function alternarCurtidaComunidade(grupo) {
-  listaDeTodasAsComunidades.value = listaDeTodasAsComunidades.value.map(c => {
-    if (c.id_comunidade === grupo.id_comunidade) {
-      const novoStatus = !c.favoritadoPorMim
-      if (comunidadeSelecionada.value && comunidadeSelecionada.value.id_comunidade === grupo.id_comunidade) {
-        comunidadeSelecionada.value.favoritadoPorMim = novoStatus
-      }
-      return { ...c, favoritadoPorMim: novoStatus }
+  const meuId = localStorage.getItem('ifchat_user_id') || ''
+
+  if (!meuId) {
+    toast.warning("Você precisa estar logado para favoritar!");
+    return;
+  }
+
+  try {
+    const r = await fetch(`${import.meta.env.VITE_API_URL}/api/criar/comunidades/curtir`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idUsuario: meuId, idComunidade: grupo.id_comunidade })
+    })
+
+    if (r.ok) {
+      const dados = await r.json()
+      listaDeTodasAsComunidades.value = listaDeTodasAsComunidades.value.map(c => {
+        if (c.id_comunidade === grupo.id_comunidade) {
+          const novoStatus = !!dados.favoritado
+
+          if (comunidadeSelecionada.value && comunidadeSelecionada.value.id_comunidade === grupo.id_comunidade) {
+            comunidadeSelecionada.value.favoritadoPorMim = novoStatus
+          }
+          return { ...c, favoritadoPorMim: novoStatus }
+        }
+        return c
+      })
+
+      toast.success(dados.favoritado ? "Comunidade favoritada!" : "Removida dos favoritos.")
     }
-    return c
-  })
-  const statusAtual = listaDeTodasAsComunidades.value.find(c => c.id_comunidade === grupo.id_comunidade)?.favoritadoPorMim
-  toast.success(statusAtual ? "Comunidade favoritada!" : "Removida dos favoritos.")
+  } catch (e) {
+    console.error("Erro ao alternar curtida da comunidade:", e)
+    toast.error("Falha ao se conectar com o servidor.")
+  }
 }
+
 onMounted(() => {
   buscarComunidadesDoBanco()
 })
@@ -75,11 +105,7 @@ onMounted(() => {
     <div v-if="!comunidadeSelecionada" class="explore-card">
       <div class="search-section">
         <div class="search-box">
-          <input
-            type="text"
-            v-model="searchQuery"
-            placeholder="Procurar comunidade"
-          />
+          <input type="text" v-model="searchQuery" placeholder="Procurar comunidade"/>
           <span class="search-icon">🔍︎</span>
         </div>
       </div>
@@ -87,22 +113,13 @@ onMounted(() => {
         <section class="community-section">
           <h2>Comunidades favoritas</h2>
           <div v-if="comunidadesFavoritas.length > 0" class="horizontal-scroll">
-            <div
-              v-for="item in comunidadesFavoritas"
-              :key="item.id_comunidade"
-              class="community-card"
-              @click="abrirDetalhesComunidade(item)"
-            >
+            <div v-for="item in comunidadesFavoritas" :key="item.id_comunidade" class="community-card" @click="abrirDetalhesComunidade(item)">
               <div class="card-banner">
-                <img
-                  :src="item.banner_url || ''"
-                  :alt="item.nome_comunidade"
-                  style="background-color: #a3ff99;"
-                />
+                <img v-if="item.banner_url" :src="`${VITE_API_URL}${item.banner_url}`" :alt="item.nome_comunidade" style="object-fit: cover; width: 100%; height: 100%;"/>
               </div>
               <div class="card-info">
                 <strong>{{ item.nome_comunidade }}</strong>
-                <span>{{ item.total_membros || 15 }} membros</span>
+                <span>{{ item.total_membros }} membros</span>
               </div>
             </div>
           </div>
@@ -120,11 +137,7 @@ onMounted(() => {
               @click="abrirDetalhesComunidade(item)"
             >
               <div class="card-banner">
-                <img
-                  :src="item.banner_url || ''"
-                  :alt="item.nome_comunidade"
-                  style="background-color: #a3ff99;"
-                />
+                <img v-if="item.banner_url && item.banner_url.trim().startsWith('http')" :src="item.banner_url" :alt="item.nome_comunidade" style="object-fit: cover; width: 100%; height: 100%; display: block;"/>
               </div>
               <div class="card-info">
                 <strong>{{ item.nome_comunidade }}</strong>
@@ -141,16 +154,17 @@ onMounted(() => {
     <div v-else class="tela-interna-comunidade-container">
       <div class="barra-voltar-topo">
         <button class="btn-voltar-estilizado" @click="fecharDetalhesComunidade">
-          ← Voltar para explorar
+          <img :src="voltar" alt="">
         </button>
       </div>
       <div class="scroll-content-interno">
         <div class="moldura-central-comunidade">
           <div class="banner-interno-grupo">
             <img
-              :src="comunidadeSelecionada.banner_url || ''"
+              v-if="comunidadeSelecionada.banner_url && comunidadeSelecionada.banner_url.trim() !== ''"
+              :src="comunidadeSelecionada.banner_url"
               alt="Banner da Comunidade"
-              style="background-color: #a3ff99;"
+              style="object-fit: cover; width: 100%; height: 100%;"
             />
           </div>
           <div class="linha-titulo-favorito">

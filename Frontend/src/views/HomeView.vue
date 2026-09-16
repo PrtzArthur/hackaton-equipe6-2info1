@@ -809,7 +809,7 @@ main {
 .lista-sugestoes-wrapper {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 0.3vw;
 }
 .card-sugestao-linha {
   border: 1px solid var(--borda-padrao);
@@ -892,7 +892,7 @@ main {
   display: flex;
   flex-direction: column;
   padding: 12px;
-  gap: 8px;
+  gap: 0.3vw;
 }
 .card-topico-linha {
   border: 1px solid var(--borda-padrao);
