@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, nextTick, onBeforeUnmount } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useToast } from 'vue-toastification';
 import voltar from '@/icons/voltar.svg'
@@ -55,7 +55,11 @@ function removerOpcaoEnquete(index) {
 function deletarTag(index) {
   tagsDaPostagem.value.splice(index, 1)
 };
+
 const arquivoImagemPost = ref(null);
+const arquivoOriginalPost = ref(null);
+const previewImagemPost = ref(null);
+const inputImagemPostRef = ref(null);
 
 function moverTagParaListaUsuario(tagUniversal) {
   const textoObjetoTag = typeof tagUniversal === 'object' ? tagUniversal.nome_tag : tagUniversal;
@@ -68,8 +72,26 @@ function moverTagParaListaUsuario(tagUniversal) {
     toast.warning('Esta tag já foi adicionada ao post.');
   }
 }
+
 function capturarImagemPost(event) {
-  arquivoImagemPost.value = event.target.files;
+  const arquivo = event.target.files && event.target.files[0];
+  if (!arquivo) return;
+  arquivoOriginalPost.value = arquivo;
+  abrirModalCorte(arquivo, 'post');
+}
+
+function removerImagemPost() {
+  arquivoImagemPost.value = null;
+  arquivoOriginalPost.value = null;
+  if (previewImagemPost.value) URL.revokeObjectURL(previewImagemPost.value);
+  previewImagemPost.value = null;
+  if (inputImagemPostRef.value) inputImagemPostRef.value.value = '';
+}
+
+function recortarNovamentePost() {
+  if (arquivoOriginalPost.value) {
+    abrirModalCorte(arquivoOriginalPost.value, 'post');
+  }
 }
 
 const descricaoDaPostagem = ref('');
@@ -78,10 +100,31 @@ const nomeDaComunidade = ref('');
 const descricaoDaComunidade = ref('');
 const tagsDaComunidade = ref([]);
 const mostrarPainelTagsComunidade = ref(false);
+
 const bannerUrlComunidade = ref(null);
+const arquivoOriginalBanner = ref(null);
+const previewBannerComunidade = ref(null);
+const inputBannerRef = ref(null);
 
 function capturarBannerComunidade(event) {
-  bannerUrlComunidade.value = event.target.files;
+  const arquivo = event.target.files && event.target.files[0];
+  if (!arquivo) return;
+  arquivoOriginalBanner.value = arquivo;
+  abrirModalCorte(arquivo, 'banner');
+}
+
+function removerBannerComunidade() {
+  bannerUrlComunidade.value = null;
+  arquivoOriginalBanner.value = null;
+  if (previewBannerComunidade.value) URL.revokeObjectURL(previewBannerComunidade.value);
+  previewBannerComunidade.value = null;
+  if (inputBannerRef.value) inputBannerRef.value.value = '';
+}
+
+function recortarNovamenteBanner() {
+  if (arquivoOriginalBanner.value) {
+    abrirModalCorte(arquivoOriginalBanner.value, 'banner');
+  }
 }
 
 function adicionarNovasTagsComunidade() {
@@ -101,6 +144,166 @@ function moverTagParaComunidade(tagUniversal) {
 
 function deletarTagComunidade(index) {
   tagsDaComunidade.value.splice(index, 1);
+}
+
+const mostrarModalCorte = ref(false);
+const tipoCorteAtual = ref(null);
+const canvasCorteRef = ref(null);
+
+const imagemCarregadaCorte = ref(null);
+const escalaImagemCorte = ref(1);
+const offsetXCorte = ref(0);
+const offsetYCorte = ref(0);
+let urlTemporariaCorte = null;
+
+const arrastandoCorte = ref(false);
+let inicioArrastoX = 0;
+let inicioArrastoY = 0;
+let offsetInicialX = 0;
+let offsetInicialY = 0;
+
+function obterDimensoesCorte(tipo) {
+  if (tipo === 'banner') {
+    return { largura: 800, altura: 260 };
+  }
+  return { largura: 500, altura: 500 };
+}
+
+function abrirModalCorte(arquivo, tipo) {
+  tipoCorteAtual.value = tipo;
+
+  const img = new Image();
+  urlTemporariaCorte = URL.createObjectURL(arquivo);
+
+  img.onload = () => {
+    imagemCarregadaCorte.value = img;
+
+    const { largura, altura } = obterDimensoesCorte(tipo);
+
+    const escala = Math.max(largura / img.width, altura / img.height);
+    escalaImagemCorte.value = escala;
+
+    offsetXCorte.value = (largura - img.width * escala) / 2;
+    offsetYCorte.value = (altura - img.height * escala) / 2;
+
+    mostrarModalCorte.value = true;
+
+    nextTick(() => desenharCanvasCorte());
+  };
+
+  img.src = urlTemporariaCorte;
+}
+
+function desenharCanvasCorte() {
+  const canvas = canvasCorteRef.value;
+  const img = imagemCarregadaCorte.value;
+  if (!canvas || !img) return;
+
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(
+    img,
+    offsetXCorte.value,
+    offsetYCorte.value,
+    img.width * escalaImagemCorte.value,
+    img.height * escalaImagemCorte.value
+  );
+}
+
+function obterPosicaoEvento(event) {
+  const canvas = canvasCorteRef.value;
+  const rect = canvas.getBoundingClientRect();
+  const fatorEscala = canvas.width / rect.width;
+
+  const ponto = event.touches ? event.touches[0] : event;
+  return {
+    x: (ponto.clientX - rect.left) * fatorEscala,
+    y: (ponto.clientY - rect.top) * fatorEscala
+  };
+}
+
+function iniciarArrastoCorte(event) {
+  arrastandoCorte.value = true;
+  const pos = obterPosicaoEvento(event);
+  inicioArrastoX = pos.x;
+  inicioArrastoY = pos.y;
+  offsetInicialX = offsetXCorte.value;
+  offsetInicialY = offsetYCorte.value;
+}
+
+function moverArrastoCorte(event) {
+  if (!arrastandoCorte.value) return;
+  event.preventDefault();
+
+  const pos = obterPosicaoEvento(event);
+  const img = imagemCarregadaCorte.value;
+  const { largura, altura } = obterDimensoesCorte(tipoCorteAtual.value);
+  const larguraImg = img.width * escalaImagemCorte.value;
+  const alturaImg = img.height * escalaImagemCorte.value;
+
+  let novoX = offsetInicialX + (pos.x - inicioArrastoX);
+  let novoY = offsetInicialY + (pos.y - inicioArrastoY);
+
+  novoX = Math.min(0, Math.max(largura - larguraImg, novoX));
+  novoY = Math.min(0, Math.max(altura - alturaImg, novoY));
+
+  offsetXCorte.value = novoX;
+  offsetYCorte.value = novoY;
+
+  desenharCanvasCorte();
+}
+
+function pararArrastoCorte() {
+  arrastandoCorte.value = false;
+}
+
+function cancelarCorte() {
+  mostrarModalCorte.value = false;
+  if (urlTemporariaCorte) {
+    URL.revokeObjectURL(urlTemporariaCorte);
+    urlTemporariaCorte = null;
+  }
+  imagemCarregadaCorte.value = null;
+
+  if (tipoCorteAtual.value === 'post' && !arquivoImagemPost.value && inputImagemPostRef.value) {
+    inputImagemPostRef.value.value = '';
+  }
+  if (tipoCorteAtual.value === 'banner' && !bannerUrlComunidade.value && inputBannerRef.value) {
+    inputBannerRef.value.value = '';
+  }
+}
+
+function confirmarCorte() {
+  const canvas = canvasCorteRef.value;
+  if (!canvas) return;
+
+  canvas.toBlob((blob) => {
+    if (!blob) {
+      toast.error('Não foi possível recortar a imagem.');
+      return;
+    }
+
+    const nomeArquivo = tipoCorteAtual.value === 'banner' ? 'banner-comunidade.jpg' : 'imagem-post.jpg';
+    const arquivoCortado = new File([blob], nomeArquivo, { type: 'image/jpeg' });
+    const novaUrlPreview = URL.createObjectURL(blob);
+
+    if (tipoCorteAtual.value === 'post') {
+      if (previewImagemPost.value) URL.revokeObjectURL(previewImagemPost.value);
+      arquivoImagemPost.value = [arquivoCortado];
+      previewImagemPost.value = novaUrlPreview;
+    } else {
+      if (previewBannerComunidade.value) URL.revokeObjectURL(previewBannerComunidade.value);
+      bannerUrlComunidade.value = [arquivoCortado];
+      previewBannerComunidade.value = novaUrlPreview;
+    }
+
+    mostrarModalCorte.value = false;
+    if (urlTemporariaCorte) {
+      URL.revokeObjectURL(urlTemporariaCorte);
+      urlTemporariaCorte = null;
+    }
+    imagemCarregadaCorte.value = null;
+  }, 'image/jpeg', 0.9);
 }
 
 const enviarComunidade = async () => {
@@ -138,7 +341,7 @@ const enviarComunidade = async () => {
       nomeDaComunidade.value = '';
       descricaoDaComunidade.value = '';
       tagsDaComunidade.value = [];
-      bannerUrlComunidade.value = '';
+      removerBannerComunidade();
 
       router.push('/explorar');
     } else {
@@ -186,7 +389,7 @@ const enviarPost = async () => {
       toast.success('Postagem completa criada com sucesso!');
       descricaoDaPostagem.value = '';
       tagsDaPostagem.value = [];
-      arquivoImagemPost.value = null;
+      removerImagemPost();
 
       router.push('/home');
     } else {
@@ -198,6 +401,12 @@ const enviarPost = async () => {
     toast.error("Falha ao se conectar com o servidor.");
   }
 };
+
+onBeforeUnmount(() => {
+  if (previewImagemPost.value) URL.revokeObjectURL(previewImagemPost.value);
+  if (previewBannerComunidade.value) URL.revokeObjectURL(previewBannerComunidade.value);
+  if (urlTemporariaCorte) URL.revokeObjectURL(urlTemporariaCorte);
+});
 </script>
 
 <template>
@@ -228,8 +437,20 @@ const enviarPost = async () => {
             </div>
           </div>
           <div class="campo-form">
-          <label class="titulos-Da-tela-Postagem">Adicionar imagem ao post (Opcional):</label>
-          <input type="file" accept="image/*" @change="capturarImagemPost">
+            <label class="titulos-Da-tela-Postagem">Adicionar imagem ao post (Opcional):</label>
+            <input ref="inputImagemPostRef" type="file" accept="image/*" @change="capturarImagemPost">
+
+            <div v-if="previewImagemPost" class="preview-imagem-container">
+              <img :src="previewImagemPost" alt="Pré-visualização da imagem" class="preview-imagem" />
+              <div class="preview-botoes">
+                <button type="button" @click="recortarNovamentePost" class="btn-recortar-preview">
+                  Recortar novamente
+                </button>
+                <button type="button" @click="removerImagemPost" class="btn-remover-preview">
+                  Remover imagem
+                </button>
+              </div>
+            </div>
           </div>
         </div>
         <div class="tags">
@@ -298,11 +519,19 @@ const enviarPost = async () => {
     </div>
     <div class="campo-form" style="margin-top: 16px;">
       <label class="titulos-Da-tela-Postagem">Banner da comunidade (Opcional):</label>
-      <input
-        type="file"
-        accept="image/*"
-        @change="capturarBannerComunidade"
-      >
+      <input ref="inputBannerRef" type="file" accept="image/*" @change="capturarBannerComunidade">
+
+      <div v-if="previewBannerComunidade" class="preview-banner-container">
+        <img :src="previewBannerComunidade" alt="Pré-visualização do banner" class="preview-banner" />
+        <div class="preview-botoes">
+          <button type="button" @click="recortarNovamenteBanner" class="btn-recortar-preview">
+            Recortar novamente
+          </button>
+          <button type="button" @click="removerBannerComunidade" class="btn-remover-preview">
+            Remover imagem
+          </button>
+        </div>
+      </div>
     </div>
     <div class="tags" style="margin-top: 16px;">
       <h3 class="tituloTags" style="font-size: 14px; font-weight: bold; margin-bottom: 8px;">Tags</h3>
@@ -337,6 +566,31 @@ const enviarPost = async () => {
     <button v-if="!mostrarTelaDeCriacao"  @click="voltarAoPainel" class="botaoVoltar">
           <img :src="voltar" alt="" class="setaVoltar">
       </button>
+
+    <div v-if="mostrarModalCorte" class="overlay-corte">
+      <div class="caixa-modal-corte">
+        <h3 class="titulo-modal-corte">Arraste a imagem para posicionar</h3>
+
+        <canvas
+          ref="canvasCorteRef"
+          :width="tipoCorteAtual === 'banner' ? 800 : 500"
+          :height="tipoCorteAtual === 'banner' ? 260 : 500"
+          class="canvas-corte"
+          @mousedown="iniciarArrastoCorte"
+          @mousemove="moverArrastoCorte"
+          @mouseup="pararArrastoCorte"
+          @mouseleave="pararArrastoCorte"
+          @touchstart="iniciarArrastoCorte"
+          @touchmove="moverArrastoCorte"
+          @touchend="pararArrastoCorte"
+        ></canvas>
+
+        <div class="botoes-modal-corte">
+          <button type="button" @click="cancelarCorte" class="btn-cancelar-corte">Cancelar</button>
+          <button type="button" @click="confirmarCorte" class="btn-confirmar-corte">Usar esta imagem</button>
+        </div>
+      </div>
+    </div>
   </main>
 </template>
 
@@ -710,5 +964,129 @@ section.telaDeCriacao {
 [data-theme="dark"] .adicionar-tag {
   filter: invert(1);
   transition: filter 0.3s ease;
+}
+
+.preview-imagem-container,
+.preview-banner-container {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5vw;
+  margin-top: 0.5vw;
+}
+.preview-imagem {
+  max-width: 100%;
+  max-height: 12vw;
+  border-radius: 8px;
+  border: var(--borda-padrao);
+  object-fit: cover;
+}
+.preview-banner {
+  width: 100%;
+  height: 8vw;
+  border-radius: 8px;
+  border: var(--borda-padrao);
+  object-fit: cover;
+}
+.preview-botoes {
+  display: flex;
+  gap: 0.5vw;
+}
+.btn-remover-preview,
+.btn-recortar-preview {
+  border: none;
+  font-size: 0.8vw;
+  font-weight: bold;
+  padding: 0.3vw 0.8vw;
+  border-radius: 100px;
+  cursor: pointer;
+}
+.btn-remover-preview {
+  background-color: #ff0000;
+  color: #fff;
+}
+.btn-remover-preview:hover {
+  background-color: #cf0000;
+  transition: 0.2s;
+  transform: scale(1.03);
+}
+.btn-recortar-preview {
+  background-color: var(--fundo-card-va);
+  color: #fff;
+}
+.btn-recortar-preview:hover {
+  background-color: var(--fundo-card-va-hover);
+  transition: 0.2s;
+  transform: scale(1.03);
+}
+.btn-remover-preview:active,
+.btn-recortar-preview:active {
+  transform: scale(0.95);
+}
+
+.overlay-corte {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+}
+.caixa-modal-corte {
+  background-color: var(--fundo-card);
+  border-radius: 12px;
+  padding: 1.5vw;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1vw;
+  max-width: 90vw;
+}
+.titulo-modal-corte {
+  color: var(--texto-principal);
+  font-size: 1.1vw;
+  margin: 0;
+}
+.canvas-corte {
+  max-width: 80vw;
+  max-height: 60vh;
+  width: auto;
+  height: auto;
+  border-radius: 8px;
+  border: var(--borda-padrao);
+  cursor: grab;
+  touch-action: none;
+}
+.canvas-corte:active {
+  cursor: grabbing;
+}
+.botoes-modal-corte {
+  display: flex;
+  gap: 0.8vw;
+}
+.btn-cancelar-corte,
+.btn-confirmar-corte {
+  border: none;
+  padding: 0.6vw 1.2vw;
+  border-radius: 8px;
+  font-weight: bold;
+  cursor: pointer;
+}
+.btn-cancelar-corte {
+  background-color: var(--hover-botoes);
+  color: var(--texto-principal);
+}
+.btn-confirmar-corte {
+  background-color: var(--fundo-card-va);
+  color: #fff;
+}
+.btn-cancelar-corte:hover,
+.btn-confirmar-corte:hover {
+  transform: scale(1.03);
+  transition: 0.2s;
 }
 </style>
