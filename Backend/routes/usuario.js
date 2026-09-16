@@ -1,37 +1,12 @@
 import express from 'express';
 import pool from '../database.js';
-import multer from 'multer';
-import path from 'path';
-import fs from 'fs';
+import multer from 'multer'
 import crypto from 'crypto';
 
 const router = express.Router();
-async function verificarConteudoImagem() {
-  return { seguro: true };
-}
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, path.resolve('./uploads')); 
-  },
-  filename: (req, file, cb) => {
-    const sufixoUnico = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    cb(null, file.fieldname + '-' + sufixoUnico + path.extname(file.originalname));
-  }
-});
-const upload = multer({ storage: storage });
 
-const apagarArquivoLocalAntigo = (urlPublica) => {
-  if (!urlPublica || !urlPublica.includes('/imagens/')) return;
-  try {
-    const nomeArquivo = urlPublica.split('/imagens/')[1];
-    const caminhoFisico = path.join('uploads', nomeArquivo);
-    if (fs.existsSync(caminhoFisico)) {
-      fs.unlinkSync(caminhoFisico);
-    }
-  } catch (err) {
-    console.error('Erro ao limpar arquivo antigo:', err.message);
-  }
-};
+const uploadCamposPerfil = multer({ storage: multer.memoryStorage() });
+
 router.post('/logout', async (req, res) => {
   const { idUsuario } = req.body;
   if (!idUsuario) {
@@ -186,7 +161,7 @@ router.delete('/perfil/mural/deletar/:idComentario', async (req, res) => {
     return res.status(500).json({ erro: 'Erro interno ao processar exclusão.' });
   }
 });
-router.put('/perfil/:id/midias', upload.fields([{ name: 'foto', maxCount: 1 }, { name: 'banner', maxCount: 1 }]), async (req, res) => {
+router.put('/perfil/:id/midias', uploadCamposPerfil.fields([{ name: 'foto', maxCount: 1 }, { name: 'banner', maxCount: 1 }]), async (req, res) => {
   const { id } = req.params;
   
   try {
@@ -197,63 +172,63 @@ router.put('/perfil/:id/midias', upload.fields([{ name: 'foto', maxCount: 1 }, {
     const fotoEnviada = arquivosRecebidos['foto'] ? arquivosRecebidos['foto'][0] : null;
     const bannerEnviado = arquivosRecebidos['banner'] ? arquivosRecebidos['banner'][0] : null;
 
-    if (fotoEnviada) {
-      const checagemFoto = await verificarConteudoImagem(fotoEnviada.path);
-      if (!checagemFoto.seguro) {
-        fs.unlinkSync(fotoEnviada.path); 
-        return res.status(400).json({ erro: `Foto de perfil recusada: ${checagemFoto.motivo}` });
-      }
-    }
-    if (bannerEnviado) {
-      const checagemBanner = await verificarConteudoImagem(bannerEnviado.path);
-      if (!checagemBanner.seguro) {
-        fs.unlinkSync(bannerEnviado.path);
-        return res.status(400).json({ erro: `Banner recusado: ${checagemBanner.motivo}` });
-      }
-    }
-
     const [resultados] = await pool.query('SELECT foto_profile, banner_fundo FROM Usuario WHERE id_usuario = ?', [id]);
-    const linhasResultados = resultados || [];
-
-    if (linhasResultados.length === 0) {
-      if (fotoEnviada) fs.unlinkSync(fotoEnviada.path);
-      if (bannerEnviado) fs.unlinkSync(bannerEnviado.path);
+    if (!resultados || resultados.length === 0) {
       return res.status(404).json({ erro: 'Usuário não encontrado.' });
     }
 
-    let urlFoto = linhasResultados[0]?.foto_profile;
-    let urlBanner = linhasResultados[0]?.banner_fundo;
-
-    const protocolo = req.secure || req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
-    const dominioAtual = `${protocolo}://${req.headers.host}`;
+    let urlFoto = resultados[0].foto_profile;
+    let urlBanner = resultados[0].banner_fundo;
 
     if (removerFoto) {
-      apagarArquivoLocalAntigo(urlFoto);
       urlFoto = null; 
     } else if (fotoEnviada) {
-      apagarArquivoLocalAntigo(urlFoto); 
-      urlFoto = `${dominioAtual}/imagens/${fotoEnviada.filename}`;
+      console.log('enviando nova foto de perfil para a nuvem do ImgBB...');
+      const imagemBase64 = fotoEnviada.buffer.toString('base64');
+      const dadosForm = new URLSearchParams();
+      dadosForm.append('image', imagemBase64);
+
+      const rImgbb = await fetch(`https://imgbb.com{process.env.IMGBB_API_KEY}`, {
+        method: 'POST',
+        body: dadosForm
+      });
+      const jsonImgbb = await rImgbb.json();
+      if (jsonImgbb && jsonImgbb.success) {
+        urlFoto = jsonImgbb.data.url;
+      }
     }
+
     if (removerBanner) {
-      apagarArquivoLocalAntigo(urlBanner);
       urlBanner = null;
     } else if (bannerEnviado) {
-      apagarArquivoLocalAntigo(urlBanner);
-      urlBanner = `${dominioAtual}/imagens/${bannerEnviado.filename}`;
+      console.log('Enviando novo banner de fundo para a nuvem do ImgBB...');
+      const imagemBase64 = bannerEnviado.buffer.toString('base64');
+      const dadosForm = new URLSearchParams();
+      dadosForm.append('image', imagemBase64);
+
+      const rImgbb = await fetch(`https://imgbb.com{process.env.IMGBB_API_KEY}`, {
+        method: 'POST',
+        body: dadosForm
+      });
+      const jsonImgbb = await rImgbb.json();
+      if (jsonImgbb && jsonImgbb.success) {
+        urlBanner = jsonImgbb.data.url;
+      }
     }
     await pool.query(
       'UPDATE Usuario SET foto_profile = ?, banner_fundo = ? WHERE id_usuario = ?',
       [urlFoto, urlBanner, id]
     );
+
     return res.json({
-      mensagem: 'Mídias atualizadas com sucesso!',
+      mensagem: 'Mídias atualizadas com sucesso permanente na nuvem!',
       foto_profile: urlFoto,
       banner_fundo: urlBanner
     });
   
   } catch(error) {
-    console.error('Falha ao enviar as imagens para o banco.', error);
-    return res.status(500).json({ erro: 'Erro ao salvar as imagens.' });
+    console.error('Falha ao enviar as imagens para a nuvem do ImgBB:', error.message);
+    return res.status(500).json({ erro: 'Erro ao salvar as imagens na nuvem.' });
   }
 });
 router.get('/perfil/:id', async (req, res) => {
@@ -667,27 +642,12 @@ router.delete('/postagens/:idPostagem', async (req, res) => {
       return res.status(403).json({ erro: 'Acesso negado: Você não é o proprietário desta postagem.' });
     }
 
-    const [midias] = await pool.query(
-      'SELECT imagem_anexada FROM Midia_Postagem WHERE id_postagem = ?',
-      [idPostagem]
-    );
-    
-    if (midias && midias.length > 0 && midias[0].imagem_anexada) {
-      const urlPublica = midias[0].imagem_anexada;
-      if (urlPublica.includes('/imagens/')) {
-        const nomeArquivo = urlPublica.split('/imagens/')[1];
-        const caminhoFisico = path.join('uploads', nomeArquivo);
-        if (fs.existsSync(caminhoFisico)) {
-          fs.unlinkSync(caminhoFisico); 
-        }
-      }
-    }
     await pool.query('DELETE FROM Postagem WHERE id_postagem = ?', [idPostagem]);
 
-    return res.json({ mensagem: 'Postagem e seus vínculos deletados com sucesso!' });
+    return res.json({ mensagem: 'Postagem e seus vínculos deletados com sucesso da nuvem!' });
 
   } catch (error) {
-    console.error('Erro ao deletar postagem:', error);
+    console.error('Erro ao deletar postagem no MySQL:', error);
     return res.status(500).json({ erro: 'Erro interno ao tentar deletar a postagem.' });
   }
 });
