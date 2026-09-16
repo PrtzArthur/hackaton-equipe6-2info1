@@ -172,13 +172,28 @@ router.put('/perfil/:id/midias', uploadCamposPerfil.fields([{ name: 'foto', maxC
     const fotoEnviada = arquivosRecebidos['foto'] ? arquivosRecebidos['foto'][0] : null;
     const bannerEnviado = arquivosRecebidos['banner'] ? arquivosRecebidos['banner'][0] : null;
 
+    if (fotoEnviada) {
+      const checagemFoto = await verificarConteudoImagem(fotoEnviada.buffer); 
+      if (!checagemFoto.seguro) {
+        return res.status(400).json({ erro: `Foto de perfil recusada: ${checagemFoto.motivo}` });
+      }
+    }
+    if (bannerEnviado) {
+      const checagemBanner = await verificarConteudoImagem(bannerEnviado.buffer);
+      if (!checagemBanner.seguro) {
+        return res.status(400).json({ erro: `Banner recusado: ${checagemBanner.motivo}` });
+      }
+    }
+
     const [resultados] = await pool.query('SELECT foto_profile, banner_fundo FROM Usuario WHERE id_usuario = ?', [id]);
-    if (!resultados || resultados.length === 0) {
+    const linhasResultados = resultados || [];
+
+    if (linhasResultados.length === 0) {
       return res.status(404).json({ erro: 'Usuário não encontrado.' });
     }
 
-    let urlFoto = resultados[0].foto_profile;
-    let urlBanner = resultados[0].banner_fundo;
+    let urlFoto = linhasResultados[0]?.foto_profile;
+    let urlBanner = linhasResultados[0]?.banner_fundo;
 
     if (removerFoto) {
       urlFoto = null; 
@@ -197,11 +212,10 @@ router.put('/perfil/:id/midias', uploadCamposPerfil.fields([{ name: 'foto', maxC
         urlFoto = jsonImgbb.data.url;
       }
     }
-
     if (removerBanner) {
       urlBanner = null;
     } else if (bannerEnviado) {
-      console.log('Enviando novo banner de fundo para a nuvem do ImgBB...');
+      console.log('enviando novo banner de fundo para a nuvem do ImgBB...');
       const imagemBase64 = bannerEnviado.buffer.toString('base64');
       const dadosForm = new URLSearchParams();
       dadosForm.append('image', imagemBase64);
@@ -212,7 +226,7 @@ router.put('/perfil/:id/midias', uploadCamposPerfil.fields([{ name: 'foto', maxC
       });
       const jsonImgbb = await rImgbb.json();
       if (jsonImgbb && jsonImgbb.success) {
-        urlBanner = jsonImgbb.data.url;
+        urlBanner = jsonImgbb.data.url; 
       }
     }
     await pool.query(
@@ -227,8 +241,8 @@ router.put('/perfil/:id/midias', uploadCamposPerfil.fields([{ name: 'foto', maxC
     });
   
   } catch(error) {
-    console.error('Falha ao enviar as imagens para a nuvem do ImgBB:', error.message);
-    return res.status(500).json({ erro: 'Erro ao salvar as imagens na nuvem.' });
+    console.error('Falha ao enviar as imagens para o banco.', error);
+    return res.status(500).json({ erro: 'Erro ao salvar as imagens.' });
   }
 });
 router.get('/perfil/:id', async (req, res) => {
