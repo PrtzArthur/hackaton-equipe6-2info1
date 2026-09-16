@@ -193,7 +193,7 @@ router.put('/perfil/:id/midias', uploadCamposPerfil.fields([{ name: 'foto', maxC
       const corpoParams = new URLSearchParams();
       corpoParams.append('image', imagemBase64);
 
-      const respostaImgbb = await axios.post(`https://imgbb.com{process.env.IMGBB_API_KEY}`, corpoParams, {
+      const respostaImgbb = await axios.post(`https://api.imgbb.com/1/upload?key=${process.env.IMGBB_API_KEY}`, corpoParams, {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
       });
       
@@ -212,7 +212,7 @@ router.put('/perfil/:id/midias', uploadCamposPerfil.fields([{ name: 'foto', maxC
       const corpoParams = new URLSearchParams();
       corpoParams.append('image', imagemBase64);
 
-      const respostaImgbb = await axios.post(`https://imgbb.com{process.env.IMGBB_API_KEY}`, corpoParams, {
+      const respostaImgbb = await axios.post(`https://api.imgbb.com/1/upload?key=${process.env.IMGBB_API_KEY}`, corpoParams, {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
       });
       
