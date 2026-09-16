@@ -95,6 +95,19 @@ async function alternarCurtidaComunidade(grupo) {
   }
 }
 
+function obterUrlBanner(urlOriginal) {
+  if (!urlOriginal || urlOriginal === 'null' || urlOriginal.trim() === '') return '';
+
+  if (urlOriginal.startsWith('http')) {
+    return urlOriginal;
+  }
+
+  const urlBase = import.meta.env.VITE_API_URL;
+  const urlLimpaSemBarrasDuplas = `${urlBase}/${urlOriginal}`.replace(/([^:]\/)\/+/g, "$1");
+
+  return urlLimpaSemBarrasDuplas;
+}
+
 onMounted(() => {
   buscarComunidadesDoBanco()
 })
@@ -115,7 +128,12 @@ onMounted(() => {
           <div v-if="comunidadesFavoritas.length > 0" class="horizontal-scroll">
             <div v-for="item in comunidadesFavoritas" :key="item.id_comunidade" class="community-card" @click="abrirDetalhesComunidade(item)">
               <div class="card-banner">
-                <img v-if="item.banner_url" :src="`${VITE_API_URL}${item.banner_url}`" :alt="item.nome_comunidade" style="object-fit: cover; width: 100%; height: 100%;"/>
+                <img
+                  v-if="item.banner_url"
+                  :src="obterUrlBanner(item.banner_url)"
+                  :alt="item.nome_comunidade"
+                  style="object-fit: cover; width: 100%; height: 100%; display: block;"
+                />
               </div>
               <div class="card-info">
                 <strong>{{ item.nome_comunidade }}</strong>
@@ -137,7 +155,12 @@ onMounted(() => {
               @click="abrirDetalhesComunidade(item)"
             >
               <div class="card-banner">
-                <img v-if="item.banner_url && item.banner_url.trim().startsWith('http')" :src="item.banner_url" :alt="item.nome_comunidade" style="object-fit: cover; width: 100%; height: 100%; display: block;"/>
+                <img
+                  v-if="item.banner_url"
+                  :src="obterUrlBanner(item.banner_url)"
+                  :alt="item.nome_comunidade"
+                  style="object-fit: cover; width: 100%; height: 100%; display: block;"
+                />
               </div>
               <div class="card-info">
                 <strong>{{ item.nome_comunidade }}</strong>
@@ -161,10 +184,10 @@ onMounted(() => {
         <div class="moldura-central-comunidade">
           <div class="banner-interno-grupo">
             <img
-              v-if="comunidadeSelecionada.banner_url && comunidadeSelecionada.banner_url.trim() !== ''"
-              :src="comunidadeSelecionada.banner_url"
+              v-if="comunidadeSelecionada.banner_url"
+              :src="obterUrlBanner(comunidadeSelecionada.banner_url)"
               alt="Banner da Comunidade"
-              style="object-fit: cover; width: 100%; height: 100%;"
+              style="object-fit: cover; width: 100%; height: 100%; display: block;"
             />
           </div>
           <div class="linha-titulo-favorito">
@@ -181,18 +204,12 @@ onMounted(() => {
               Administrador
             </span>
             <div class="card-administrador-mini">
-              <img
-                v-if="comunidadeSelecionada.foto_admin && comunidadeSelecionada.foto_admin !== ''"
-                :src="comunidadeSelecionada.foto_admin"
-                alt="Admin"
-                style="width: 24px; height: 24px; border-radius: 50%; border: 1px solid #000; object-fit: cover;"
-              >
+              <img v-if="comunidadeSelecionada.foto_admin && comunidadeSelecionada.foto_admin !== ''" :src="comunidadeSelecionada.foto_admin" alt="Admin" style="width: 24px; height: 24px; border-radius: 50%; border: 1px solid #000; object-fit: cover;">
               <img
                 v-else
                 :src="userBlackFull"
                 alt="Admin Padrão"
-                style="width: 24px; height: 24px; border-radius: 50%; border: 1px solid #000; object-fit: cover;"
-              >
+                style="width: 24px; height: 24px; border-radius: 50%; border: 1px solid #000; object-fit: cover;">
               <span class="username-admin-texto" style="font-size: 13px; font-weight: bold; color: #000; margin-left: 8px;">
                 {{ comunidadeSelecionada.nome_admin || 'Administrador' }}
               </span>
