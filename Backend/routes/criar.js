@@ -372,7 +372,6 @@ router.delete('/comentarios/deletar/:idComentario', async (req, res) => {
     return res.status(500).json({ erro: 'Erro interno ao remover comentário.' });
   }
 });
-
 router.post('/postagens/:id', uploadPostagem.single('imagem_post'), async (req, res) => {
   const { id } = req.params;
   let conexao = null;
@@ -708,11 +707,12 @@ router.get('/comunidades/listar', async (req, res) => {
         c.descricao,
         c.banner_url AS banner_url,
         (SELECT COUNT(*) FROM Participacao WHERE id_comunidade = c.id_comunidade) AS total_membros,
-        'Administrador' AS nome_admin, 
-        'admin' AS username_admin, 
-        NULL AS foto_admin, 
+        u.nome AS nome_admin, 
+        u.username AS username_admin, 
+        u.foto_profile AS foto_admin, 
         IF((SELECT COUNT(*) FROM comunidades_favoritas WHERE id_usuario = ? AND id_comunidade = c.id_comunidade) > 0, TRUE, FALSE) AS favoritadoPorMim
       FROM Comunidade c
+      LEFT JOIN Usuario u ON c.id_usuario = u.id_usuario
       ORDER BY c.data_criacao DESC
     `;
 
