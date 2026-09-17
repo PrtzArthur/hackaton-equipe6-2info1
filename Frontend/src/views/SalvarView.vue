@@ -699,6 +699,7 @@ main {
   overflow: hidden;
   border-radius: 7px;
   gap: 1.2vw;
+  border: var(--borda-padrao);
 }
 .titulo-modal {
   background-color: var(--fundo-card-va);
@@ -709,27 +710,43 @@ main {
   width: 95%;
   outline: none;
   height: 1.8vw;
+  padding: 1vw;
+  border-radius: 7px;
+  border: var(--borda-padrao);
+  margin: 1vw 0;
 }
 .botoes-modal {
   display: flex;
-  gap: 0.3vw;
+  gap: 0.7vw;
   margin-bottom: 1vw;
 }
 .cancelar-modal {
   width: 8vw;
   padding: 0.5vw;
+  transition: 0.3s;
+  border-radius: 7px;
+  background-color: var(--fundo-card);
+  border: var(--borda-padrao);
 }
 .criar-modal {
   width: 8vw;
   padding: 0.5vw;
+  transition: 0.3s;
+  border: none;
+  border-radius: 7px;
+  background-color: var(--fundo-card-va);
+  font-weight: bolder;
+  color: #fff;
 }
 .cancelar-modal:hover {
   transition: 0.3s;
   transform: scale(1.02);
+  cursor: pointer;
 }
 .criar-modal:hover {
   transition: 0.3s;
   transform: scale(1.02);
+  cursor: pointer;
 }
 @media (max-width: 768px) {
   main {
