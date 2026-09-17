@@ -3,6 +3,8 @@ import { ref, onMounted, computed } from 'vue'
 import { useToast } from 'vue-toastification'
 import voltar from '@/icons/voltar.svg'
 import userBlackFull from '@/icons/userBlackFull.svg'
+import favoritarInline from '@/icons/favoritarInline.svg';
+import favoritarPreenchido from '@/icons/favoritarPreenchido.svg';
 
 const toast = useToast()
 
@@ -49,7 +51,9 @@ async function buscarComunidadesDoBanco() {
         descricao: c.descricao,
         banner_url: c.banner_url || null,
         total_membros: c.total_membros || 1,
-        favoritadoPorMim: !!c.favoritadoPorMim
+        favoritadoPorMim: !!c.favoritadoPorMim,
+        nome_admin: c.nome_admin || 'Administrador',
+        foto_admin: c.foto_admin || null
       }))
 
       console.log("Comunidades carregadas com sucesso no Front-end:", listaDeTodasAsComunidades.value)
@@ -152,8 +156,7 @@ onMounted(() => {
               v-for="item in comunidadesFiltradas"
               :key="item.id_comunidade"
               class="community-card"
-              @click="abrirDetalhesComunidade(item)"
-            >
+              @click="abrirDetalhesComunidade(item)">
               <div class="card-banner">
                 <img
                   v-if="item.banner_url"
@@ -174,19 +177,14 @@ onMounted(() => {
         </section>
       </div>
     </div>
-
-    <!-- TELA INTERNA DA COMUNIDADE (reorganizada) -->
     <div v-else class="tela-interna-comunidade-container">
       <div class="barra-voltar-topo">
         <button class="btn-voltar-estilizado" @click="fecharDetalhesComunidade">
           <img :src="voltar" alt="">
         </button>
       </div>
-
       <div class="scroll-content-interno">
         <div class="moldura-central-comunidade">
-
-          <!-- 1. BANNER NO TOPO -->
           <div class="banner-interno-grupo">
             <img
               v-if="comunidadeSelecionada.banner_url"
@@ -195,45 +193,38 @@ onMounted(() => {
               style="object-fit: cover; width: 100%; height: 100%; display: block;"
             />
           </div>
-
-          <!-- 2. NOME + BOTÃO FAVORITO -->
           <div class="linha-titulo-favorito">
             <h1 class="titulo-nome-comunidade">
               {{ comunidadeSelecionada.nome_comunidade }}
             </h1>
             <button class="btn-coracao-comunidade" @click="alternarCurtidaComunidade(comunidadeSelecionada)">
-              <span v-if="comunidadeSelecionada.favoritadoPorMim" style="font-size: 24px; cursor: pointer;">💚</span>
-              <span v-else style="font-size: 24px; cursor: pointer;">🤍</span>
+              <span v-if="comunidadeSelecionada.favoritadoPorMim" style="font-size: 24px; cursor: pointer;"><img :src="favoritarPreenchido" alt="" class="favoritarPerfilDeUsuario"></span>
+              <span v-else style="font-size: 24px; cursor: pointer;"><img :src="favoritarInline" alt=""></span>
             </button>
           </div>
-
-          <!-- 3. BIOGRAFIA / DESCRIÇÃO, LOGO ABAIXO DO NOME -->
           <div class="secao-info-bloco secao-biografia">
             <h3>Sobre a comunidade</h3>
             <p class="caixa-texto-descricao-grupo">
               {{ comunidadeSelecionada.descricao || 'Sem descrição fornecida para esta comunidade.' }}
             </p>
           </div>
-
-          <!-- 4. ADMINISTRADOR -->
           <div class="secao-info-bloco">
             <span class="label-badge-verde">
               Administrador
             </span>
             <div class="card-administrador-mini">
-              <img v-if="comunidadeSelecionada.foto_admin && comunidadeSelecionada.foto_admin !== ''" :src="comunidadeSelecionada.foto_admin" alt="Admin" style="width: 24px; height: 24px; border-radius: 50%; border: 1px solid #000; object-fit: cover;">
+               <img v-if="comunidadeSelecionada.foto_admin" :src="obterUrlBanner(comunidadeSelecionada.foto_admin)" alt="Avatar do Administrador" style="width: 28px; height: 24px; border-radius: 50%; border: 1px solid #000; object-fit: cover; display: block;"/>
               <img
                 v-else
                 :src="userBlackFull"
                 alt="Admin Padrão"
-                style="width: 24px; height: 24px; border-radius: 50%; border: 1px solid #000; object-fit: cover;">
+                style="width: 24px; height: 24px; border-radius: 50%; border: 1px solid #000; object-fit: cover; display: block;"
+              >
               <span class="username-admin-texto" style="font-size: 13px; font-weight: bold; color: #000; margin-left: 8px;">
                 {{ comunidadeSelecionada.nome_admin || 'Administrador' }}
               </span>
             </div>
           </div>
-
-          <!-- 5. GRUPOS + CRIAR GRUPO NO FINAL -->
           <div class="secao-info-bloco" style="margin-top: 16px;">
             <h3>Grupos</h3>
             <div class="lista-subgrupos-comunidade">
@@ -245,7 +236,6 @@ onMounted(() => {
               </div>
             </div>
           </div>
-
         </div>
       </div>
     </div>
@@ -395,13 +385,15 @@ main {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+[data-theme="dark"] .favoritarPerfilDeUsuario {
+  filter: hue-rotate(135deg) saturate(1.8) brightness(1.1);
+  transition: filter 0.3s ease;
+}
 .card-info span {
   font-size: 0.78rem;
   color: var(--texto-suave);
   font-weight: 500;
 }
-
-/* ===== TELA INTERNA DA COMUNIDADE ===== */
 .tela-interna-comunidade-container {
   width: 100%;
   height: 100%;
@@ -409,6 +401,7 @@ main {
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
+  overflow-y: auto;
 }
 .barra-voltar-topo {
   padding: 12px 16px;
@@ -418,7 +411,14 @@ main {
   background: none;
   border: none;
   cursor: pointer;
-  padding: 4px;
+  padding: 0.3vw;
+  border-radius: 7px;
+  border: var(--borda-padrao);
+  transition: 0.3s;
+}
+.btn-voltar-estilizado:hover {
+  transition: 0.3s;
+  transform: scale(1.03);
 }
 .scroll-content-interno {
   flex: 1;
@@ -431,7 +431,7 @@ main {
 }
 .banner-interno-grupo {
   width: 100%;
-  height: 180px;
+  height: 18vw;
   background-color: var(--fundo-opcao-enquete);
   overflow: hidden;
   border-bottom: var(--borda-padrao);
@@ -442,15 +442,37 @@ main {
   justify-content: space-between;
   padding: 16px 20px 0 20px;
 }
+.linha-titulo-favorito span {
+  display: flex;
+  align-items: center;
+}
 .titulo-nome-comunidade {
   font-size: 1.4rem;
+  word-break: break-all;
+  text-overflow: ellipsis;
+  overflow: hidden;
   margin: 0;
   color: var(--texto-principal);
+}
+.btn-coracao-comunidade:hover {
+  transform: scale(1.08);
+  transition: 0.3s;
 }
 .btn-coracao-comunidade {
   background: none;
   border: none;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  transition: 0.3s;
+}
+.btn-coracao-comunidade:active {
+  transform: scale(0.92);
+  transition: 0.3s;
+}
+.btn-coracao-comunidade img {
+  width: 2vw;
+  height: 2vw;
 }
 .secao-info-bloco {
   padding: 16px 20px 0 20px;
@@ -467,8 +489,8 @@ main {
 }
 .label-badge-verde {
   display: inline-block;
-  background-color: #d4f4dd;
-  color: #1a7d3a;
+  background-color: var(--fundo-opcao-enquete);
+  color: var(--fundo-card-va);
   font-size: 0.75rem;
   font-weight: bold;
   padding: 3px 10px;
