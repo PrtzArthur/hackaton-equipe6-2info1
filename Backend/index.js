@@ -10,6 +10,7 @@ import authRoutes from './routes/auth.js';
 import usuarioRoutes from './routes/usuario.js';
 import criarRoutes from './routes/criar.js';
 import chatRoutes from './routes/chat.js';
+import eventosRoutes from './routes/eventos.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -398,6 +399,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/usuario', usuarioRoutes);
 app.use('/api/criar', criarRoutes);
 app.use('/api/chat', chatRoutes);
+app.use('/api/eventos', eventosRoutes);
 
 app.get('/', (req, res) => {
   res.send('Servidor do IFchat está rodando e operacional!');

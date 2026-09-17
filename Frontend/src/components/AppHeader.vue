@@ -131,6 +131,7 @@ header h1 {
 .divLink {
   padding: 0;
   border-left: 0.45vw solid transparent;
+  transition: 0.3s;
 }
 .divLink:hover {
   background-color: var(--fundo-site);

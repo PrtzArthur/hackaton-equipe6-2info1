@@ -411,6 +411,9 @@ main {
   font-size: 0.9rem;
   box-sizing: border-box;
 }
+.input-busca-salvar::placeholder {
+  color: var(--texto-suave);
+}
 .btn-deletar-lista-topo {
   background: var(--fundo-card);
   border: none;
@@ -706,6 +709,9 @@ main {
   padding: 1vw;
   color: var(--fundo-card);
 }
+.titulo-modal h2 {
+  color: #fff;
+}
 .input-modal {
   width: 95%;
   outline: none;
@@ -714,6 +720,11 @@ main {
   border-radius: 7px;
   border: var(--borda-padrao);
   margin: 1vw 0;
+  background-color: var(--fundo-card);
+  color: var(--texto-principal);
+}
+.input-modal::placeholder {
+  color: var(--texto-suave);
 }
 .botoes-modal {
   display: flex;
@@ -727,6 +738,7 @@ main {
   border-radius: 7px;
   background-color: var(--fundo-card);
   border: var(--borda-padrao);
+  color: var(--texto-principal);
 }
 .criar-modal {
   width: 8vw;
