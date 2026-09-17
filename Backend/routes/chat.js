@@ -344,6 +344,38 @@ router.post('/criar-lista-rapida', async (req, res) => {
     return res.status(500).json({ erro: 'Erro ao criar lista.' });
   }
 });
+router.delete('/listas/deletar/:idLista', async (req, res) => {
+  const { idLista } = req.params;
 
+  if (!idLista) {
+    return res.status(400).json({ erro: 'ID da lista é obrigatório para exclusão.' });
+  }
+
+  let conexao = null;
+  try {
+    conexao = await pool.getConnection();
+    await conexao.beginTransaction();
+
+    const [resultado] = await conexao.query(
+      'DELETE FROM Lista_salvos WHERE id_lista = ?',
+      [idLista]
+    );
+
+    if (resultado.affectedRows === 0) {
+      await conexao.rollback();
+      return res.status(404).json({ erro: 'Lista não encontrada.' });
+    }
+
+    await conexao.commit();
+    return res.json({ sucesso: true, mensagem: 'Lista e seus vínculos removidos com sucesso!' });
+
+  } catch (error) {
+    if (conexao) await conexao.rollback();
+    console.error('Erro no MySQL ao deletar Lista_salvos:', error.message);
+    return res.status(500).json({ erro: 'Erro interno ao processar remoção.' });
+  } finally {
+    if (conexao) conexao.release();
+  }
+});
 
 export default router;

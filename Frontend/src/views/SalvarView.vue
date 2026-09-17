@@ -12,6 +12,7 @@ import dislikeInline from '@/icons/dislikeInline.svg';
 import dislikePreenchido from '@/icons/dislikePreenchido.svg';
 import iconeLupa from '@/icons/iconeLupa.svg';
 import setinha from '@/icons/setinha.svg';
+import lixeira from '@/icons/lixeira.svg'
 import { useToast } from 'vue-toastification';
 
 const toast = useToast();
@@ -43,6 +44,7 @@ async function carregarMinhasListas() {
     console.error("Erro ao carregar listas salvas:", e);
   }
 }
+
 async function curtirPost(postagemAlvo, idUsuarioLogado, tipoEscolhido) {
   if (!idUsuarioLogado) {
     toast.warning("Você precisa estar logado para interagir!");
@@ -129,6 +131,35 @@ async function removerPostagemDaLista(idPostagemAlvo) {
     console.error("Erro técnico na remoção de salvos:", e);
   }
 }
+async function deletarListaPastaDoBanco(idListaAlvo) {
+  if (!confirm("Tem certeza de que deseja excluir esta lista permanentemente? Todos os posts salvos aqui perderão o vínculo.")) {
+    return;
+  }
+
+  try {
+    const resposta = await fetch(`${import.meta.env.VITE_API_URL}/api/chat/listas/deletar/${idListaAlvo}`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' }
+    });
+
+    const dados = await resposta.json();
+
+    if (resposta.ok) {
+      toast.success("Lista de postagens excluída com sucesso!");
+
+      listaSelecionada.value = null;
+
+      minhasListasSalvas.value = minhasListasSalvas.value.filter(
+        l => l.id_lista !== idListaAlvo
+      );
+    } else {
+      toast.error(dados.erro || "Não foi possível remover a lista.");
+    }
+  } catch (erro) {
+    console.error("Falha de rede ao tentar deletar pasta de salvos:", erro);
+    toast.error("Falha ao se conectar com o servidor.");
+  }
+}
 function cancelarCriacao() {
   mostrarModalSalvar.value = !mostrarModalSalvar.value;
   nomeDaNovaLista.value = '';
@@ -175,7 +206,6 @@ onMounted(() => {
 
 <template>
   <main>
-
     <div v-if="mostrarModalSalvar" class="modal-salvar-lista">
       <div class="modal-novo-nome">
         <div class="titulo-modal">
@@ -188,7 +218,6 @@ onMounted(() => {
         </div>
       </div>
     </div>
-
     <section class="coluna-lista-salvos" :class="{ 'mobile-oculto': listaSelecionada }">
       <div class="cabecalho-secao-salvar">
         <h2>Listas de postagens salvas</h2>
@@ -203,13 +232,7 @@ onMounted(() => {
         <button type="button" @click="mostrarModalSalvar = !mostrarModalSalvar" class="btn-adicionar-pasta-tracejado">
           <span class="icone-mais-circulo">+</span>
         </button>
-        <div
-          v-for="lista in listasFiltradas"
-          :key="lista.id_lista"
-          @click="abrirPastaSalva(lista)"
-          class="card-pasta-linha"
-          :class="{ 'card-pasta-selecionada': listaSelecionada?.id_lista === lista.id_lista }"
-        >
+        <div v-for="lista in listasFiltradas" :key="lista.id_lista" @click="abrirPastaSalva(lista)" class="card-pasta-linha" :class="{ 'card-pasta-selecionada': listaSelecionada?.id_lista === lista.id_lista }">
           <strong>{{ lista.nome_lista }}</strong>
           <span class="meta-qtd-posts">{{ lista.qtd_posts }} postagens</span>
         </div>
@@ -222,6 +245,15 @@ onMounted(() => {
             <button @click="listaSelecionada = null" class="btn-voltar-mobile-salvar"><img :src="setinha" alt=""></button>
             <h3>{{ listaSelecionada.nome_lista }} selecionada</h3>
           </div>
+          <button
+              type="button"
+              @click="deletarListaPastaDoBanco(listaSelecionada.id_lista)"
+              class="btn-deletar-lista-topo"
+            >
+              <span>
+                <img :src="lixeira" alt="deletar lista" class="botao-lixeira">
+              </span>
+            </button>
         </div>
         <div class="caixa-busca-salvar-wrapper" style="padding: 0 5px;">
           <input v-model="buscaPostagem" type="text" placeholder="Procurar postagem" class="input-busca-salvar">
@@ -378,6 +410,31 @@ main {
   color: var(--texto-principal);
   font-size: 0.9rem;
   box-sizing: border-box;
+}
+.btn-deletar-lista-topo {
+  background: var(--fundo-card);
+  border: none;
+  font-weight: bold;
+  cursor: pointer;
+  padding: 0.4vw;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+}
+.btn-deletar-lista-topo:hover {
+  transform: scale(1.02);
+  transition: 0.3s;
+}
+.btn-deletar-lista-topo:active {
+  transform: scale(0.98);
+}
+.botao-lixeira {
+  width: 1vw;
+  height: 1vw;
+}
+[data-theme="dark"] .botao-lixeira {
+  filter: invert(1);
+  transition: filter 0.3s ease;
 }
 .lupa-busca-pos {
   position: absolute;
@@ -646,7 +703,7 @@ main {
 .titulo-modal {
   background-color: var(--fundo-card-va);
   padding: 1vw;
-  color: white;
+  color: var(--fundo-card);
 }
 .input-modal {
   width: 95%;
