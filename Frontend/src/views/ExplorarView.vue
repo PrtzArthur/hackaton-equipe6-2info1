@@ -180,7 +180,7 @@ onMounted(() => {
     <div v-else class="tela-interna-comunidade-container">
       <div class="barra-voltar-topo">
         <button class="btn-voltar-estilizado" @click="fecharDetalhesComunidade">
-          <img :src="voltar" alt="">
+          <img :src="voltar" alt="" class="voltar-img">
         </button>
       </div>
       <div class="scroll-content-interno">
@@ -213,13 +213,15 @@ onMounted(() => {
               Administrador
             </span>
             <div class="card-administrador-mini">
-               <img v-if="comunidadeSelecionada.foto_admin" :src="obterUrlBanner(comunidadeSelecionada.foto_admin)" alt="Avatar do Administrador" style="width: 28px; height: 24px; border-radius: 50%; border: 1px solid #000; object-fit: cover; display: block;"/>
+              <div style="border-radius: 50%; object-fit: cover; display: flex; width: 3vw; height: 3vw; align-items: center;justify-content: center; flex-shrink: 0; overflow: hidden;">
+                <img v-if="comunidadeSelecionada.foto_admin" :src="obterUrlBanner(comunidadeSelecionada.foto_admin)" alt="Avatar do Administrador" style="width: 3vw; height: 3vw;"/>
               <img
                 v-else
                 :src="userBlackFull"
                 alt="Admin Padrão"
-                style="width: 24px; height: 24px; border-radius: 50%; border: 1px solid #000; object-fit: cover; display: block;"
+                style="width: 4vw; height: 4vw;"
               >
+              </div>
               <span class="username-admin-texto" style="font-size: 13px; font-weight: bold; color: #000; margin-left: 8px;">
                 {{ comunidadeSelecionada.nome_admin || 'Administrador' }}
               </span>
@@ -318,6 +320,10 @@ main {
   color: var(--texto-principal);
   text-transform: uppercase;
   letter-spacing: 0.5px;
+}
+[data-theme="dark"] .voltar-img {
+  filter: invert(1);
+  transition: filter 0.3s ease;
 }
 .horizontal-scroll {
   display: flex;
@@ -501,6 +507,7 @@ main {
   display: flex;
   align-items: center;
   margin-top: 6px;
+  gap: 0.3vw;
 }
 .caixa-texto-descricao-grupo {
   background-color: var(--fundo-opcao-enquete);

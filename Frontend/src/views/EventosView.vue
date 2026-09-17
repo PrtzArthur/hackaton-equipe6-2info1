@@ -5,25 +5,9 @@ const searchQuery = ref('')
 
 const eventoSelecionado = ref(null)
 
-const principaisEventos = ref([
-  {
-    id: 1,
-    titulo: 'Evento 2',
-    data: '00/00/0000 - 00/00/0000',
-    membros: '1000 pessoas comparecerão',
-    confirmado: true,
-    descricao: '',
-    tags: ['#soulFC']
-  }
-])
+const principaisEventos = ref([])
 
-const eventosDisponiveis = ref([
-  { id: 2, titulo: 'Evento 3', data: '00/00/0000 - 00/00/0000', membros: '1000 pessoas comparecerão', confirmado: false, descricao: '', tags: ['#soulFC'] },
-  { id: 3, titulo: 'Evento 4', data: '00/00/0000 - 00/00/0000', membros: '1000 pessoas comparecerão', confirmado: true, descricao: '', tags: ['#soulFC'] },
-  { id: 4, titulo: 'Evento 5', data: '00/00/0000 - 00/00/0000', membros: '1000 pessoas comparecerão', confirmado: false, descricao: '', tags: ['#soulFC'] },
-  { id: 5, titulo: 'Evento 6', data: '00/00/0000 - 00/00/0000', membros: '1000 pessoas comparecerão', confirmado: true, descricao: '', tags: ['#soulFC'] },
-  { id: 6, titulo: 'Evento 7', data: '00/00/0000 - 00/00/0000', membros: '1000 pessoas comparecerão', confirmado: true, descricao: '', tags: ['#soulFC'] }
-])
+const eventosDisponiveis = ref([])
 
 const principaisFiltrados = computed(() => {
   return principaisEventos.value.filter(evento =>
