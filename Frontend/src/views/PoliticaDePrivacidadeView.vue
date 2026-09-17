@@ -17,7 +17,7 @@ function voltar() {
 <template>
   <main>
     <div class="policy-card">
-      
+
       <header class="policy-header">
         <div class="header-left">
           <button class="back-btn" @click="voltar" title="Voltar">
@@ -29,27 +29,27 @@ function voltar() {
       </header>
 
       <div class="scroll-content">
-        
+
         <p class="last-updated">
           <strong>Última atualização:</strong> {{ privacyData.lastUpdated }}
         </p>
 
         <p class="intro-text">
-          Esta Política de Privacidade descreve como <strong>IFchat</strong> ("nós", "nosso" ou "nossos") coleta, usa e protege as informações quando você visita nosso site 
+          Esta Política de Privacidade descreve como <strong>IFchat</strong> ("nós", "nosso" ou "nossos") coleta, usa e protege as informações quando você visita nosso site
           <a :href="privacyData.url" target="_blank" rel="noopener">{{ privacyData.url }}</a> (o "Serviço") operado por <strong>{{ privacyData.team }}</strong>.
         </p>
 
         <hr class="divider" />
 
-        <PolicySection 
-          v-for="(section, index) in privacyData.sections" 
+        <PolicySection
+          v-for="(section, index) in privacyData.sections"
           :key="index"
           :title="section.title"
           :content="section.content"
           :items="section.items"
         />
 
-        <PolicySection 
+        <PolicySection
           title="Contato"
           content="Se você tiver dúvidas sobre esta Política de Privacidade, entre em contato conosco:"
           :items="[
@@ -70,7 +70,6 @@ function voltar() {
 
 <style scoped>
 main {
-  background-color: rgba(85, 255, 51, 0.14);
   height: 100vh;
   flex-grow: 1;
   padding: 1.5vw;
