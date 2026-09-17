@@ -70,11 +70,12 @@ function voltar() {
 
 <style scoped>
 main {
+  background: #e0ffe3;
   height: 100vh;
   flex-grow: 1;
   padding: 1.5vw;
   margin-left: 12vw;
-  width: calc(100% - 12vw);
+  width: calc(100%);
   position: fixed;
   top: 0;
   bottom: 0;
@@ -141,8 +142,8 @@ main {
 .sub-title {
   font-size: 0.85rem;
   font-weight: bold;
-  color: #55ff33;
-  background-color: #000000;
+  color: #ffffff;
+  background-color: #00bf36;
   padding: 2px 8px;
   border-radius: 4px;
 }
