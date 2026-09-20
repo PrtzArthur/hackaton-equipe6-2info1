@@ -8,6 +8,7 @@ import emoji from '@/icons/emoji.svg';
 import userBlackFull from '@/icons/userBlackFull.svg';
 import enviar from '@/icons/enviar.svg';
 import gear from '@/icons/gear.svg';
+import camera from '@/icons/camera.svg';
 import { useToast } from 'vue-toastification';
 import { useRouter } from 'vue-router';
 
@@ -262,6 +263,47 @@ async function alternarSeguirUsuarioNaLista(userAlvo) {
   }
 }
 
+const chamadaAtiva = ref(false);
+
+async function iniciarLigacaoDeVideoEEnviarConvite() {
+  if (!meuIdLogado.value || !conversaAtiva.value) return;
+
+  chamadaAtiva.value = true;
+
+  const textoDoConvite = "chamada de vídeo iniciada. Clique para entrar!";
+  const idMensagemUnico = String(Date.now() + Math.round(Math.random() * 1000000));
+
+  const objetoMensagemConvite = {
+    id_mensagem: idMensagemUnico,
+    id_remetente: meuIdLogado.value,
+    id_destinatario: conversaAtiva.value.id_usuario,
+    texto: textoDoConvite,
+    conteudo_mensagem: textoDoConvite,
+    data: new Date()
+  };
+
+  try {
+    socket.emit('enviar_mensagem_privada', objetoMensagemConvite);
+
+    historicoMensagens.value.push({
+      id_mensagem: idMensagemUnico,
+      id_remetente: meuIdLogado.value,
+      id_destinatario: conversaAtiva.value.id_usuario,
+      texto: textoDoConvite,
+      data: new Date()
+    });
+
+    toast.success("Iniciando conferência. Aguardando o colega...");
+
+    if (typeof rolarChatParaBaixo === 'function') {
+      rolarChatParaBaixo();
+    }
+  } catch (error) {
+    console.error("Falha ao emitir sinalização de vídeo:", error);
+    toast.error("Erro ao tentar conectar chamada.");
+  }
+}
+
 onMounted(() => {
   carregarListaConversas();
   socket.on('connect', () => {
@@ -384,9 +426,18 @@ onUnmounted(() => {
             <span class="ponto-status-online header-ponto" :class="{ 'online': conversaAtiva.status_online }"></span>
             <h3>{{ conversaAtiva.nome }}</h3>
           </div>
+          <div class="btn-cabecalho-chat">
+            <button
+              type="button"
+              @click="iniciarLigacaoDeVideoEEnviarConvite"
+              class="btn-camera-chamada-topo"
+          >
+            <img :src="camera" alt="vídeo chamada">
+          </button>
           <button type="button" class="btn-config-chat-topo">
             <img :src="gear" alt="configuração" class="gear">
           </button>
+          </div>
         </div>
         <div ref="containerMensagens" class="mural-scroll-mensagens-historico">
           <div
@@ -606,6 +657,11 @@ main {
   scrollbar-width: thin;
   padding: 2px;
 }
+.btn-cabecalho-chat {
+  display: flex;
+  height: 75%;
+  gap: 0.3vw;
+}
 .topo-pesquisa-filtro {
   display: flex;
   justify-content: space-between;
@@ -619,6 +675,26 @@ main {
   position: relative;
   flex: 1;
   max-width: 450px;
+}
+.btn-camera-chamada-topo {
+  background: none;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s;
+  transition: 0.3s;
+}
+.btn-camera-chamada-topo:hover {
+  transform: scale(1.10);
+  transition: 0.3s;
+}
+.btn-camera-chamada-topo:active {
+  transform: scale(0.92);
+  transition: 0.3s;
 }
 .container-input-busca input {
   width: 100%;
