@@ -425,7 +425,7 @@ onUnmounted(() => {
               @click="iniciarLigacaoDeVideoEEnviarConvite"
               class="btn-camera-chamada-topo"
           >
-            <img :src="camera" alt="vídeo chamada">
+            <img :src="camera" alt="vídeo chamada" class="icon-camera">
           </button>
           <button type="button" class="btn-config-chat-topo">
             <img :src="gear" alt="configuração" class="gear">
@@ -455,12 +455,12 @@ onUnmounted(() => {
               <div v-else-if="msg.texto && msg.texto.includes('/imagens/')" class="container-imagem-chat-balao">
                 <img :src="msg.texto" alt="Imagem enviada" class="img-enviada-chat-midia">
              </div>
-             <div
+              <div
                 v-else-if="msg.texto === 'chamada de vídeo iniciada. Clique para entrar!'"
                 @click="chamadaAtiva = true"
-                class="balao-link-video-convite"
+                :class="[ chamadaAtiva ? 'balao-link-video-convite' : 'balao-link-video-convite-expirado' ]"
               >
-                {{ msg.texto }}
+                {{ chamadaAtiva ? msg.texto : 'chamada de vídeo expirada!'}}
               </div>
              <p v-else>{{ msg.texto }}</p>
              <span class="tag-tempo-data-balao">
@@ -814,6 +814,10 @@ main {
   filter: invert(1) !important;
   transition: filter 0.3s ease !important;
 }
+[data-theme="dark"] .icon-camera {
+  filter: invert(1) !important;
+  transition: filter 0.3s ease !important;
+}
 [data-theme="dark"] .gear {
   filter: invert(1);
   transition: filter 0.3s ease;
@@ -949,6 +953,17 @@ main {
   text-align: center;
   box-shadow: 0 4px 8px rgba(34, 197, 94, 0.25);
   border: 1px solid #16a34a;
+  margin: 4px 0;
+}
+.balao-link-video-convite-expirado {
+  cursor: pointer;
+  background: #cf0000; color: #ffffff;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-weight: bold;
+  text-align: center;
+  box-shadow: 0 4px 8px rgba(197, 34, 34, 0.25);
+  border: 1px solid #890000;
   margin: 4px 0;
 }
 .caixa-pop-over-teclado-emojis {

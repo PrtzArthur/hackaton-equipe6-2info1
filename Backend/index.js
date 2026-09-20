@@ -11,14 +11,7 @@ import usuarioRoutes from './routes/usuario.js';
 import criarRoutes from './routes/criar.js';
 import chatRoutes from './routes/chat.js';
 import eventosRoutes from './routes/eventos.js';
-import { PeerServer } from 'peer';
-
-const servidorVideoSinal = PeerServer({ 
-  port: 9000, 
-  path: '/ifchat-video-signaling',
-  proxied: true 
-});
-console.log('servidor próprio de sinalização de vídeo ativo na porta 9000');
+import { ExpressPeerServer } from 'peer';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -42,6 +35,14 @@ app.use('/imagens', express.static(dirUploads));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 const httpServer = createServer(app);
+
+const peerServerConfigurado = ExpressPeerServer(httpServer, {
+  proxied: true,
+  path: '/'
+});
+
+app.use('/ifchat-video-signaling', peerServerConfigurado);
+console.log('[Nuvem] Servidor de sinalização integrado com sucesso na rota /ifchat-video-signaling');
 
 const io = new Server(httpServer, {
   cors: { origin: '*', methods: ['GET', 'POST', 'PUT', 'DELETE'] }
