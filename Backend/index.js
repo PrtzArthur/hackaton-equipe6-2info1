@@ -45,8 +45,7 @@ app.use('/ifchat-video-signaling', peerServerConfigurado);
 console.log('[Nuvem] Servidor de sinalização integrado com sucesso na rota /ifchat-video-signaling');
 
 const io = new Server(httpServer, {
-  cors: { origin: '*', methods: ['GET', 'POST', 'PUT', 'DELETE'] },
-  transports: ['websocket']
+  cors: { origin: '*', methods: ['GET', 'POST', 'PUT', 'DELETE'] }
 });
 
 app.set('io', io);
