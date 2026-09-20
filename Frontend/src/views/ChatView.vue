@@ -17,7 +17,9 @@ const router = useRouter();
 
 const toast = useToast();
 
-const socket = io(import.meta.env.VITE_API_URL);
+const socket = io(import.meta.env.VITE_API_URL, {
+  transports: ['websocket']
+});
 
 const meuIdLogado = ref(localStorage.getItem('ifchat_user_id') || '');
 const buscaUsuario = ref('');
