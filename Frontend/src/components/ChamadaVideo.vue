@@ -2,6 +2,10 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 import { Peer } from 'peerjs';
 import { useToast } from 'vue-toastification';
+import cameraAtivada from '@/icons/cameraAtivada.svg';
+import cameraDesativada from '@/icons/cameraDesativada.svg'
+import micDesativado from '@/icons/micDesativado.svg'
+import micAtivado from '@/icons/micAtivado.svg'
 
 const toast = useToast();
 
@@ -128,10 +132,12 @@ onUnmounted(() => {
     </div>
     <div class="botoes-controle-ligacao">
       <button @click="alternarMic" :class="['btn-redondo', { 'btn-mutado': !micAtivo }]">
-        {{ micAtivo ? 'ativado microfone' : 'desativado microfone' }}
+        <img v-if="micAtivo" :src="micAtivado" alt="câmera ativada">
+        <img v-else :src="micDesativado" alt="câmera desativada">
       </button>
       <button @click="alternarCam" :class="['btn-redondo', { 'btn-mutado': !camAtiva }]">
-        {{ camAtiva ? 'ativada câmera' : 'desativada câmera' }}
+        <img v-if="camAtiva" :src="cameraAtivada" alt="câmera ativada">
+        <img v-else :src="cameraDesativada" alt="câmera desativada">
       </button>
       <button @click="desligarChamadaTotalmente" class="btn-redondo btn-hangup">
         Desligar
@@ -168,8 +174,8 @@ onUnmounted(() => {
   position: absolute;
   top: 24px;
   right: 24px;
-  width: 160px;
-  height: 220px;
+  width: 22vw;
+  height: 14vw;
   border-radius: 12px;
   overflow: hidden;
   border: 2px solid #ffffff;
