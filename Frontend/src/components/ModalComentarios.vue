@@ -16,9 +16,7 @@ const props = defineProps({
 const emit = defineEmits(['fechar']);
 
 const toast = useToast();
-const socket = io(import.meta.env.VITE_API_URL, {
-  transports: ['websocket']
-});
+const socket = io(import.meta.env.VITE_API_URL);
 
 const listaComentariosDoPost = ref([]);
 const textoNovoComentario = ref('');

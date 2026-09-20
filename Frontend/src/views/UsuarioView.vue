@@ -75,9 +75,7 @@ async function logout() {
 }
 const route = useRoute();
 
-const socket = io(import.meta.env.VITE_API_URL, {
-  transports: ['websocket']
-});
+const socket = io(import.meta.env.VITE_API_URL);
 
 const editarPerfil = ref(false);
 const modalAberto = ref(false);
