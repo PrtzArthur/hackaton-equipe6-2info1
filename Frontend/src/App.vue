@@ -4,7 +4,9 @@ import AppHeader from './components/AppHeader.vue';
 import { onMounted, onUnmounted } from 'vue';
 import { io } from 'socket.io-client';
 
-const socket = io(import.meta.env.VITE_API_URL);
+const socket = io(import.meta.env.VITE_API_URL, {
+  transports: ['websocket']
+});
 let temporizadorMuralPresenca = null;
 
 onMounted(() => {
