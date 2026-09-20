@@ -48,21 +48,19 @@ function inicializarMotorPeerJS() {
 
   instanciaPeer = new Peer(meuIdLogado, {
     host: urlLimpaDoBack,
-    port: ehSeguro ? 443 : 3000,
-    path: '/peerjs/ifchat-video-signaling',
+    port: ehSeguro ? 443 : 9000,
+    path: '/ifchat-video-signaling',
     secure: ehSeguro
   });
 
-  instanciaPeer.on('open', (idConstatado) => {
-    console.log(`meu ID de vídeo registrado na nuvem P2P: ${idConstatado}`);
+  instanciaPeer.on('open', (id) => {
+    console.log("conectado com sucesso ao servidorVideoSinal do IFChat! Meu ID:", id);
 
-    console.log(`disparando chamada P2P direta para o ID do amigo: ${props.idAmigo}`);
     const chamada = instanciaPeer.call(props.idAmigo, fluxoDeMidiaLocal);
     vincularEventosDaChamada(chamada);
   });
 
   instanciaPeer.on('call', (chamadaEntrante) => {
-    console.log("recebendo ligação de vídeo de volta do colega. Atendendo automaticamente...");
     chamadaEntrante.answer(fluxoDeMidiaLocal);
     vincularEventosDaChamada(chamadaEntrante);
   });

@@ -285,14 +285,6 @@ async function iniciarLigacaoDeVideoEEnviarConvite() {
   try {
     socket.emit('enviar_mensagem_privada', objetoMensagemConvite);
 
-    historicoMensagens.value.push({
-      id_mensagem: idMensagemUnico,
-      id_remetente: meuIdLogado.value,
-      id_destinatario: conversaAtiva.value.id_usuario,
-      texto: textoDoConvite,
-      data: new Date()
-    });
-
     toast.success("Iniciando conferência. Aguardando o colega...");
 
     if (typeof rolarChatParaBaixo === 'function') {
