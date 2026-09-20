@@ -11,6 +11,7 @@ import gear from '@/icons/gear.svg';
 import camera from '@/icons/camera.svg';
 import { useToast } from 'vue-toastification';
 import { useRouter } from 'vue-router';
+import ChamadaVideo from '@/components/ChamadaVideo.vue';
 
 const router = useRouter();
 
@@ -568,6 +569,14 @@ onUnmounted(() => {
       <button v-if="mostrarTelaPesquisaUsuarios"  @click="voltarTela" class="botaoVoltar">
           <img :src="voltar" alt="" class="setaVoltar">
       </button>
+      <template v-if="chamadaAtiva">
+      <div style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 99999; background: #111111;">
+        <ChamadaVideo
+          :idAmigo="conversaAtiva.id_usuario"
+          @fecharLigar="chamadaAtiva = false"
+        />
+      </div>
+    </template>
   </main>
 </template>
 
