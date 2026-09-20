@@ -449,7 +449,7 @@ onUnmounted(() => {
               { 'estado-apagado': msg.texto === 'Mensagem apagada' }
             ]"
             @dblclick="tratarDuploCliqueNaMensagem(msg)">
-            <div v-if="msg.id_remetente !== meuIdLogado && msg.texto !== 'Mensagem apagada'" class="wrapper-avatar-mensagem-outro">
+            <div v-if="msg.id_remetente !== meuIdLogado" class="wrapper-avatar-mensagem-outro">
               <div class="avatar-mural-mini-chat">
                 <img v-if="conversaAtiva.foto_profile && conversaAtiva.foto_profile !== ''" :src="conversaAtiva.foto_profile" alt="Avatar" class="foto-perfil-chat">
                 <img v-else :src="userBlackFull" alt="" class="img-perfil-chat">
@@ -462,6 +462,13 @@ onUnmounted(() => {
               <div v-else-if="msg.texto && msg.texto.includes('/imagens/')" class="container-imagem-chat-balao">
                 <img :src="msg.texto" alt="Imagem enviada" class="img-enviada-chat-midia">
              </div>
+             <div
+                v-else-if="msg.texto === 'chamada de vídeo iniciada. Clique para entrar!'"
+                @click="chamadaAtiva = true"
+                class="balao-link-video-convite"
+              >
+                {{ msg.texto }}
+              </div>
              <p v-else>{{ msg.texto }}</p>
              <span class="tag-tempo-data-balao">
                {{ new Date(msg.data).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) }}
@@ -927,13 +934,21 @@ main {
   color: var(--texto-suave, #94a3b8) !important;
   font-size: 0.88rem !important;
 }
-.msg-outro.estado-apagado {
-  padding-left: 42px;
-}
 .caixa-busca-chat-wrapper {
   position: relative;
   width: 100%;
   margin-bottom: 1.2vw;
+}
+.balao-link-video-convite {
+  cursor: pointer;
+  background: #22c55e; color: #ffffff;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-weight: bold;
+  text-align: center;
+  box-shadow: 0 4px 8px rgba(34, 197, 94, 0.25);
+  border: 1px solid #16a34a;
+  margin: 4px 0;
 }
 .caixa-pop-over-teclado-emojis {
   position: absolute;
