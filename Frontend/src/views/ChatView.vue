@@ -265,14 +265,16 @@ async function alternarSeguirUsuarioNaLista(userAlvo) {
 }
 
 const chamadaAtiva = ref(false);
+const idMensagemChamadaAtual = ref(null);
 
 async function iniciarLigacaoDeVideoEEnviarConvite() {
   if (!meuIdLogado.value || !conversaAtiva.value) return;
 
   chamadaAtiva.value = true;
-
   const textoDoConvite = "chamada de vídeo iniciada. Clique para entrar!";
   const idMensagemUnico = String(Date.now() + Math.round(Math.random() * 1000000));
+
+  idMensagemChamadaAtual.value = idMensagemUnico;
 
   const objetoMensagemConvite = {
     id_mensagem: idMensagemUnico,
@@ -285,16 +287,39 @@ async function iniciarLigacaoDeVideoEEnviarConvite() {
 
   try {
     socket.emit('enviar_mensagem_privada', objetoMensagemConvite);
-
     toast.success("Iniciando conferência. Aguardando o colega...");
-
-    if (typeof rolarChatParaBaixo === 'function') {
-      rolarChatParaBaixo();
-    }
+    rolarChatParaBaixo();
   } catch (error) {
-    console.error("Falha ao emitir sinalização de vídeo:", error);
-    toast.error("Erro ao tentar conectar chamada.");
+    console.error(error);
   }
+}
+
+async function finalizarChamadaEstiloWhatsapp() {
+  if (!idMensagemChamadaAtual.value || !conversaAtiva.value) {
+    chamadaAtiva.value = false;
+    return;
+  }
+
+  const textoEncerrado = "chamada de vídeo encerrada";
+
+  const msgAlvo = historicoMensagens.value.find(m => m.id_mensagem === idMensagemChamadaAtual.value);
+  if (msgAlvo) msgAlvo.texto = textoEncerrado;
+
+  socket.emit('encerrar_chamada_video_realtime', {
+    id_mensagem: idMensagemChamadaAtual.value,
+    id_destinatario: conversaAtiva.value.id_usuario
+  });
+
+  try {
+    await fetch(`${import.meta.env.VITE_API_URL}/api/chat/mensagem/atualizar-chamada`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id_mensagem: idMensagemChamadaAtual.value, novoTexto: textoEncerrado })
+    });
+  } catch (e) { console.error(e); }
+
+  chamadaAtiva.value = false;
+  idMensagemChamadaAtual.value = null;
 }
 
 onMounted(() => {
@@ -354,6 +379,13 @@ onMounted(() => {
     if (chatAtivoNaSidebar) {
       chatAtivoNaSidebar.status_online = dadosRecebidos.status_online;
     }
+  });
+  socket.on('chamada_foi_encerrada_notificar', (dados) => {
+    const msgAlvo = historicoMensagens.value.find(m => m.id_mensagem === dados.id_mensagem);
+    if (msgAlvo) {
+      msgAlvo.texto = "chamada de vídeo encerrada";
+    }
+    chamadaAtiva.value = false;
   });
 });
 
@@ -457,10 +489,16 @@ onUnmounted(() => {
              </div>
               <div
                 v-else-if="msg.texto === 'chamada de vídeo iniciada. Clique para entrar!'"
-                @click="chamadaAtiva = true"
+                @click="chamadaAtiva = true; idMensagemChamadaAtual = msg.id_mensagem;"
                 :class="[ chamadaAtiva ? 'balao-link-video-convite' : 'balao-link-video-convite-expirado' ]"
               >
                 {{ chamadaAtiva ? msg.texto : 'chamada de vídeo expirada!'}}
+              </div>
+              <div
+                v-else-if="msg.texto === 'chamada de vídeo encerrada'"
+                class="balao-link-video-encerrado"
+              >
+                chamada de vídeo encerrada
               </div>
              <p v-else>{{ msg.texto }}</p>
              <span class="tag-tempo-data-balao">
@@ -573,7 +611,7 @@ onUnmounted(() => {
       <div style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 99999; background: #111111;">
         <ChamadaVideo
           :idAmigo="conversaAtiva.id_usuario"
-          @fecharLigar="chamadaAtiva = false"
+          @fecharLigar="finalizarChamadaEstiloWhatsapp"
         />
       </div>
     </template>
@@ -664,6 +702,17 @@ main {
   overflow-y: auto;
   scrollbar-width: thin;
   padding: 2px;
+}
+.balao-link-video-encerrado {
+  background: #f0f0f0;
+  color: #777777;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-style: italic;
+  text-align: center;
+  border: 1px solid #dddddd;
+  margin: 4px 0;
+  cursor: not-allowed;
 }
 .btn-cabecalho-chat {
   display: flex;
