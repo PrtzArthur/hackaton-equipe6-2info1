@@ -163,6 +163,13 @@ io.on('connection', (socket) => {
       }
     }
   });
+  socket.on('encerrar_chamada_video_realtime', (dados) => {
+    if (dados.id_destinatario) {
+      io.to(dados.id_destinatario).emit('chamada_foi_encerrada_notificar', { 
+        id_mensagem: dados.id_mensagem 
+      });
+    }
+  });
 });
 
 async function inicializarBancoDeDados() {

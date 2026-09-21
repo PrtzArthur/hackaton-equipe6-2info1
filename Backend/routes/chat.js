@@ -377,5 +377,19 @@ router.delete('/listas/deletar/:idLista', async (req, res) => {
     if (conexao) conexao.release();
   }
 });
+router.put('/mensagem/atualizar-chamada', async (req, res) => {
+  const { id_mensagem, novoTexto } = req.body;
+
+  try {
+    await pool.query(
+      'UPDATE Mensagem SET conteudo_mensagem = ? WHERE id_mensagem = ?',
+      [novoTexto, id_mensagem]
+    );
+    return res.json({ sucesso: true });
+  } catch (error) {
+    console.error('Erro ao atualizar texto da chamada:', error.message);
+    return res.status(500).json({ erro: 'Erro interno.' });
+  }
+});
 
 export default router;
