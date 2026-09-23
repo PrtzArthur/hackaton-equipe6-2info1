@@ -490,9 +490,9 @@ onUnmounted(() => {
               <div
                 v-else-if="msg.texto === 'chamada de vídeo iniciada. Clique para entrar!'"
                 @click="chamadaAtiva = true; idMensagemChamadaAtual = msg.id_mensagem;"
-                :class="[ chamadaAtiva ? 'balao-link-video-convite' : 'balao-link-video-convite-expirado' ]"
+                class="balao-link-video-convite"
               >
-                {{ chamadaAtiva ? msg.texto : 'chamada de vídeo expirada!'}}
+                {{ msg.texto }}
               </div>
               <div
                 v-else-if="msg.texto === 'chamada de vídeo encerrada'"
@@ -581,7 +581,7 @@ onUnmounted(() => {
     <div v-for="user in usuariosFiltradosEOrdenados" :key="user.id_usuario" class="card-usuario-linha">
       <div class="bloco-info-esquerda">
         <div class="avatar-aluno-lista" @click="irParaPerfilDoAutor(user.id_usuario)">
-          <img v-if="user.foto_profile && user.foto_profile !== ''" :src="user.foto_profile">
+          <img v-if="user.foto_profile && user.foto_profile !== ''" :src="user.foto_profile" class="img-foto-profile">
           <img v-else :src="userBlackFull" alt="" class="img-default">
         </div>
         <div class="detalhes-texto-aluno">
@@ -634,9 +634,8 @@ onUnmounted(() => {
 main {
   height: 100vh;
   flex-grow: 1;
-  padding: 1.5vw;
   margin-left: 12vw;
-  width: calc(100% - 12vw);
+  width: calc(100% - 14vw);
   position: fixed;
   top: 0;
   bottom: 0;
@@ -647,7 +646,6 @@ main {
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  gap: 2vw;
 }
 .setaVoltar {
   width: 2vw;
@@ -928,15 +926,10 @@ main {
   left: auto !important;
   right: auto !important;
   transform: none !important;
-  width: 38% !important;
-  height: calc(100vh - 8vw) !important;
+  height: 100vh !important;
   margin: 0 !important;
   top: 0;
   bottom: 0;
-  margin-top: 4vw;
-  margin-bottom: 3vw;
-  border-radius: 9px;
-  border: var(--borda-padrao);
   scrollbar-color: #ccc transparent;
   overflow-y: auto;
   scrollbar-width: thin;
@@ -965,12 +958,16 @@ main {
   left: 45%;
   transform: translateX(-100%);
   margin-right: 1.5vw;
+  width: 40% !important;
+
+  border-right: var(--borda-padrao);
 }
 .coluna-janela-mensagens {
   left: 45%;
   transform: translateX(0);
   margin-left: 1.5vw;
-  padding: 1vw !important;
+  padding: 1vw 1vw 0 1vw !important;
+  width: 60% !important;
 }
 .cabecalho-secao-chat h2 {
   font-size: 1.4rem;
@@ -1004,17 +1001,6 @@ main {
   border: 1px solid #16a34a;
   margin: 4px 0;
 }
-.balao-link-video-convite-expirado {
-  cursor: pointer;
-  background: #cf0000; color: #ffffff;
-  padding: 10px 14px;
-  border-radius: 8px;
-  font-weight: bold;
-  text-align: center;
-  box-shadow: 0 4px 8px rgba(197, 34, 34, 0.25);
-  border: 1px solid #890000;
-  margin: 4px 0;
-}
 .caixa-pop-over-teclado-emojis {
   position: absolute;
   bottom: 4.5vw;
@@ -1029,6 +1015,10 @@ main {
   padding: 10px;
   z-index: 50;
   box-sizing: border-box;
+}
+.img-foto-profile {
+  height: 100%;
+  width: 100%;
 }
 .grade-emojis-scroll {
   display: grid;
@@ -1250,7 +1240,7 @@ main {
   background-color: var(--fundo-opcao-enquete-claro);
   border-radius: 6px;
   box-sizing: border-box;
-  max-height: calc(100vh - 20vw) !important;
+  max-height: 100vh !important;
   margin-bottom: 5px;
 }
 .balao-mensagem-linha {
@@ -1354,6 +1344,8 @@ main {
   box-sizing: border-box;
   margin-bottom: 0 !important;
   bottom: 0 !important;
+  flex: 1 !important;
+  position: relative !important;
 }
 .tag-tempo-data-balao {
   font-size: 0.68rem;
@@ -1367,12 +1359,15 @@ main {
   align-items: center !important;
   gap: 0.5vw;
   padding-top: 15px !important;
+  padding-bottom: 15px;
   border-top: var(--borda-padrao) !important;
   background-color: var(--fundo-card) !important;
   margin-top: 0 !important;
   width: 100% !important;
   flex-shrink: 0 !important;
   box-sizing: border-box !important;
+  margin-top: auto;
+  bottom: 0;
 }
 .input-mensagem-chat-campo {
   flex-grow: 1 !important;

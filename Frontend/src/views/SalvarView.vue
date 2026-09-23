@@ -262,8 +262,9 @@ onMounted(() => {
           </span>
         </div>
         <div class="mural-scroll-posts-salvamentos">
-          <div v-for="post in postagensFiltradas" :key="post.id_postagem" class="card-postagem-salva-item">
-            <div class="linha-tempo-topo-meta">
+          <div v-if="postagensFiltradas.length > 0">
+            <div v-for="post in postagensFiltradas" :key="post.id_postagem" class="card-postagem-salva-item">
+              <div class="linha-tempo-topo-meta">
               <span class="data-text-meta">
                 {{ new Date(post.data_envio).toLocaleDateString('pt-BR') }} | {{ post.total_likes }} curtidas
               </span>
@@ -295,28 +296,34 @@ onMounted(() => {
                 {{ tag }}
               </span>
             </div>
-            <div class="barra-acoes-post-salvo">
-              <button class="btn-acao-post" type="button" @click="curtirPost(post, meuIdLogado, 'like')">
-                <img v-if="post?.meu_voto_post === 'like'" :src="likePreenchido" alt="Curtido" class="img-preenchido" >
-                <img v-else :src="likeInline" alt="curtir" class="btn-post-img">
-              </button>
-              <span class="qnt-likes-dislikes">{{ post.total_likes }}</span>
-              <button class="btn-acao-post" type="button" @click="curtirPost(post, meuIdLogado, 'dislike')">
-                <img v-if="post?.meu_voto_post === 'dislike'" :src="dislikePreenchido" alt="Descurtido" class="img-preenchido">
-                <img v-else :src="dislikeInline" alt="não curtir" class="btn-post-img">
-              </button>
-              <span class="qnt-likes-dislikes">{{ post.total_dislikes }}</span>
-              <button class="btn-acao-post" type="button" @click="abrirMural(post)">
-                <img :src="comentarios" alt="comentar" class="btn-post-img">
-              </button>
-              <button class="btn-acao-post" type="button">
-                <img :src="compartilhar" alt="compartilhar" class="btn-post-img">
-              </button>
-              <button type="button" class="btn-acao-post" @click="removerPostagemDaLista(post.id_postagem)">
-                <img v-if="!post.naoSalvo" :src="marcadorPreenchido" alt="Salvo" class="img-preenchido">
-                <img v-else :src="marcadorInline" alt="Salvar" class="btn-post-img">
-              </button>
-            </div>
+              <div class="barra-acoes-post-salvo">
+                <button class="btn-acao-post" type="button" @click="curtirPost(post, meuIdLogado, 'like')" :disabled="post.id_usuario === meuIdLogado">
+                  <img v-if="post?.meu_voto_post === 'like'" :src="likePreenchido" alt="Curtido" class="img-preenchido" >
+                  <img v-else :src="likeInline" alt="curtir" class="btn-post-img">
+                </button>
+                <span class="qnt-likes-dislikes">{{ post.total_likes }}</span>
+                <button class="btn-acao-post" type="button" @click="curtirPost(post, meuIdLogado, 'dislike')" :disabled="post.id_usuario === meuIdLogado">
+                  <img v-if="post?.meu_voto_post === 'dislike'" :src="dislikePreenchido" alt="Descurtido" class="img-preenchido">
+                  <img v-else :src="dislikeInline" alt="não curtir" class="btn-post-img">
+                </button>
+                <span class="qnt-likes-dislikes">{{ post.total_dislikes }}</span>
+                <button class="btn-acao-post" type="button" @click="abrirMural(post)">
+                  <img :src="comentarios" alt="comentar" class="btn-post-img">
+                </button>
+                <button class="btn-acao-post" type="button">
+                  <img :src="compartilhar" alt="compartilhar" class="btn-post-img">
+                </button>
+                <button type="button" class="btn-acao-post" @click="removerPostagemDaLista(post.id_postagem)">
+                  <img v-if="!post.naoSalvo" :src="marcadorPreenchido" alt="Salvo" class="img-preenchido">
+                  <img v-else :src="marcadorInline" alt="Salvar" class="btn-post-img">
+                </button>
+              </div>
+          </div>
+          </div>
+          <div v-else class="lista-vazia">
+            <span class="span-lista-vazia">
+              A lista está vazia.
+            </span>
           </div>
         </div>
       </div>
@@ -360,9 +367,8 @@ onMounted(() => {
 main {
   height: 100vh;
   flex-grow: 1;
-  padding: 1.5vw;
   margin-left: 12vw;
-  width: calc(100% - 12vw);
+  width: calc(100% - 14vw);
   position: fixed;
   top: 0;
   bottom: 0;
@@ -372,21 +378,24 @@ main {
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  gap: 2vw;
 }
 .coluna-lista-salvos,
 .coluna-mural-salvos {
   background-color: var(--fundo-card, #ffffff);
   position: relative !important;
-  width: 38% !important;
-  height: calc(100vh - 8vw) !important;
-  border-radius: 9px;
-  border: var(--borda-padrao, 1px solid #e2e8f0);
+  height: 100vh !important;
   scrollbar-width: thin;
   padding: 15px;
   box-sizing: border-box;
   display: flex !important;
   flex-direction: column !important;
+}
+.coluna-lista-salvos {
+  width: 40% !important;
+  border-right: var(--borda-padrao);
+}
+.coluna-mural-salvos {
+  width: 60% !important;
 }
 .cabecalho-secao-salvar h2 {
   font-size: 1.25rem;
@@ -527,10 +536,23 @@ main {
   font-size: 0.8rem;
   color: var(--texto-suave, #94a3b8);
 }
+.lista-vazia {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.span-lista-vazia {
+  font-weight: bolder;
+  font-style: italic;
+  color: var(--texto-suave);
+}
 .grade-mural-salvos-ativo {
   display: flex;
   flex-direction: column;
   width: 100%;
+  height: 100%;
   flex-grow: 1;
   overflow-y: auto;
 }
@@ -560,9 +582,9 @@ main {
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 1vw;
   padding: 10px 5px;
-  max-height: 52vh;
+  max-height: 100%;
 }
 .card-postagem-salva-item {
   background-color: var(--fundo-card-modal, #ffffff);
@@ -573,6 +595,7 @@ main {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  margin-bottom: 0.5vw;
 }
 .linha-tempo-topo-meta {
   font-size: 0.75rem;
