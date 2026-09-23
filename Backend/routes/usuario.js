@@ -366,24 +366,31 @@ router.get('/notificacoes/:idUsuario', async (req, res) => {
   const { idUsuario } = req.params;
 
   try {
+    // 🎯 AJUSTADO: Inclui a flag "n.lido" e faz um tratamento de segurança na data
     const querySQL = `
       SELECT n.id_notificacao AS id, 
-             n.data_notificacao,
+             n.lido,
+             COALESCE(n.data_notificacao, NOW()) AS data_notificacao,
              u.nome AS autor_nome,
              u.username AS autor_username,
              u.foto_profile AS autor_foto,
+             p.id_postagem AS post_id,
              p.conteudo AS post_conteudo
       FROM Notificacao n
       JOIN Postagem p ON n.texto_notificacao = p.id_postagem
       JOIN Usuario u ON p.id_usuario = u.id_usuario
       WHERE n.id_usuario = ? AND n.tipo_notificacao = 'novo_post'
-      ORDER BY n.data_notificacao DESC
+      ORDER BY n.lido ASC, data_notificacao DESC
     `;
+    
+    // TÁTICA ANTI-CRASH: Força a criação da coluna 'lido' caso ela tenha sumido em algum merge do banco
+    await pool.query(`ALTER TABLE Notificacao ADD COLUMN IF NOT EXISTS lido TINYINT(1) DEFAULT 0;`).catch(() => {});
+
     const [alertas] = await pool.query(querySQL, [idUsuario]);
     return res.json(alertas || []);
 
   } catch (error) {
-    console.error('Erro no MySQL ao ler lista de notificações avançadas:', error);
+    console.error('❌ Erro no MySQL ao ler lista de notificações avançadas:', error.message);
     return res.status(500).json({ erro: 'Erro interno ao processar aba de avisos.' });
   }
 });
