@@ -37,7 +37,6 @@ const fimDoFeed = ref(false);
 const meuIdLogado = ref('');
 let observadorSensor = null;
 
-
 const textoBusca = ref('');
 async function carregarTimelineGlobal(novaPagina = 1) {
   if (novaPagina === 1) carregandoFeed.value = true;
@@ -469,7 +468,7 @@ onUnmounted(() => {
           </button>
         </div>
       </section>
-      <section class="box-sidebar-container">
+      <section class="box-sidebar-container container-topicos-em-alta">
         <h3 @click="topicosAbertos = !topicosAbertos" class="titulo-retratil">
           Tópicos em alta
           <Transition name="troca-icone" mode="out-in">
@@ -669,8 +668,8 @@ onUnmounted(() => {
   background-color: #2c8200;
 }
 .div-imagem-perfil {
-  width: 3vw;
-  height: 3vw;
+  width: 2.5vw;
+  height: 2.5vw;
   border-radius: 50%;
   display: flex;
   justify-content: center;
@@ -713,8 +712,8 @@ main {
   overflow-x: hidden;
 }
 .avatar-sugestao-mini-default {
-  width: 4vw;
-  height: 4vw;
+  width: 3.3vw;
+  height: 3.3vw;
 }
 .coluna-central-feed {
   background-color: var(--fundo-card);
@@ -766,7 +765,7 @@ main {
   width: 20vw;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 1.2vw;
   box-sizing: border-box;
 }
 .box-sidebar-container {
@@ -776,6 +775,7 @@ main {
   overflow: hidden;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02);
   transition: border-color 0.3s ease, background-color 0.3s ease;
+  max-height: 42vh;
 }
 .titulo-retratil {
   margin: 0;
@@ -795,11 +795,11 @@ main {
   transition: 0.3s;
 }
 .corpo-retratil-container {
-  max-height: 38vh;
   opacity: 1;
   transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
   display: flex;
   flex-direction: column;
+  width: 100%;
 }
 .corpo-retratil-container.aba-recolhida {
   max-height: 0px !important;
@@ -814,15 +814,16 @@ main {
 .card-sugestao-linha {
   border: 1px solid var(--borda-padrao);
   border-radius: 8px;
-  padding: 10px;
+  padding: 0.2vw 0.7vw;
+  margin-bottom: 0.2vw;
   display: flex;
   align-items: center;
-  gap: 0.8vw;
+  justify-content: space-between;
   background-color: var(--fundo-card);
 }
 .avatar-sugestao-mini {
-  width: 3vw;
-  height: 3vw;
+  width: 2.5vw;
+  height: 2.5vw;
   border-radius: 50%;
   object-fit: cover;
   border: 1px solid var(--borda-padrao);
@@ -834,7 +835,8 @@ main {
   justify-content: space-between;
   flex-grow: 1;
   box-sizing: border-box;
-  max-width: 14vw;
+  width: calc(100% - 1vw);
+  margin-left: 1vw;
 }
 .bloco-nomes-user {
   display: flex;
@@ -842,7 +844,7 @@ main {
   max-width: 55%;
 }
 .info-sugestao-texto strong {
-  font-size: 0.88rem;
+  font-size: 0.8vw;
   color: var(--texto-principal);
   white-space: nowrap;
   overflow: hidden;
@@ -860,8 +862,8 @@ main {
   color: #ffffff;
   border: none;
   border-radius: 20px;
-  padding: 6px 14px;
-  font-size: 0.8rem;
+  padding: 0.4VW 0.6VW;
+  font-size: 0.8vw;
   font-weight: 600;
   cursor: pointer;
   right: 0;
@@ -876,7 +878,7 @@ main {
   border: 1px solid var(--borda-padrao);
   border-radius: 20px;
   width: 80%;
-  margin: 4px auto 12px auto;
+  margin: 0.3vw auto 0.8vw auto;
   padding: 6px 0;
   cursor: pointer;
   display: flex;
@@ -895,13 +897,13 @@ main {
 .lista-topicos-wrapper {
   display: flex;
   flex-direction: column;
-  padding: 12px;
+  padding: 0.8vw;
   gap: 0.3vw;
 }
 .card-topico-linha {
   border: 1px solid var(--borda-padrao);
   border-radius: 8px;
-  padding: 12px;
+  padding: 0.5vw 0.8vw;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -949,6 +951,8 @@ main {
 .container-imagem-post {
   overflow: hidden;
   width: 100%;
+  min-height: 10vw;
+  max-height: 25vw;
   display: flex;
   align-items: center;
   height: auto;
@@ -960,7 +964,7 @@ main {
 .containerPai {
   display: flex;
   flex-direction: column;
-  padding: 0.5vw 0.5vw;
+  padding: 0.5vw;
 }
 .container-tags-postagem {
   display: flex;
