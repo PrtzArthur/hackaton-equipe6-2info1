@@ -338,6 +338,23 @@ router.get('/perfil/:id', async (req, res) => {
     return res.status(500).json({ erro: 'Erro interno ao processar dados do perfil.' });
   }
 });
+router.delete('/excluir/:id', async (req, res) => {
+  const meuIdLogado = req.params.id;
+
+  try {
+    const querySql = `DELETE FROM Usuario WHERE id_usuario = ?`;
+    const [resultado] = await pool.query(querySql, [meuIdLogado]);
+
+    if (resultado.affectedRows === 0) {
+      return res.status(404).json({ erro: 'Usuário não encontrado.' });
+    }
+
+    return res.json({ sucesso: true, mensagem: 'Conta removida com sucesso do IFChat!' });
+
+  } catch (error) {
+    console.error('erro ao excluir conta', error);
+  }
+})
 router.post('/perfil/sino', async (req, res) => {
   const { idSeguidor, idCriador } = req.body;
 
@@ -400,14 +417,6 @@ router.post('/bloquear/:idAlvo', async (req, res) => {
   } catch (e) {
     console.error('Erro ao cogitar bloqueio', e);
     return res.status(500).json({ erro: 'Erro interno ao bloquear.' });
-  }
-});
-router.delete('/bloquear/:idAlvo', async (req, res) => {
-  try {
-    return res.json({ mensagem: 'Usuário desbloqueado com sucesso!' });
-  } catch (e) {
-    console.error('Erro ao cogitar bloqueio', e);
-    return res.status(500).json({ erro: 'Erro interno ao desbloquear.' });
   }
 });
 router.get('/postagens/:id', async (req, res) => {
