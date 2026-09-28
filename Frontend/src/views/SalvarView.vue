@@ -586,6 +586,12 @@ main {
   padding: 10px 5px;
   max-height: 100%;
 }
+.mural-scroll-posts-salvamentos::-webkit-scrollbar-track {
+  background-color: #fff;
+}
+.mural-scroll-posts-salvamentos::-webkit-scrollbar-button {
+  background-color: #fff;
+}
 .card-postagem-salva-item {
   background-color: var(--fundo-card-modal, #ffffff);
   border: 1px solid var(--borda-padrao);

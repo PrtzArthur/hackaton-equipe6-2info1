@@ -268,17 +268,21 @@ main {
   box-sizing: border-box;
 }
 .search-section {
-  padding: 16px;
+  height: 4vw !important;
   border-bottom: var(--borda-padrao);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .search-box {
   display: flex;
   align-items: center;
   border: var(--borda-padrao);
   border-radius: 20px;
-  padding: 8px 16px;
+  padding: 0.5vw 1vw;
   background: var(--fundo-card);
-  max-width: 500px;
+  max-width: 50vw;
+  width: 50vw;
   margin: 0 auto;
 }
 .search-box input {

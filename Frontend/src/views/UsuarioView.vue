@@ -643,6 +643,26 @@ function abrirModalMuralPerfil() {
   }
   mostrarModalMural.value = true;
 }
+const mostrarModalExcluirConta = ref(false);
+async function ExcluirConta() {
+  try {
+    const resposta = await fetch(`${import.meta.env.VITE_API_URL}/api/usuario/excluir/${meuIdLogado.value}`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idUsuarioLogado: meuIdLogado.value })
+    });
+
+    if (resposta.ok) {
+      toast.success('conta excluída com sucesso!');
+      localStorage.removeItem('ifchat_user_id');
+      localStorage.removeItem('ifchat_username');
+      router.push('/');
+    }
+  } catch (error) {
+    console.error('Falha ao excluir conta!', error.message );
+    toast.error('Falha ao excluir a conta!')
+  }
+}
 onMounted(() => {
   carregarRecadosDoMural();
 });
@@ -696,6 +716,9 @@ onUnmounted(() => {
 
 <template>
   <main>
+    <div class="preenchimento-do-topo">
+      <h2>Perfil do usuário</h2>
+    </div>
     <section v-if="telaExibicao" class="telaDeExibicao">
       <div class="divDoUsuario">
         <div class="bannerPerfil">
@@ -1097,12 +1120,22 @@ onUnmounted(() => {
             <div class="divLogoutEDeleteAccount">
               <button @click="logout" class="buttonLogout"><span>Sair da conta</span><img :src="logoutRED" alt="Logout" class="imgLogout"></button>
               <span class="spanLogout">|</span>
-              <button>Excluir conta</button>
+              <button type="button" @click="mostrarModalExcluirConta = true">Excluir conta</button>
             </div>
           </div>
           </div>
         </div>
       </section>
+      <div v-if="mostrarModalExcluirConta" class="overlay">
+        <div class="modal-excluir-conta">
+          <h2>Você tem certeza?</h2>
+          <p>Após excluir sua conta, você não poderá recuperar ela de volta.</p>
+          <div class="div-botoes-modal-excluir">
+            <button type="button" @click="mostrarModalExcluirConta = false" class="cancelar">Cancelar</button>
+            <button type="button" @click="ExcluirConta" class="excluir">Prosseguir</button>
+          </div>
+        </div>
+      </div>
   </main>
 </template>
 
@@ -1111,8 +1144,8 @@ main {
   height: 100vh;
   flex-grow: 1;
   padding: 1.5vw;
-  margin-left: 12vw;
-  width: calc(100% - 12vw);
+  margin-left: 14vw;
+  width: calc(100% - 14vw);
   position: fixed;
   top: 0;
   bottom: 0;
@@ -1122,6 +1155,25 @@ main {
   overflow-x: hidden;
   display: flex;
   align-items: center;
+  justify-content: center;
+  background-color: var(--fundo-card);
+}
+.preenchimento-do-topo {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 4vw;
+  margin-left: 14vw;
+  background-color: var(--fundo-card);
+  border-bottom: var(--borda-padrao);
+}
+.preenchimento-do-topo h2 {
+  transform: translate(-50%);
+  top: 0;
+  left: 50%;
+  position: fixed;
+  margin-top: 1vw;
 }
 .divDasTagsDoUsuario {
   display: flex;
@@ -1191,6 +1243,56 @@ main {
   transform: scale(1.02);
 }
 .marcado-para-excluir-form:active {
+  transform: scale(0.95);
+}
+.modal-excluir-conta {
+  background-color: var(--fundo-card-modal);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  overflow: hidden;
+  border: var(--borda-padrao);
+  border-radius: 5px;
+}
+.modal-excluir-conta p {
+  margin: 2vw 1vw;
+}
+.modal-excluir-conta h2 {
+  background-color: var(--fundo-card-va);
+  padding: 1vw;
+}
+.cancelar {
+  border: var(--borda-padrao);
+  background-color: var(--fundo-card-modal);
+  color: var(--texto-principal);
+  border-radius: 7px;
+  font-weight: bolder;
+}
+.excluir {
+  border: var(--borda-padrao);
+  background-color: #ff0000;
+  color: var(--texto-principal);
+  border-radius: 7px;
+  font-weight: bolder;
+}
+.div-botoes-modal-excluir {
+  display: flex;
+  gap: 1vw;
+  justify-content: center;
+  width: 100%;
+}
+.div-botoes-modal-excluir button {
+  padding: 0.5vw;
+  width: 35%;
+  margin-bottom: 1vw;
+  transition: 0.3s;
+  cursor: pointer;
+}
+.div-botoes-modal-excluir button:hover {
+  transform: scale(1.05);
+  transition: 0.3s;
+}
+.div-botoes-modal-excluir button:active {
   transform: scale(0.95);
 }
 .btn-post {
@@ -1717,15 +1819,12 @@ main {
 section.configuracoes {
   background-color: var(--fundo-card);
   position: fixed;
-  width: 40%;
+  width: 50%;
   top: 0;
   bottom: 0;
   left: 50%;
   transform: translate(-50%);
   margin-top: 4vw;
-  margin-bottom: 3vw;
-  border-radius: 9px;
-  border: var(--borda-padrao);
   scrollbar-color: #ccc transparent;
   overflow-y: auto;
   scrollbar-width: thin;
@@ -2243,19 +2342,18 @@ select {
 section.telaDeExibicao {
   background-color: var(--fundo-card);
   position: fixed;
-  width: 40%;
+  width: 50%;
   top: 0;
   bottom: 0;
   left: 50%;
   transform: translate(-50%);
   margin-top: 4vw;
-  margin-bottom: 3vw;
-  border-radius: 9px;
-  border: var(--borda-padrao);
+  border-left: var(--borda-padrao);
   scrollbar-color: #ccc transparent;
   overflow-y: auto;
   scrollbar-width: thin;
   padding: 2px;
+  border-right: var(--borda-padrao);
 }
 [data-theme="dark"] .imgDelete {
   filter: invert(1);
@@ -2353,9 +2451,9 @@ section.telaDeExibicao {
   position: fixed;
   top: 0 !important;
   left: 0 !important;
-  margin-top: 4vw !important;
-  margin-left: 26vw !important;
-  z-index: 9999 !important;
+  margin-top: 0.5vw !important;
+  margin-left: 14.5vw !important;
+  z-index: 1000 !important;
   cursor: pointer;
 }
 .botaoVoltar:hover {
@@ -2367,7 +2465,7 @@ section.telaDeExibicao {
   transform: scale(0.92);
 }
 .bannerPerfil {
-  height: 11vw;
+  height: 17vw;
   background-color: var(--banner-default);
   margin: 0.5vw 0.5vw;
   border-radius: 5px;
