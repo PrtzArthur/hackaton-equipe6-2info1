@@ -770,10 +770,9 @@ main {
 }
 .box-sidebar-container {
   background-color: var(--fundo-card);
-  border: var(--borda-padrao);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.03);
   border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02);
   transition: border-color 0.3s ease, background-color 0.3s ease;
   max-height: 42vh;
 }

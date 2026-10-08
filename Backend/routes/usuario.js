@@ -362,12 +362,39 @@ router.post('/perfil/sino', async (req, res) => {
     return res.status(400).json({ erro: 'IDs inválidos para alternar o sino.' });
   }
 
+  let conexao = null;
   try {
-    const simulacaoAtivo = true; 
+    conexao = await pool.getConnection();
+    
+    await conexao.query(`
+      CREATE TABLE IF NOT EXISTS Notificacao_Ativada (
+        id_usuario_seguidor VARCHAR(255) NOT NULL,
+        id_usuario_criador VARCHAR(255) NOT NULL,
+        PRIMARY KEY (id_usuario_seguidor, id_usuario_criador)
+      )
+    `).catch(() => {});
 
-    if (!simulacaoAtivo) {
-      return res.json({ status: 'desativado', mensagem: 'Notificações desativadas para este perfil.' });
+    const [registroExistente] = await conexao.query(
+      'SELECT * FROM Notificacao_Ativada WHERE id_usuario_seguidor = ? AND id_usuario_criador = ?',
+      [idSeguidor, idCriador]
+    );
+
+    if (registroExistente.length > 0) {
+      await conexao.query(
+        'DELETE FROM Notificacao_Ativada WHERE id_usuario_seguidor = ? AND id_usuario_criador = ?',
+        [idSeguidor, idCriador]
+      );
+      
+      return res.json({ 
+        status: 'desativado', 
+        mensagem: 'Notificações desativadas para este perfil.' 
+      });
     } else {
+      await conexao.query(
+        'INSERT INTO Notificacao_Ativada (id_usuario_seguidor, id_usuario_criador) VALUES (?, ?)',
+        [idSeguidor, idCriador]
+      );
+      
       return res.json({ 
         status: 'ativado', 
         mensagem: 'Notificações ativadas com sucesso!' 
@@ -375,15 +402,17 @@ router.post('/perfil/sino', async (req, res) => {
     }
 
   } catch (error) {
-    console.error('Erro ao alternar registros do sino:', error);
+    console.error('erro real ao alternar registros do sino no MySQL:', error.message);
     return res.status(500).json({ erro: 'Erro interno ao processar clique do sino.' });
+  } finally {
+    if (conexao) conexao.release();
   }
 });
+
 router.get('/notificacoes/:idUsuario', async (req, res) => {
   const { idUsuario } = req.params;
 
   try {
-    // 🎯 AJUSTADO: Inclui a flag "n.lido" e faz um tratamento de segurança na data
     const querySQL = `
       SELECT n.id_notificacao AS id, 
              n.lido,
@@ -400,14 +429,13 @@ router.get('/notificacoes/:idUsuario', async (req, res) => {
       ORDER BY n.lido ASC, data_notificacao DESC
     `;
     
-    // TÁTICA ANTI-CRASH: Força a criação da coluna 'lido' caso ela tenha sumido em algum merge do banco
     await pool.query(`ALTER TABLE Notificacao ADD COLUMN IF NOT EXISTS lido TINYINT(1) DEFAULT 0;`).catch(() => {});
 
     const [alertas] = await pool.query(querySQL, [idUsuario]);
     return res.json(alertas || []);
 
   } catch (error) {
-    console.error('❌ Erro no MySQL ao ler lista de notificações avançadas:', error.message);
+    console.error('erro no MySQL ao ler lista de notificações avançadas:', error.message);
     return res.status(500).json({ erro: 'Erro interno ao processar aba de avisos.' });
   }
 });
