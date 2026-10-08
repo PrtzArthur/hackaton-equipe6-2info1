@@ -37,7 +37,7 @@ onMounted(() => {
           <div v-for="item in notificacoes" :key="item.id" class="card-notificacao-item">
           <div class="notificacao-icone-container">
             <img v-if="item.autor_foto && item.autor_foto !== ''" :src="item.autor_foto" alt="Avatar" class="avatar-notificacao-autor">
-            <img  :src="userBlackFull" alt="Avatar" class="avatar-notificacao-autor">
+            <img v-else :src="userBlackFull" alt="Avatar" class="avatar-notificacao-autor">
           </div>
           <div class="notificacao-conteudo-bloco">
             <p class="notificacao-texto-usuario">

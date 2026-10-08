@@ -347,6 +347,19 @@ async function carregarGradeDeFavoritosVisuais() {
 }
 const sinoAtivado = ref(false);
 async function alternarSinoNotificacao() {
+  if (!meuIdLogado.value || !idUsuarioDaURL.value) {
+    console.warn("[Aviso] Tentativa de alternar o sino com IDs inválidos:", {
+      seguidor: meuIdLogado.value,
+      criador: idUsuarioDaURL.value
+    });
+    return;
+  }
+
+  if (meuIdLogado.value === idUsuarioDaURL.value) {
+    toast.warning("Você não pode ativar notificações para o seu próprio perfil.");
+    return;
+  }
+
   try {
     const resposta = await fetch(`${import.meta.env.VITE_API_URL}/api/usuario/perfil/sino`, {
       method: 'POST',
@@ -358,12 +371,16 @@ async function alternarSinoNotificacao() {
     });
 
     const dados = await resposta.json();
+
     if (resposta.ok) {
-      sinoAtivado.value = dados.status === 'ativado';
-      toast.success(dados.mensagem);
+      sinoAtivado.value = dados.status === 'ativado' || dados.status === true;
+      toast.success(dados.mensagem || "Preferência de notificações atualizada!");
+    } else {
+      toast.error(dados.erro || "Não foi possível alternar o status do sino.");
     }
   } catch (erro) {
-    console.error("Erro ao alternar sino:", erro);
+    console.error("Falha de rede ao tentar alternar sino de notificações:", erro);
+    toast.error("Falha ao se conectar com o servidor.");
   }
 }
 const deletarPostagemDoBanco = async (idPostagem) => {
@@ -653,10 +670,11 @@ async function ExcluirConta() {
     });
 
     if (resposta.ok) {
-      toast.success('conta excluída com sucesso!');
       localStorage.removeItem('ifchat_user_id');
       localStorage.removeItem('ifchat_username');
-      router.push('/');
+      localStorage.clear();
+      toast.success('conta excluída com sucesso!');
+      window.location.href = '/';
     }
   } catch (error) {
     console.error('Falha ao excluir conta!', error.message );
@@ -1260,6 +1278,7 @@ main {
 .modal-excluir-conta h2 {
   background-color: var(--fundo-card-va);
   padding: 1vw;
+  color: white;
 }
 .cancelar {
   border: var(--borda-padrao);
@@ -1271,7 +1290,7 @@ main {
 .excluir {
   border: var(--borda-padrao);
   background-color: #ff0000;
-  color: var(--texto-principal);
+  color: white;
   border-radius: 7px;
   font-weight: bolder;
 }
@@ -2307,7 +2326,8 @@ select {
   margin-left: 1vw;
   margin-top: 1vw;
   margin-bottom: 1vw;
-  width: 37vw;
+  width: calc(100% - 1.5vw);
+  margin-right: 1.5vw;
   align-items: center;
   justify-content: space-between;
 }
@@ -2348,12 +2368,10 @@ section.telaDeExibicao {
   left: 50%;
   transform: translate(-50%);
   margin-top: 4vw;
-  border-left: var(--borda-padrao);
   scrollbar-color: #ccc transparent;
   overflow-y: auto;
   scrollbar-width: thin;
   padding: 2px;
-  border-right: var(--borda-padrao);
 }
 [data-theme="dark"] .imgDelete {
   filter: invert(1);
