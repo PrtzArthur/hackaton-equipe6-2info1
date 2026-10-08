@@ -365,23 +365,15 @@ router.post('/perfil/sino', async (req, res) => {
   let conexao = null;
   try {
     conexao = await pool.getConnection();
-    
-    await conexao.query(`
-      CREATE TABLE IF NOT EXISTS Notificacao_Ativada (
-        id_usuario_seguidor VARCHAR(255) NOT NULL,
-        id_usuario_criador VARCHAR(255) NOT NULL,
-        PRIMARY KEY (id_usuario_seguidor, id_usuario_criador)
-      )
-    `).catch(() => {});
 
     const [registroExistente] = await conexao.query(
-      'SELECT * FROM Notificacao_Ativada WHERE id_usuario_seguidor = ? AND id_usuario_criador = ?',
+      'SELECT * FROM notificacao_ativada WHERE id_usuario_seguidor = ? AND id_usuario_criador = ?',
       [idSeguidor, idCriador]
     );
 
     if (registroExistente.length > 0) {
       await conexao.query(
-        'DELETE FROM Notificacao_Ativada WHERE id_usuario_seguidor = ? AND id_usuario_criador = ?',
+        'DELETE FROM notificacao_ativada WHERE id_usuario_seguidor = ? AND id_usuario_criador = ?',
         [idSeguidor, idCriador]
       );
       
@@ -391,7 +383,7 @@ router.post('/perfil/sino', async (req, res) => {
       });
     } else {
       await conexao.query(
-        'INSERT INTO Notificacao_Ativada (id_usuario_seguidor, id_usuario_criador) VALUES (?, ?)',
+        'INSERT INTO notificacao_ativada (id_usuario_seguidor, id_usuario_criador) VALUES (?, ?)',
         [idSeguidor, idCriador]
       );
       
