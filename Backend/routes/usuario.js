@@ -400,7 +400,31 @@ router.post('/perfil/sino', async (req, res) => {
     if (conexao) conexao.release();
   }
 });
+router.delete('/notificacoes/deletar/:idNotificacao', async (req, res) => {
+  const { idNotificacao } = req.params;
+  const meuIdLogado = req.query.meuId || '';
 
+  if (!idNotificacao || !meuIdLogado) {
+    return res.status(400).json({ erro: 'Parâmetros inválidos para exclusão.' });
+  }
+
+  try {
+    const [resultado] = await pool.query(
+      'DELETE FROM Notificacao WHERE id_notificacao = ? AND id_usuario = ?',
+      [idNotificacao, meuIdLogado]
+    );
+
+    if (resultado.affectedRows === 0) {
+      return res.status(404).json({ erro: 'Aviso não encontrado ou não pertence a você.' });
+    }
+
+    return res.json({ sucesso: true, mensagem: 'Notificação removida com sucesso!' });
+
+  } catch (error) {
+    console.error('erro no MySQL ao deletar notificação:', error.message);
+    return res.status(500).json({ erro: 'Erro interno ao tentar remover aviso.' });
+  }
+});
 router.get('/notificacoes/:idUsuario', async (req, res) => {
   const { idUsuario } = req.params;
 

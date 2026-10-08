@@ -1,10 +1,29 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import userBlackFull from '@/icons/userBlackFull.svg'
+import lixeira from '@/icons/lixeira.svg'
 
 const notificacoes = ref([]);
 const meuIdLogado = ref(localStorage.getItem('ifchat_user_id') || '');
 
+async function deletarNotificacaoDaTela(idNotificacao) {
+  if (!meuIdLogado.value || !idNotificacao) return;
+
+  try {
+    const resposta = await fetch(
+      `${import.meta.env.VITE_API_URL}/api/usuario/notificacoes/deletar/${idNotificacao}?meuId=${meuIdLogado.value}`,
+      { method: 'DELETE' }
+    );
+
+    if (resposta.ok) {
+      notificacoes.value = notificacoes.value.filter(item => item.id !== idNotificacao);
+    } else {
+      console.error("Falha ao remover o aviso no banco de dados.");
+    }
+  } catch (erro) {
+    console.error("Erro de rede ao tentar deletar aviso:", erro);
+  }
+}
 async function carregarNotificacoes() {
   if (!meuIdLogado.value) return
 
@@ -50,6 +69,17 @@ onMounted(() => {
               {{ new Date(item.data_notificacao).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) }}
             </span>
           </div>
+          <button 
+              type="button" 
+              @click.stop="deletarNotificacaoDaTela(item.id)" 
+              class="btn-deletar-notificacao-item"
+              style="background: none; border: none; font-size: 16px; cursor: pointer; color: #bbb; padding: 4px; line-height: 1; transition: color 0.2s;"
+              onmouseover="this.style.color='#ff4d4d'"
+              onmouseout="this.style.color='#bbb'"
+              title="Remover esta notificação"
+            >
+              <img :src="lixeira" alt="deletar notificação" class="lixeira">
+            </button>
           <div class="marcador-novidade-linha"></div>
         </div>
         </div>
@@ -60,6 +90,9 @@ onMounted(() => {
 
 <style scoped>
 [data-theme="dark"] .avatar-notificacao-autor[src$="userBlackFull.svg"] {
+  filter: invert(1);
+}
+[data-theme="dark"] .lixeira {
   filter: invert(1);
 }
 .avatar-notificacao-autor[src$="userBlackFull.svg"] {
@@ -85,6 +118,19 @@ main {
   display: flex;
   justify-content: center;
   align-items: center;
+}
+.lixeira {
+  height: 1.5vw;
+  width: 1.5vw;
+  transition: 0.3s;
+}
+.lixeira:hover {
+  transform: scale(1.05);
+  transition: 0.3s;
+}
+.lixeira:active {
+  transform: scale(0.95);
+  transition: 0.3s;
 }
 .avatar-notificacao-autor {
   width: 100%;
