@@ -5,48 +5,59 @@ import { useToast } from 'vue-toastification'
 const toast = useToast()
 
 const meuIdLogado = ref(localStorage.getItem('ifchat_user_id') || '')
-// Puxa o username salvo no login (ex: @bruno) para preencher o criador_handle automaticamente
 const meuHandleLogado = ref(localStorage.getItem('ifchat_username') || 'anonimo')
 
 const searchQuery = ref('')
 const eventoSelecionado = ref(null)
-const principaisEventos = ref([])
-const eventosDisponiveis = ref([])
+const todosOsEventos = ref([])
 
-// Controle de Estado do Modal
 const mostrarModalNovoEvento = ref(false)
 const nomeEvento = ref('')
+const descricaoEvento = ref('') 
 const dataInicio = ref('')
 const dataFim = ref('')
 
-// Filtros Computados reativos para a busca por input
 const principaisFiltrados = computed(() => {
-  return principaisEventos.value.filter(e =>
+  const agora = new Date()
+  const limiteSeteDias = new Date(agora.getTime() + 7 * 24 * 60 * 60 * 1000)
+
+  return todosOsEventos.value.filter(e => {
+    const tituloBate = e.titulo_evento?.toLowerCase().includes(searchQuery.value.toLowerCase().trim())
+    const dataEvento = new Date(e.data_hora_evento)
+    
+    const urgente = dataEvento >= agora && dataEvento <= limiteSeteDias
+
+    return tituloBate && urgente
+  })
+})
+
+const disponiveisFiltrados = computed(() => {
+  return todosOsEventos.value.filter(e =>
     e.titulo_evento?.toLowerCase().includes(searchQuery.value.toLowerCase().trim())
   )
 })
 
-const disponiveisFiltrados = computed(() => {
-  return eventosDisponiveis.value.filter(e =>
-    e.titulo_evento?.toLowerCase().includes(searchQuery.value.toLowerCase().trim())
-  )
-})
+function abrirDetalhes(evento) {
+  eventoSelecionado.value = evento
+  console.log(`Visualizando detalhes do evento institucional: ${evento.id_evento}`)
+}
+
+function voltarParaLista() {
+  eventoSelecionado.value = null
+}
 
 async function buscarEventosDoBanco() {
   try {
     const resposta = await fetch(`${import.meta.env.VITE_API_URL}/api/eventos/listar?meuId=${meuIdLogado.value}`)
     if (resposta.ok) {
       const dados = await resposta.json()
-      // Divide de acordo com a quantidade de presenças para simular relevância
-      principaisEventos.value = dados.filter(e => e.total_presencas >= 3)
-      eventosDisponiveis.value = dados.filter(e => e.total_presencas < 3)
+      todosOsEventos.value = dados
     }
   } catch (erro) {
-    console.error(erro)
+    console.error("Erro ao puxar cronograma de eventos da Aiven:", erro)
   }
 }
 
-// Envio do formulário do Modal para o Back-end
 async function criarNovoEventoInstitucional() {
   if (!nomeEvento.value.trim() || !dataInicio.value) {
     toast.warning("Por favor, preencha o nome e a data de início!")
@@ -59,23 +70,23 @@ async function criarNovoEventoInstitucional() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         titulo: nomeEvento.value.trim(),
+        descricao: descricaoEvento.value.trim() || null,
         dataInicio: dataInicio.value,
         dataFim: dataFim.value || null,
         criadorHandle: meuHandleLogado.value,
-        idComunidade: 'comunidade-geral' // Opcional, mantido para integridade de FK
+        idComunidade: 'comunidade-geral' 
       })
     })
 
     if (resposta.ok) {
       toast.success("Novo evento agendado com sucesso!")
 
-      // Limpa as variáveis e fecha o modal reativamente
       nomeEvento.value = ''
+      descricaoEvento.value = ''
       dataInicio.value = ''
       dataFim.value = ''
       mostrarModalNovoEvento.value = false
 
-      // Atualiza a lista na tela instantaneamente
       buscarEventosDoBanco()
     } else {
       toast.error("Falha ao registrar novo evento.")
@@ -97,18 +108,25 @@ async function alternarPresencaNoEvento(eventoAlvo) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ idUsuario: meuIdLogado.value, idEventos: eventoAlvo.id_evento })
     })
-    const dados = await resposta.json()
+    
     if (resposta.ok) {
+      const dados = await resposta.json()
       const status = !!dados.confirmado
-      const update = (lista) => {
-        lista.value = lista.value.map(e => e.id_evento === eventoAlvo.id_evento ? {
-          ...e, confirmadoPorMim: status, total_presencas: status ? e.total_presencas + 1 : e.total_presencas - 1
-        } : e)
-      }
-      update(principaisEventos)
-      update(eventosDisponiveis)
+      
+      todosOsEventos.value = todosOsEventos.value.map(e => {
+        if (e.id_evento === eventoAlvo.id_evento) {
+          return {
+            ...e,
+            confirmadoPorMim: status,
+            total_presencas: status ? e.total_presencas + 1 : e.total_presencas - 1
+          }
+        }
+        return e
+      })
     }
-  } catch (erro) { console.error(erro) }
+  } catch (erro) { 
+    console.error("Erro ao alternar presença no evento:", erro) 
+  }
 }
 
 onMounted(() => { buscarEventosDoBanco() })
@@ -155,7 +173,7 @@ onMounted(() => { buscarEventosDoBanco() })
         </button>
         <section class="events-section">
           <h2>Principais eventos</h2>
-          <div v-for="evento in principaisFiltrados" :key="evento.id_evento" class="event-item" style="cursor: pointer; border: 1px solid #ccc; padding: 12px; border-radius: 6px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+          <div v-for="evento in principaisFiltrados" :key="evento.id_evento" class="event-item" style="cursor: pointer; border: 1px solid var(--texto-suave); padding: 12px; border-radius: 6px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
             <div class="event-info" @click="abrirDetalhes(evento)">
               <strong style="display: block; font-size: 15px;">{{ evento.titulo_evento }}</strong>
               <span class="event-date" style="font-size: 11px; color: #999; display: block; margin-top: 4px;">
@@ -297,24 +315,29 @@ main {
   border: var(--borda-padrao);
   border-radius: 20px;
   padding: 8px 16px;
-  background: #ffffff;
+  background: var(--fundo-card);
 }
 .search-box input {
   width: 100%;
   border: none;
   outline: none;
   font-size: 0.95rem;
+  background-color: var(--fundo-card);
+  color: var(--texto-principal)
+}
+.search-box input::placeholder {
+  color: var(--texto-suave);
 }
 
 .search-icon {
   font-size: 0.9rem;
-  color: #333;
+  color: var(--texto-suave);
 }
 
 .add-event-btn {
   width: 100%;
-  background-color: #ffffff;
-  border: 1px dashed #000000;
+  background-color: var(--fundo-card);
+  border: var(--borda-padrao);
   border-radius: 4px;
   padding: 12px;
   display: flex;
@@ -322,7 +345,7 @@ main {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  color: #666666;
+  color: var(--texto-suave);
   font-size: 0.85rem;
 }
 
@@ -335,7 +358,7 @@ main {
   font-size: 1rem;
   font-weight: bold;
   margin: 0 0 10px 0;
-  color: #000000;
+  color: var(--texto-principal);
 }
 
 .event-item {
@@ -346,7 +369,7 @@ main {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 8px;
-  background-color: #ffffff;
+  background-color: var(--fundo-card);
   cursor: pointer;
 }
 
@@ -358,17 +381,17 @@ main {
 
 .event-info strong {
   font-size: 0.95rem;
-  color: #000000;
+  color: var(--texto-principal);
 }
 
 .event-date {
   font-size: 0.75rem;
-  color: #888888;
+  color: var(--texto-suave);
 }
 
 .event-attendees {
   font-size: 0.75rem;
-  color: #888888;
+  color: var(--texto-suave);
   text-decoration: underline;
 }
 
@@ -383,8 +406,8 @@ main {
 }
 
 .status-badge.confirmed {
-  background-color: #28a745;
-  color: #ffffff;
+  background-color: var(--fundo-card);
+  color: #fff;
 }
 
 .status-badge.pending {
