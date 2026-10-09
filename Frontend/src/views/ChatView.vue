@@ -667,10 +667,11 @@ main {
   border-radius: 5px;
   top: 0 !important;
   left: 0 !important;
-  margin-top: -45.2vw !important;
-  margin-left: -56vw !important;
+  margin-top: 4vw !important;
+  margin-left: 12vw !important;
   z-index: 9999 !important;
   cursor: pointer;
+  position: absolute;
 }
 .botaoVoltar:hover {
   background-color: var(--hover-botoes);
@@ -820,8 +821,7 @@ main {
   background-color: var(--fundo-card-modal);
   border: 1px solid #ccc;
   border-radius: 12px;
-  padding: 20px;
-  max-height: 600px;
+  padding: 1vw;
   overflow-y: auto;
 }
 .card-usuario-linha {
@@ -830,7 +830,7 @@ main {
   align-items: center;
   background: var(--fundo-card);
   border: 1px solid #e0e0e0;
-  border-radius: 25px;
+  border-radius: 5px;
   padding: 1vw 1.5vw;
   transition: transform 0.2s, box-shadow 0.2s;
 }
@@ -870,8 +870,8 @@ main {
   transition: filter 0.3s ease;
 }
 .img-default {
-  width: 4.5vw;
-  height: 4.5vw;
+  width: 4vw;
+  height: 4vw;
 }
 .detalhes-texto-aluno {
   display: flex;
