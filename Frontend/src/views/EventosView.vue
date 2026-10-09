@@ -328,12 +328,10 @@ main {
 .search-box input::placeholder {
   color: var(--texto-suave);
 }
-
 .search-icon {
   font-size: 0.9rem;
   color: var(--texto-suave);
 }
-
 .add-event-btn {
   width: 100%;
   background-color: var(--fundo-card);
@@ -348,19 +346,16 @@ main {
   color: var(--texto-suave);
   font-size: 0.85rem;
 }
-
 .plus-icon {
   font-size: 1.2rem;
   line-height: 1;
 }
-
 .events-section h2 {
   font-size: 1rem;
   font-weight: bold;
   margin: 0 0 10px 0;
   color: var(--texto-principal);
 }
-
 .event-item {
   border: var(--borda-padrao);
   border-radius: 6px;
@@ -372,29 +367,24 @@ main {
   background-color: var(--fundo-card);
   cursor: pointer;
 }
-
 .event-info {
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
-
 .event-info strong {
   font-size: 0.95rem;
   color: var(--texto-principal);
 }
-
 .event-date {
   font-size: 0.75rem;
   color: var(--texto-suave);
 }
-
 .event-attendees {
   font-size: 0.75rem;
   color: var(--texto-suave);
   text-decoration: underline;
 }
-
 .status-badge {
   width: 22px;
   height: 22px;
@@ -404,17 +394,14 @@ main {
   justify-content: center;
   font-size: 0.75rem;
 }
-
 .status-badge.confirmed {
   background-color: var(--fundo-card);
   color: #fff;
 }
-
 .status-badge.pending {
   border: 1px solid #666666;
   color: #666666;
 }
-
 .see-more {
   display: inline-block;
   font-size: 0.8rem;
@@ -422,31 +409,26 @@ main {
   text-decoration: none;
   margin-top: 4px;
 }
-
 .divider {
   border: none;
   border-top: 1px solid #e0e0e0;
   margin: 4px 0;
 }
-
 .no-results {
   font-size: 0.85rem;
   color: #777;
   font-style: italic;
   margin: 8px 0;
 }
-
 .event-detail-meta {
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
-
 .event-attendees-text {
   font-size: 0.75rem;
   color: #888888;
 }
-
 .description-input {
   width: 100%;
   height: 120px;
@@ -459,12 +441,10 @@ main {
   resize: none;
   outline: none;
 }
-
 .tags-wrapper {
   display: flex;
   gap: 8px;
 }
-
 .tag-pill {
   border: var(--borda-padrao);
   border-radius: 20px;
