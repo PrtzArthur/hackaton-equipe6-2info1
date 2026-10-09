@@ -1776,6 +1776,9 @@ main {
 [data-theme="dark"] .avatar-mural-mini[src$="userBlackFull.svg"] {
   filter: invert(1);
 }
+[data-theme="dark"] .avatar-mural-default-mini {
+  filter: invert(1);
+}
 .data-legenda-mural-mini {
   font-size: 0.78rem;
   color: var(--texto-suave, #64748b);
