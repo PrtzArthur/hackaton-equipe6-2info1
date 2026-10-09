@@ -5,12 +5,15 @@ import voltar from '@/icons/voltar.svg'
 import userBlackFull from '@/icons/userBlackFull.svg'
 import favoritarInline from '@/icons/favoritarInline.svg';
 import favoritarPreenchido from '@/icons/favoritarPreenchido.svg';
+import lixeira from '@/icons/lixeira.svg'
 
-const toast = useToast()
+const toast = useToast();
 
-const searchQuery = ref('')
-const comunidadeSelecionada = ref(null)
-const listaDeTodasAsComunidades = ref([])
+const searchQuery = ref('');
+const comunidadeSelecionada = ref(null);
+const listaDeTodasAsComunidades = ref([]);
+
+const meuIdLogado = ref(localStorage.getItem('ifchat_user_id'));
 
 const comunidadesFiltradas = computed(() => {
   let resultado = [...listaDeTodasAsComunidades.value]
@@ -37,6 +40,36 @@ function fecharDetalhesComunidade() {
   comunidadeSelecionada.value = null
 }
 
+async function deletarComunidadeGeralDoBanco(idComunidade) {
+  if (!idComunidade || !meuIdLogado.value) return;
+
+  if (!confirm("AÇÃO IRREVERSÍVEL: Tem certeza de que deseja excluir permanentemente esta comunidade e todos os seus subgrupos?")) {
+    return;
+  }
+
+  try {
+    const resposta = await fetch(`${import.meta.env.VITE_API_URL}/api/criar/comunidade/deletar/${idComunidade}`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idAdminLogado: meuIdLogado.value })
+    });
+
+    if (resposta.ok) {
+      toast.success("Comunidade removida com sucesso com privilégios de Admin!");
+      comunidadesFavoritas.value = comunidadesFavoritas.value.filter(c => c.id_comunidade !== idComunidade);
+      listaDeTodasAsComunidades.value = listaDeTodasAsComunidades.value.filter(c => c.id_comunidade !== idComunidade);
+      
+      comunidadeSelecionada.value = null;
+    } else {
+      const erroDados = await resposta.json();
+      toast.error(erroDados.erro || "Falha técnica ao remover comunidade.");
+    }
+  } catch (erro) {
+    console.error("Erro na requisição de exclusão de comunidade:", erro);
+    toast.error("Erro de comunicação com a nuvem.");
+  }
+}
+
 const gruposInternosDaComunidade = ref(['Grupo 1'])
 async function buscarComunidadesDoBanco() {
   const meuId = localStorage.getItem('ifchat_user_id') || ''
@@ -53,7 +86,8 @@ async function buscarComunidadesDoBanco() {
         total_membros: c.total_membros || 1,
         favoritadoPorMim: !!c.favoritadoPorMim,
         nome_admin: c.nome_admin || 'Administrador',
-        foto_admin: c.foto_admin || null
+        foto_admin: c.foto_admin || null,
+        id_usuario_criador: c.id_usuario_criador || c.id_usuario || null
       }))
 
       console.log("Comunidades carregadas com sucesso no Front-end:", listaDeTodasAsComunidades.value)
@@ -197,6 +231,18 @@ onMounted(() => {
             <h1 class="titulo-nome-comunidade">
               {{ comunidadeSelecionada.nome_comunidade }}
             </h1>
+            <button
+                v-if="comunidadeSelecionada.id_usuario_criador === meuIdLogado"
+                type="button"
+                @click="deletarComunidadeGeralDoBanco(comunidadeSelecionada.id_comunidade)"
+                class="btn-deletar-comunidade-admin"
+                style="background: none; border: none; font-size: 20px; cursor: pointer; padding: 4px; display: flex; align-items: center; justify-content: center; transition: transform 0.2s;"
+                title="Excluir comunidade permanentemente (Ação de Administrador)"
+                @mouseover="$event.currentTarget.style.transform = 'scale(1.1)'"
+                @mouseleave="$event.currentTarget.style.transform = 'scale(1)'"
+              >
+                <img :src="lixeira" alt="Deletar Comunidade" style="width: 24px; height: 24px;" class="lixeira">
+              </button>
             <button class="btn-coracao-comunidade" @click="alternarCurtidaComunidade(comunidadeSelecionada)">
               <span v-if="comunidadeSelecionada.favoritadoPorMim" style="font-size: 24px; cursor: pointer;"><img :src="favoritarPreenchido" alt="" class="favoritarPerfilDeUsuario"></span>
               <span v-else style="font-size: 24px; cursor: pointer;"><img :src="favoritarInline" alt=""></span>
@@ -220,9 +266,10 @@ onMounted(() => {
                 :src="userBlackFull"
                 alt="Admin Padrão"
                 style="width: 4vw; height: 4vw;"
+                class="avatar-mini-comunidades"
               >
               </div>
-              <span class="username-admin-texto" style="font-size: 13px; font-weight: bold; color: #000; margin-left: 8px;">
+              <span class="username-admin-texto" style="font-size: 13px; font-weight: bold; color: var(--texto-principal); margin-left: 8px;">
                 {{ comunidadeSelecionada.nome_admin || 'Administrador' }}
               </span>
             </div>
@@ -245,6 +292,12 @@ onMounted(() => {
 </template>
 
 <style scoped>
+[data-theme="dark"] .lixeira {
+  filter: invert(1);
+}
+[data-theme="dark"] .avatar-mini-comunidades {
+  filter: invert(1);
+}
 main {
   height: 100vh;
   flex-grow: 1;

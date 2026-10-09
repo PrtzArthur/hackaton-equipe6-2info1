@@ -507,6 +507,47 @@ router.post('/postagens/:id', uploadPostagem.single('imagem_post'), async (req, 
     if (conexao) conexao.release(); 
   }
 });
+router.delete('/comunidade/deletar/:idComunidade', async (req, res) => {
+  const { idComunidade } = req.params;
+  const { idAdminLogado } = req.body;
+
+  if (!idComunidade || !idAdminLogado) {
+    return res.status(400).json({ erro: 'Parâmetros insuficientes para processar exclusão.' });
+  }
+
+  let conexao = null;
+  try {
+    conexao = await pool.getConnection();
+    await conexao.beginTransaction();
+
+    const [comunidadeCheck] = await conexao.query(
+      'SELECT id_usuario FROM Comunidade WHERE id_comunidade = ?',
+      [idComunidade]
+    );
+
+    if (comunidadeCheck.length === 0) {
+      await conexao.rollback();
+      return res.status(404).json({ erro: 'Comunidade não localizada no banco.' });
+    }
+
+    if (comunidadeCheck[0].id_usuario !== idAdminLogado) {
+      await conexao.rollback();
+      return res.status(403).json({ erro: 'Acesso negado: Você não possui privilégios de Administrador neste grupo.' });
+    }
+    await conexao.query('DELETE FROM Comunidade WHERE id_comunidade = ?', [idComunidade]);
+
+    await conexao.commit();
+    console.log(`MySQL Comunidade [${idComunidade}] deletada pelo administrador [${idAdminLogado}].`);
+    return res.json({ sucesso: true, mensagem: 'Comunidade deletada.' });
+
+  } catch (error) {
+    if (conexao) await conexao.rollback();
+    console.error('Erro crítico no MySQL ao apagar comunidade:', error.message);
+    return res.status(500).json({ erro: 'Erro interno no servidor ao processar exclusão.' });
+  } finally {
+    if (conexao) conexao.release();
+  }
+});
 router.post('/comentarios/novo', async (req, res) => {
   const { idUsuario, idPostagem, conteudo } = req.body;
 
@@ -706,6 +747,7 @@ router.get('/comunidades/listar', async (req, res) => {
         c.nome_comunidade, 
         c.descricao,
         c.banner_url AS banner_url,
+        c.id_usuario AS id_usuario_criador,
         (SELECT COUNT(*) FROM Participacao WHERE id_comunidade = c.id_comunidade) AS total_membros,
         u.nome AS nome_admin, 
         u.username AS username_admin, 
