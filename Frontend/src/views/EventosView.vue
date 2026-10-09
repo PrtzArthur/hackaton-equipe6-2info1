@@ -73,8 +73,7 @@ async function criarNovoEventoInstitucional() {
         descricao: descricaoEvento.value.trim() || null,
         dataInicio: dataInicio.value,
         dataFim: dataFim.value || null,
-        criadorHandle: meuHandleLogado.value,
-        idComunidade: 'comunidade-geral' 
+        criadorHandle: meuHandleLogado.value
       })
     })
 

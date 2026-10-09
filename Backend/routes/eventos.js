@@ -25,7 +25,7 @@ router.get('/listar', async (req, res) => {
   }
 });
 router.post('/novo', async (req, res) => {
-  const { titulo, descricao, dataInicio, dataFim, criadorHandle, idComunidade } = req.body;
+  const { titulo, descricao, dataInicio } = req.body; 
 
   if (!titulo || !titulo.trim() || !dataInicio) {
     return res.status(400).json({ erro: 'Título e data de início são obrigatórios.' });
@@ -33,20 +33,17 @@ router.post('/novo', async (req, res) => {
 
   try {
     const idEvento = crypto.randomUUID();
-    
-    await pool.query(`ALTER TABLE Evento ADD COLUMN IF NOT EXISTS data_fim_evento TIMESTAMP NULL;`).catch(() => {});
-    await pool.query(`ALTER TABLE Evento ADD COLUMN IF NOT EXISTS criador_handle VARCHAR(50) NULL;`).catch(() => {});
 
     await pool.query(
-      `INSERT INTO Evento (id_evento, titulo_evento, desc_evento, data_hora_evento, data_fim_evento, criador_handle, id_comunidade) 
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [idEvento, titulo.trim(), descricao || null, dataInicio, dataFim || null, criadorHandle || null, idComunidade || 'comunidade-geral']
+      `INSERT INTO Evento (id_evento, data_hora_evento, titulo_evento, desc_evento) 
+       VALUES (?, ?, ?, ?)`,
+      [idEvento, dataInicio, titulo.trim(), descricao || null]
     );
 
-    return res.status(201).json({ mensagem: 'Evento criado!', idEvento });
+    return res.status(201).json({ mensagem: 'Evento institucional criado com sucesso!', idEvento });
   } catch (error) {
-    console.error(error);
-    return res.status(500).json({ erro: 'Erro ao salvar o evento.' });
+    console.error('Erro ao salvar o evento:', error.message);
+    return res.status(500).json({ erro: 'Erro ao salvar o evento no banco.' });
   }
 });
 router.post('/presenca', async (req, res) => {
