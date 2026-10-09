@@ -11,10 +11,10 @@ async function limparTodasAsTabelas() {
 
     const tabelas = [
     //  'Presenca_em_evento',
-    //  'Evento',
-      'comunidades_favoritas',
-      'Participacao',
-      'Comunidade',
+        'Evento',
+    //  'comunidades_favoritas',
+    //  'Participacao',
+    //  'Comunidade',
     //  'salvar_post',
     //  'Lista_salvos',
     //  'Interacao_Comentario',

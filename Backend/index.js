@@ -241,9 +241,7 @@ async function inicializarBancoDeDados() {
         id_evento VARCHAR(50) PRIMARY KEY,
         data_hora_evento TIMESTAMP NOT NULL,
         titulo_evento VARCHAR(150) NOT NULL,
-        desc_evento TEXT,
-        id_comunidade VARCHAR(50) NOT NULL,
-        FOREIGN KEY (id_comunidade) REFERENCES Comunidade(id_comunidade) ON DELETE CASCADE
+        desc_evento TEXT
       );`,
       `CREATE TABLE IF NOT EXISTS Mensagem (
         id_mensagem VARCHAR(50) PRIMARY KEY,
