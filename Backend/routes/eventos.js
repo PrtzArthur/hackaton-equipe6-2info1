@@ -11,7 +11,6 @@ router.get('/listar', async (req, res) => {
     const querySQL = `
       SELECT 
         e.id_evento, e.titulo_evento, e.desc_evento, e.data_hora_evento,
-        e.data_fim_evento, e.criador_handle,
         (SELECT COUNT(*) FROM Presenca_em_evento WHERE id_evento = e.id_evento) AS total_presencas,
         IF((SELECT COUNT(*) FROM Presenca_em_evento WHERE id_usuario = ? AND id_evento = e.id_evento) > 0, TRUE, FALSE) AS confirmadoPorMim
       FROM Evento e
@@ -20,7 +19,7 @@ router.get('/listar', async (req, res) => {
     const [linhas] = await pool.query(querySQL, [meuIdLogado]);
     return res.json(Array.isArray(linhas) ? linhas : []);
   } catch (error) {
-    console.error(error);
+    console.error('Erro na query de listar eventos:', error.message);
     return res.status(500).json({ erro: 'Erro interno ao carregar feed.' });
   }
 });
