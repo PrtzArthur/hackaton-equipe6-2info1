@@ -206,9 +206,9 @@ onMounted(() => { buscarEventosDoBanco() })
             <div
               :class="['status-badge', evento.confirmadoPorMim ? 'confirmed' : 'pending']"
               @click.stop="alternarPresencaNoEvento(evento)"
-              style="cursor: pointer; padding: 4px; display: flex; align-items: center; justify-content: center;"
+              style="cursor: pointer; display: flex; align-items: center; justify-content: center;"
             >
-              <span class="circulo-status"></span>
+              <span class="circulo-status">✔</span>
             </div>
           </div>
           <p v-if="disponiveisFiltrados.length === 0" class="no-results">Nenhum evento disponível encontrado.</p>
@@ -247,11 +247,14 @@ main {
   color: var(--texto-principal) !important;
 }
 .circulo-status {
-  width: 16px;
-  height: 16px;
+  width: 100%;
+  height: 100%;
   border-radius: 50%;
   display: block;
   transition: background-color 0.2s, border-color 0.2s;
+  align-items: center;
+  display: flex;
+  justify-content: center;
 }
 .pending .circulo-status {
   background-color: #e0e0e0;
@@ -385,13 +388,13 @@ main {
   text-decoration: underline;
 }
 .status-badge {
-  width: 22px;
-  height: 22px;
+  width: 2vw;
+  height: 2vw;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.75rem;
+  font-size: 1vw;
 }
 .status-badge.confirmed {
   background-color: var(--fundo-card);
