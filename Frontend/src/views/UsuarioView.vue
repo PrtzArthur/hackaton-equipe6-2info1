@@ -1438,7 +1438,6 @@ main {
   font-size: 1.7vw;
 }
 .ContaSeguranca button{
-  background-color: var(--fundo-card);
   cursor: pointer;
   padding-left: 0.4vw !important;
 }
