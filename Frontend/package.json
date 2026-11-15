@@ -10,7 +10,8 @@
     "lint": "run-s \"lint:*\"",
     "lint:oxlint": "oxlint . --fix",
     "lint:eslint": "eslint . --fix --cache",
-    "format": "prettier --write --experimental-cli src/"
+    "format": "prettier --write --experimental-cli src/",
+    "api": "json-server --watch db.json --port 3001"
   },
   "dependencies": {
     "peerjs": "^1.5.5",
@@ -27,6 +28,7 @@
     "eslint-plugin-oxlint": "~1.69.0",
     "eslint-plugin-vue": "~10.9.2",
     "globals": "^17.6.0",
+    "json-server": "^1.0.0-beta.15",
     "npm-run-all2": "^9.0.2",
     "oxlint": "~1.69.0",
     "prettier": "3.8.4",
@@ -37,4 +39,5 @@
   "engines": {
     "node": "^22.18.0 || >=24.12.0"
   }
+
 }

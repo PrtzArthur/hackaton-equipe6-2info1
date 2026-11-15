@@ -1,0 +1,125 @@
+{
+  "usuarios": [
+    {
+      "id": "1",
+      "nome": "Arthur Silva",
+      "username": "arthur_ifc",
+      "email": "arthur@ifc.edu.br",
+      "senha": "123",
+      "biografia": "Estudante de Informática no IFC Araquari.",
+      "localizacao": "Araquari - SC",
+      "status_online": true,
+      "foto_profile": "",
+      "data_criacao": "2026-10-01T10:00:00.000Z"
+    },
+    {
+      "id": "2",
+      "nome": "Maria Oliveira",
+      "username": "maria_dev",
+      "email": "maria@ifc.edu.br",
+      "senha": "123",
+      "biografia": "Desenvolvedora front-end.",
+      "localizacao": "Joinville - SC",
+      "status_online": false,
+      "foto_profile": "",
+      "data_criacao": "2026-10-02T14:30:00.000Z"
+    }
+  ],
+  "postagens": [
+    {
+      "id": "1",
+      "usuarioId": "1",
+      "tipo": "postagemComum",
+      "conteudo": "Bem-vindos ao IFChat! Testando nossa API com JSON Server.",
+      "imagem": "",
+      "tags": ["souifc", "ifchat", "informatica"],
+      "opcoes": [],
+      "totalVotosGeral": 0,
+      "total_likes": 4,
+      "total_dislikes": 0,
+      "data_envio": "2026-11-12T18:00:00.000Z"
+    },
+    {
+      "id": "2",
+      "usuarioId": "2",
+      "tipo": "postagemComEnquete",
+      "conteudo": "Qual tema vocês preferem no IFChat?",
+      "imagem": "",
+      "tags": ["enquete", "javascript"],
+      "opcoes": [
+        { "id_opcao": "op1", "texto_opcao": "Modo Claro", "porcentagem": 40 },
+        { "id_opcao": "op2", "texto_opcao": "Modo Escuro", "porcentagem": 60 }
+      ],
+      "totalVotosGeral": 10,
+      "total_likes": 7,
+      "total_dislikes": 0,
+      "data_envio": "2026-11-12T18:30:00.000Z"
+    }
+  ],
+  "comunidades": [
+    {
+      "id": "1",
+      "usuarioId": "1",
+      "nome_comunidade": "Informática 2INFO1",
+      "descricao": "Comunidade oficial da turma para compartilhar materiais e avisos.",
+      "banner_url": "",
+      "total_membros": 32,
+      "data_criacao": "2026-09-15T12:00:00.000Z"
+    },
+    {
+      "id": "2",
+      "usuarioId": "2",
+      "nome_comunidade": "Clube de Xadrez IFC",
+      "descricao": "Encontros semanais no intervalo para partidas e torneios.",
+      "banner_url": "",
+      "total_membros": 18,
+      "data_criacao": "2026-09-20T15:00:00.000Z"
+    }
+  ],
+  "eventos": [
+    {
+      "id": "1",
+      "criador_handle": "arthur_ifc",
+      "titulo_evento": "Apresentação Hackathon - Etapa APIs",
+      "desc_evento": "Demonstração dos CRUDs completos integrados ao JSON Server.",
+      "data_hora_evento": "2026-11-18T14:00",
+      "data_fim_evento": "2026-11-18T17:30",
+      "total_presencas": 24
+    },
+    {
+      "id": "2",
+      "criador_handle": "maria_dev",
+      "titulo_evento": "Maratona de Programação",
+      "desc_evento": "Treinamento preparatório no laboratório de informática.",
+      "data_hora_evento": "2026-11-25T08:00",
+      "data_fim_evento": "2026-11-25T12:00",
+      "total_presencas": 15
+    }
+  ],
+  "listas": [
+    {
+      "id": "1",
+      "usuarioId": "1",
+      "nome_lista": "Estudos Web",
+      "postagensIds": ["1", "2"]
+    }
+  ],
+  "mensagens": [
+    {
+      "id": "1",
+      "remetenteId": "1",
+      "destinatarioId": "2",
+      "conteudo_mensagem": "Oi Maria! Já subi o db.json no repositório.",
+      "lido": true,
+      "data_mensagem": "2026-11-12T19:00:00.000Z"
+    },
+    {
+      "id": "2",
+      "remetenteId": "2",
+      "destinatarioId": "1",
+      "conteudo_mensagem": "Show! Vou testar o endpoint agora.",
+      "lido": false,
+      "data_mensagem": "2026-11-12T19:02:00.000Z"
+    }
+  ]
+}
