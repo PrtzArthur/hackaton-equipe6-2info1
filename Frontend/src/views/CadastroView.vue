@@ -10,48 +10,72 @@ const nome = ref('');
 const handle = ref('');
 const senha = ref('');
 const confirmarSenha = ref('');
-const aceitouTermos = ref('');
+const aceitouTermos = ref(false);
 const email = ref('');
+const carregando = ref(false);
 
 const realizarCadastro = async () => {
   if (senha.value !== confirmarSenha.value) {
-    toast.warning('As senhas não coincidem!')
+    toast.warning('As senhas não coincidem!');
     return;
   }
   if (!aceitouTermos.value) {
-    toast.warning('Você precisa aceitar os termos para prosseguir!')
+    toast.warning('Você precisa aceitar os termos para prosseguir!');
     return;
   }
 
+  carregando.value = true;
   try {
-    const resposta = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/cadastro`, {
+    const emailLimpo = email.value.trim().toLowerCase();
+    const usernameLimpo = handle.value.replace('@', '').trim().toLowerCase();
+
+    const resBusca = await fetch(`${import.meta.env.VITE_API_URL}/usuarios`);
+    const listaUsuarios = await resBusca.json();
+
+    const jaExiste = listaUsuarios.some(
+      u => u.email?.toLowerCase() === emailLimpo || u.username?.toLowerCase() === usernameLimpo
+    );
+
+    if (jaExiste) {
+      toast.error('Este e-mail ou Handle (@) já está em uso.');
+      return;
+    }
+
+    const resposta = await fetch(`${import.meta.env.VITE_API_URL}/usuarios`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         nome: nome.value.trim(),
-        username: handle.value.replace('@', '').trim(),
-        email: email.value.trim(),
-        senha: senha.value.trim()
+        username: usernameLimpo,
+        email: emailLimpo,
+        senha: senha.value.trim(),
+        biografia: '',
+        localizacao: '',
+        status_online: true,
+        foto_profile: '',
+        data_criacao: new Date().toISOString()
       })
     });
+
     const dados = await resposta.json();
 
     if (resposta.ok) {
+      localStorage.setItem('ifchat_token', 'token-json-server');
+      localStorage.setItem('ifchat_user_id', dados.id);
+      localStorage.setItem('ifchat_username', dados.username);
 
-      localStorage.setItem('ifchat_token', dados.token);
-      localStorage.setItem('ifchat_user_id', dados.id_usuario);
       toast.success('Sua conta foi criada com sucesso!');
-
       router.push('/home');
     } else {
-      toast.error(dados.erro || 'Falha ao realizar o cadastro.');
+      toast.error('Falha ao realizar o cadastro.');
     }
   } catch (erro) {
     console.error('Erro ao conectar com a API:', erro);
-    toast.error('Erro de conexão: Verifique se o servidor do backend está ligado.');
+    toast.error('Erro de conexão: Verifique se o JSON Server está ligado (npm run api).');
+  } finally {
+    carregando.value = false;
   }
 };
-
 </script>
 
 <template>
@@ -88,7 +112,7 @@ const realizarCadastro = async () => {
             </span>
             </label>
           </div>
-          <button type="submit" class="BotaoCriar">Criar</button>
+          <button type="submit" class="BotaoCriar" :disabled="carregando">{{ carregando ? 'Criando conta...' : 'Criar' }}</button>
           <p class="direcionarParaLogin">Já tem uma conta? <RouterLink to="/" @click.stop>Fazer login</RouterLink></p>
         </form>
       </div>

@@ -8,33 +8,47 @@ const toast = useToast();
 
 const emailOuHandle = ref('');
 const senha = ref('');
+const carregando = ref(false);
 
 const realizarLogin = async () => {
-try {
-    const resposta = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        emailOuHandle: emailOuHandle.value.trim(),
-        senha: senha.value
-      })
-    });
+  if (!emailOuHandle.value.trim() || !senha.value) {
+    toast.warning('Preencha todos os campos!');
+    return;
+  }
 
-    const dados = await resposta.json();
+  carregando.value = true;
+  try {
+    const resposta = await fetch(`${import.meta.env.VITE_API_URL}/usuarios`);
+    if (!resposta.ok) throw new Error('Falha ao buscar usuários');
 
-    if (resposta.ok) {
+    const usuarios = await resposta.json();
+    const termo = emailOuHandle.value.replace('@', '').trim().toLowerCase();
 
-      localStorage.setItem('ifchat_token', dados.token);
-      localStorage.setItem('ifchat_user_id', dados.id_usuario);
+    const usuarioEncontrado = usuarios.find(
+      u => (u.email?.toLowerCase() === termo || u.username?.toLowerCase() === termo) && u.senha === senha.value
+    );
+
+    if (usuarioEncontrado) {
+      await fetch(`${import.meta.env.VITE_API_URL}/usuarios/${usuarioEncontrado.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status_online: true })
+      });
+
+      localStorage.setItem('ifchat_token', 'token-json-server');
+      localStorage.setItem('ifchat_user_id', usuarioEncontrado.id);
+      localStorage.setItem('ifchat_username', usuarioEncontrado.username);
 
       toast.success('Login efetuado com sucesso!');
       router.push('/home');
     } else {
-      toast.error(dados.erro || 'Falha ao autenticar.');
+      toast.error('E-mail/Handle ou senha incorretos.');
     }
   } catch (erro) {
     console.error('Erro de conexão com o servidor:', erro);
-    toast.error('Erro de conexão: Garanta que a sua API Node está ligada no terminal.');
+    toast.error('Erro de conexão: Garanta que o JSON Server está rodando (npm run api).');
+  } finally {
+    carregando.value = false;
   }
 };
 </script>
@@ -54,7 +68,7 @@ try {
             <input v-model="senha" type="password" placeholder="Senha" id="senha" required>
             <RouterLink to="/recuperar-senha" class="LinkRecSenha">Esqueceu a senha?</RouterLink>
           </div>
-          <button type="submit" class="BotaoEntrar">Entrar</button>
+          <button type="submit" class="BotaoEntrar" :disabled="carregando">{{ carregando ? 'Entrando...' : 'Entrar' }}</button>
           <p class="direcionarParaCadastro">Não tem uma conta? <RouterLink to="/cadastro">Crie uma</RouterLink></p>
         </form>
       </div>
