@@ -42,8 +42,6 @@ const disponiveisFiltrados = computed(() => {
     e.titulo_evento?.toLowerCase().includes(searchQuery.value.toLowerCase().trim())
   )
 })
-
-// 1. LISTAR EVENTOS (GET /eventos)
 async function buscarEventosDoBanco() {
   carregando.value = true
   try {
@@ -68,8 +66,6 @@ async function buscarEventosDoBanco() {
     carregando.value = false
   }
 }
-
-// 2. CONSULTAR EVENTO POR ID (GET /eventos/:id)
 async function abrirDetalhes(evento) {
   carregando.value = true
   try {
@@ -118,8 +114,6 @@ function abrirModalEdicao(evento) {
   dataFim.value = evento.data_fim_evento || ''
   mostrarModalEvento.value = true
 }
-
-// 3. CADASTRAR (POST /eventos) OU ATUALIZAR (PUT /eventos/:id)
 async function salvarEvento() {
   if (!nomeEvento.value.trim() || !dataInicio.value) {
     toast.warning('Por favor, preencha o nome e a data de início!')
@@ -129,7 +123,6 @@ async function salvarEvento() {
   carregando.value = true
   try {
     if (modoEdicao.value && idEventoEmEdicao.value) {
-      // ATUALIZAR (PUT /eventos/:id)
       const payloadAtualizado = {
         ...eventoSelecionado.value,
         titulo_evento: nomeEvento.value.trim(),
@@ -137,7 +130,6 @@ async function salvarEvento() {
         data_hora_evento: dataInicio.value,
         data_fim_evento: dataFim.value || ''
       }
-      // Remove propriedades auxiliares de UI antes de salvar
       delete payloadAtualizado.id_evento
       delete payloadAtualizado.confirmadoPorMim
 
@@ -156,7 +148,6 @@ async function salvarEvento() {
         toast.error('Falha ao atualizar o evento.')
       }
     } else {
-      // CADASTRAR (POST /eventos)
       const resposta = await fetch(`${API_URL}/eventos`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -186,8 +177,6 @@ async function salvarEvento() {
     carregando.value = false
   }
 }
-
-// 4. EXCLUIR EVENTO (DELETE /eventos/:id)
 async function excluirEvento(idEvento) {
   if (!confirm('Tem certeza que deseja excluir este evento permanentemente?')) return
 
@@ -211,8 +200,6 @@ async function excluirEvento(idEvento) {
     carregando.value = false
   }
 }
-
-// 5. CONFIRMAR / CANCELAR PRESENÇA (PATCH /eventos/:id)
 async function alternarPresencaNoEvento(eventoAlvo) {
   if (!meuIdLogado.value) {
     toast.warning('Você precisa estar logado para confirmar presença!')
@@ -227,33 +214,34 @@ async function alternarPresencaNoEvento(eventoAlvo) {
     ? listaAtual.filter(id => id !== idUser)
     : [...listaAtual, idUser]
 
+  const contagemAtual = Number(eventoAlvo.total_presencas) || 0
+  const novaContagem = jaEstava ? Math.max(0, contagemAtual - 1) : contagemAtual + 1
+
+  eventoAlvo.participantesIds = novaLista
+  eventoAlvo.confirmadoPorMim = !jaEstava
+  eventoAlvo.total_presencas = novaContagem
+
   try {
     const resposta = await fetch(`${API_URL}/eventos/${eventoAlvo.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         participantesIds: novaLista,
-        total_presencas: novaLista.length
+        total_presencas: novaContagem
       })
     })
 
     if (resposta.ok) {
       toast.success(jaEstava ? 'Presença cancelada.' : 'Presença confirmada!')
-      todosOsEventos.value = todosOsEventos.value.map(e => {
-        if (e.id === eventoAlvo.id) {
-          return {
-            ...e,
-            participantesIds: novaLista,
-            confirmadoPorMim: !jaEstava,
-            total_presencas: novaLista.length
-          }
-        }
-        return e
-      })
+    } else {
+      eventoAlvo.participantesIds = listaAtual
+      eventoAlvo.confirmadoPorMim = jaEstava
+      eventoAlvo.total_presencas = contagemAtual
+      toast.error('Erro ao salvar presença.')
     }
   } catch (erro) {
     console.error('Erro ao alternar presença no evento:', erro)
-    toast.error('Erro ao atualizar presença.')
+    toast.error('Erro de conexão com o JSON Server.')
   }
 }
 
