@@ -111,7 +111,10 @@
       "desc_evento": "Demonstração dos CRUDs completos integrados ao JSON Server.",
       "data_hora_evento": "2026-11-18T14:00",
       "data_fim_evento": "2026-11-18T17:30",
-      "total_presencas": 24
+      "total_presencas": 1,
+      "participantesIds": [
+        "1"
+      ]
     },
     {
       "id": "2",
@@ -120,7 +123,10 @@
       "desc_evento": "Treinamento preparatório no laboratório de informática.",
       "data_hora_evento": "2026-11-25T08:00",
       "data_fim_evento": "2026-11-25T12:00",
-      "total_presencas": 15
+      "total_presencas": 1,
+      "participantesIds": [
+        "1"
+      ]
     }
   ],
   "listas": [
