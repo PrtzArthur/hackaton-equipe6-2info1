@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, watch, nextTick, onUnmounted } from 'vue';
+import { ref, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import userBlackFull from '@/icons/userBlackFull.svg';
 import { useToast } from 'vue-toastification';
@@ -16,9 +16,12 @@ import setaParaCima from '@/icons/setaParaCima.svg';
 import reload from '@/icons/reload.svg';
 import Folder from '@/icons/Folder.svg';
 import ModalComentarios from '@/components/ModalComentarios.vue';
+import canetaEdicao from '@/icons/canetaEdicao.svg';
+import lixeira from '@/icons/lixeira.svg'
 
 const router = useRouter();
 const toast = useToast();
+const API_URL = import.meta.env.VITE_API_URL;
 
 const modalAberto = ref(false);
 const postSelecionado = ref(null);
@@ -30,59 +33,207 @@ function abrirMural(post) {
 
 const postagensFeedGlobal = ref([]);
 const carregandoFeed = ref(true);
-const carregandoMais = ref(false);
-const gatilhoScrollInfinito = ref(null);
-const paginaAtual = ref(1);
-const fimDoFeed = ref(false);
-const meuIdLogado = ref('');
-let observadorSensor = null;
-
+const fimDoFeed = ref(true);
+const meuIdLogado = ref(localStorage.getItem('ifchat_user_id') || '');
 const textoBusca = ref('');
-async function carregarTimelineGlobal(novaPagina = 1) {
-  if (novaPagina === 1) carregandoFeed.value = true;
-  else carregandoMais.value = true;
 
+async function carregarTimelineGlobal() {
+  carregandoFeed.value = true;
   try {
-    const termo = encodeURIComponent(textoBusca.value.trim());
-    const url = `${import.meta.env.VITE_API_URL}/api/criar/feed/global?page=${novaPagina}&meuId=${meuIdLogado.value}&busca=${termo}`;
-    const resposta = await fetch(url);
+    const [resPosts, resUsers] = await Promise.all([
+      fetch(`${API_URL}/postagens`),
+      fetch(`${API_URL}/usuarios`)
+    ]);
 
-    if (resposta.ok) {
-      const novosPosts = await resposta.json();
+    if (!resPosts.ok || !resUsers.ok) throw new Error('Erro ao buscar feed');
 
-      if (novosPosts.length < 6) {
-        fimDoFeed.value = true;
-      }
-      if (novaPagina === 1) {
-        postagensFeedGlobal.value = novosPosts;
-      } else {
-        postagensFeedGlobal.value = [...postagensFeedGlobal.value, ...novosPosts];
-      }
+    const posts = await resPosts.json();
+    const usuarios = await resUsers.json();
+    const termo = textoBusca.value.trim().toLowerCase();
 
-      paginaAtual.value = novaPagina;
+    let formatados = posts.map(p => {
+      const autorObj = usuarios.find(u => String(u.id) === String(p.usuarioId)) || {
+        id: p.usuarioId,
+        nome: 'Usuário IFC',
+        username: 'ifchat',
+        foto_profile: ''
+      };
+
+      return {
+        ...p,
+        id_postagem: p.id,
+        opcoes: p.opcoes || [],
+        tags: p.tags || [],
+        naoSalvo: true,
+        autor: {
+          id: autorObj.id,
+          nome: autorObj.nome,
+          username: autorObj.username,
+          foto: autorObj.foto_profile || ''
+        }
+      };
+    });
+
+    if (termo) {
+      formatados = formatados.filter(
+        p =>
+          p.conteudo?.toLowerCase().includes(termo) ||
+          p.autor.nome?.toLowerCase().includes(termo) ||
+          p.tags?.some(t => t.toLowerCase().includes(termo))
+      );
     }
+
+    postagensFeedGlobal.value = formatados.sort(
+      (a, b) => new Date(b.data_envio) - new Date(a.data_envio)
+    );
   } catch (erro) {
-    console.error("Erro ao filtrar a timeline:", erro);
+    console.error('Erro ao carregar feed:', erro);
+    toast.error('Erro ao carregar publicações. Verifique o JSON Server.');
   } finally {
     carregandoFeed.value = false;
-    carregandoMais.value = false;
   }
 }
+
 let temporizadorBusca = null;
 watch(textoBusca, () => {
   clearTimeout(temporizadorBusca);
-
   temporizadorBusca = setTimeout(() => {
-    fimDoFeed.value = false;
-    carregandoFeed.value = true;
-    carregarTimelineGlobal(1);
+    carregarTimelineGlobal();
   }, 300);
 });
 
-const sugestoesAbertas = ref(true);
-const topicosAbertos = ref(true);
-const listaSugestaoPerfis = ref([]);
-const listaTopicosEmAlta = ref([]);
+async function editarPostagem(post) {
+  try {
+    const resBusca = await fetch(`${API_URL}/postagens/${post.id}`);
+    if (!resBusca.ok) {
+      toast.error('Postagem não encontrada na API.');
+      return;
+    }
+    const postAtual = await resBusca.json();
+
+    const novoTexto = prompt('Edite o texto da sua postagem:', postAtual.conteudo);
+    if (novoTexto === null) return;
+    if (!novoTexto.trim()) {
+      toast.warning('O conteúdo da postagem não pode ficar vazio!');
+      return;
+    }
+
+    const resUpdate = await fetch(`${API_URL}/postagens/${post.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ conteudo: novoTexto.trim() })
+    });
+
+    if (resUpdate.ok) {
+      post.conteudo = novoTexto.trim();
+      toast.success('Postagem atualizada com sucesso!');
+    } else {
+      toast.error('Erro ao atualizar postagem.');
+    }
+  } catch (erro) {
+    console.error('Erro ao editar post:', erro);
+    toast.error('Erro de conexão com o servidor.');
+  }
+}
+
+async function deletarPostagem(idPost) {
+  if (!confirm('Tem certeza que deseja excluir esta postagem permanentemente?')) return;
+
+  try {
+    const resposta = await fetch(`${API_URL}/postagens/${idPost}`, {
+      method: 'DELETE'
+    });
+
+    if (resposta.ok) {
+      postagensFeedGlobal.value = postagensFeedGlobal.value.filter(p => p.id !== idPost);
+      toast.success('Postagem excluída com sucesso!');
+    } else {
+      toast.error('Não foi possível excluir a postagem.');
+    }
+  } catch (erro) {
+    console.error('Erro ao deletar post:', erro);
+    toast.error('Erro de conexão ao tentar excluir.');
+  }
+}
+
+async function curtirPost(postagemAlvo, idUsuarioLogado, tipoEscolhido) {
+  if (!idUsuarioLogado) {
+    toast.warning('Você precisa estar logado para interagir!');
+    return;
+  }
+
+  const votoAntigo = postagemAlvo.meu_voto_post;
+  let novosLikes = postagemAlvo.total_likes || 0;
+  let novosDislikes = postagemAlvo.total_dislikes || 0;
+  let novoVoto = tipoEscolhido;
+
+  if (votoAntigo === tipoEscolhido) {
+    novoVoto = null;
+    if (tipoEscolhido === 'like') novosLikes = Math.max(0, novosLikes - 1);
+    if (tipoEscolhido === 'dislike') novosDislikes = Math.max(0, novosDislikes - 1);
+  } else {
+    if (votoAntigo === 'like') novosLikes = Math.max(0, novosLikes - 1);
+    if (votoAntigo === 'dislike') novosDislikes = Math.max(0, novosDislikes - 1);
+    if (tipoEscolhido === 'like') novosLikes++;
+    if (tipoEscolhido === 'dislike') novosDislikes++;
+  }
+
+  try {
+    const resposta = await fetch(`${API_URL}/postagens/${postagemAlvo.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        total_likes: novosLikes,
+        total_dislikes: novosDislikes
+      })
+    });
+
+    if (resposta.ok) {
+      postagemAlvo.meu_voto_post = novoVoto;
+      postagemAlvo.total_likes = novosLikes;
+      postagemAlvo.total_dislikes = novosDislikes;
+    }
+  } catch (erro) {
+    console.error('Erro ao curtir post:', erro);
+  }
+}
+
+async function votarNaEnquete(idOpcao, idPostagem) {
+  const postAlvo = postagensFeedGlobal.value.find(p => p.id === idPostagem);
+  if (!postAlvo || postAlvo.jaVotado) return;
+
+  const novoTotal = (postAlvo.totalVotosGeral || 0) + 1;
+  const novasOpcoes = postAlvo.opcoes.map(op => {
+    const votosOpcao = (op.votos || 0) + (op.id_opcao === idOpcao ? 1 : 0);
+    return {
+      ...op,
+      votos: votosOpcao,
+      votadoPorMim: op.id_opcao === idOpcao ? true : op.votadoPorMim,
+      porcentagem: Math.round((votosOpcao / novoTotal) * 100)
+    };
+  });
+
+  try {
+    const resposta = await fetch(`${API_URL}/postagens/${idPostagem}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        opcoes: novasOpcoes,
+        totalVotosGeral: novoTotal
+      })
+    });
+
+    if (resposta.ok) {
+      postAlvo.opcoes = novasOpcoes;
+      postAlvo.totalVotosGeral = novoTotal;
+      postAlvo.jaVotado = true;
+      toast.success('Voto registrado!');
+    }
+  } catch (erro) {
+    console.error('Erro ao votar:', erro);
+  }
+}
+
 const mostrarModalSalvar = ref(false);
 const idPostagemAlvoParaSalvar = ref(null);
 const listasDePastasDisponiveis = ref([]);
@@ -94,227 +245,118 @@ async function abrirModalDeSelecaoDePasta(idPostagem) {
   listasDePastasDisponiveis.value = [];
 
   try {
-    const r = await fetch(`${import.meta.env.VITE_API_URL}/api/chat/listas-usuario/${meuIdLogado.value}`);
+    const r = await fetch(`${API_URL}/listas?usuarioId=${meuIdLogado.value}`);
     if (r.ok) {
-      listasDePastasDisponiveis.value = await r.json();
+      const dados = await r.json();
+      listasDePastasDisponiveis.value = dados.map(l => ({ ...l, id_lista: l.id }));
     }
   } catch (e) {
-    console.error("Erro ao carregar listas do usuário", e);
+    console.error('Erro ao carregar listas:', e);
   }
 }
+
 async function confirmarSalvamentoNaPasta(idLista) {
   try {
-    const r = await fetch(`${import.meta.env.VITE_API_URL}/api/chat/salvar-post-na-lista`, {
-      method: 'POST',
+    const listaAlvo = listasDePastasDisponiveis.value.find(l => l.id === idLista);
+    const idsAtuais = listaAlvo?.postagensIds || [];
+
+    if (idsAtuais.includes(idPostagemAlvoParaSalvar.value)) {
+      toast.info('Esta postagem já está salva nessa lista!');
+      mostrarModalSalvar.value = false;
+      return;
+    }
+
+    const r = await fetch(`${API_URL}/listas/${idLista}`, {
+      method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        id_lista: idLista,
-        id_postagem: idPostagemAlvoParaSalvar.value
+        postagensIds: [...idsAtuais, idPostagemAlvoParaSalvar.value]
       })
     });
-    const dados = await r.json();
+
     if (r.ok) {
-      toast.success(dados.mensagem || "Salvo com sucesso!");
-      const postAlvo = postagensFeedGlobal.value.find(p => p.id_postagem === idPostagemAlvoParaSalvar.value);
-      if (postAlvo) {
-        postAlvo.naoSalvo = true;
-      }
+      toast.success('Postagem salva na lista!');
+      const postAlvo = postagensFeedGlobal.value.find(p => p.id === idPostagemAlvoParaSalvar.value);
+      if (postAlvo) postAlvo.naoSalvo = false;
       mostrarModalSalvar.value = false;
-    } else {
-      toast.error(dados.erro || "Falha ao salvar");
     }
   } catch (e) {
-    console.error("Erro ao salvar post na pasta", e);
+    console.error('Erro ao salvar post na pasta:', e);
   }
 }
+
 async function handleCriarListaRapida() {
   if (!nomeNovaListaRapida.value.trim()) return;
   try {
-    const r = await fetch(`${import.meta.env.VITE_API_URL}/api/chat/criar-lista-rapida`, {
+    const r = await fetch(`${API_URL}/listas`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        nome_lista: nomeNovaListaRapida.value,
-        id_usuario: meuIdLogado.value
+        nome_lista: nomeNovaListaRapida.value.trim(),
+        usuarioId: meuIdLogado.value,
+        postagensIds: []
       })
     });
     if (r.ok) {
       const novaLista = await r.json();
-      listasDePastasDisponiveis.value.push(novaLista);
+      listasDePastasDisponiveis.value.push({ ...novaLista, id_lista: novaLista.id });
       nomeNovaListaRapida.value = '';
-    }
-  } catch (e) { console.error(e); }
-}
-async function carregarSugestoesPerfis() {
-  const idSeguroLocalStorage = localStorage.getItem('ifchat_user_id') || '';
-
-  if (!idSeguroLocalStorage) {
-    console.warn("Aviso: Usuário não identificado para gerar a barra lateral.");
-    return;
-  }
-
-  try {
-    const resposta = await fetch(`${import.meta.env.VITE_API_URL}/api/criar/sidebar/sugestoes?meuId=${idSeguroLocalStorage}`);
-
-    if (resposta.ok) {
-      listaSugestaoPerfis.value = await resposta.json();
+      toast.success('Lista criada!');
     }
   } catch (e) {
-    console.error("Erro de comunicação ao carregar sugestões laterais:", e);
+    console.error(e);
   }
 }
-async function carregarTopicosSidebar() {
-  try {
-    const resposta = await fetch(`${import.meta.env.VITE_API_URL}/api/criar/sidebar/topicos`);
-    if (resposta.ok) {
-      listaTopicosEmAlta.value = await resposta.json();
-    }
-  } catch (e) { console.error("Erro ao carregar tópicos laterais", e); }
-}
-async function seguirUsuarioPelaSidebar(idCriadorAlvo) {
-  try {
-    const resposta = await fetch(`${import.meta.env.VITE_API_URL}/api/usuario/seguir`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ idSeguidor: meuIdLogado.value, idSeguido: idCriadorAlvo })
-    });
+const sugestoesAbertas = ref(true);
+const topicosAbertos = ref(true);
+const listaSugestaoPerfis = ref([]);
+const listaTopicosEmAlta = ref([
+  { nome: 'souifc' },
+  { nome: 'informatica' },
+  { nome: 'ifchat' },
+  { nome: 'javascript' }
+]);
 
+async function carregarSugestoesPerfis() {
+  try {
+    const resposta = await fetch(`${API_URL}/usuarios`);
     if (resposta.ok) {
-      toast.success("Perfil seguido!");
-      listaSugestaoPerfis.value = listaSugestaoPerfis.value.filter(p => p.id_usuario !== idCriadorAlvo);
-      if (listaSugestaoPerfis.value.length === 0) carregarSugestoesPerfis();
+      const todos = await resposta.json();
+      listaSugestaoPerfis.value = todos
+        .filter(u => String(u.id) !== String(meuIdLogado.value))
+        .map(u => ({ ...u, id_usuario: u.id }));
     }
-  } catch (erro) { console.error("Erro ao seguir pela sidebar", erro); }
+  } catch (e) {
+    console.error('Erro ao carregar sugestões:', e);
+  }
 }
+
+function seguirUsuarioPelaSidebar(idCriadorAlvo) {
+  toast.success('Perfil seguido!');
+  listaSugestaoPerfis.value = listaSugestaoPerfis.value.filter(p => p.id_usuario !== idCriadorAlvo);
+}
+
 const girando = ref(false);
-function dispararGiro() {
+
+function gerenciarCliqueDoBotao() {
   if (girando.value) return;
   girando.value = true;
-
   carregarSugestoesPerfis();
-
   setTimeout(() => {
     girando.value = false;
   }, 500);
 }
-function gerenciarCliqueDoBotao() {
-  carregarSugestoesPerfis();
-  dispararGiro();
-}
-async function curtirPost(postagemAlvo, idUsuarioLogado, tipoEscolhido) {
-  if (!idUsuarioLogado) {
-    toast.warning("Você precisa estar logado para interagir!");
-    return;
-  }
 
-  try {
-    const resposta = await fetch(`${import.meta.env.VITE_API_URL}/api/criar/curtir/postagem`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        idDoUsuario: idUsuarioLogado,
-        idDaPostagem: postagemAlvo.id_postagem,
-        tipoVoto: tipoEscolhido
-      })
-    });
-
-    const dados = await resposta.json();
-
-    if (resposta.ok) {
-      const votoAntigo = postagemAlvo.meu_voto_post;
-
-      postagemAlvo.meu_voto_post = dados.votoAtual;
-
-      if (dados.votoAtual === null) {
-        if (votoAntigo === 'like') postagemAlvo.total_likes--;
-        if (votoAntigo === 'dislike') postagemAlvo.total_dislikes--;
-      }
-      else if (!votoAntigo) {
-        if (dados.votoAtual === 'like') postagemAlvo.total_likes++;
-        if (dados.votoAtual === 'dislike') postagemAlvo.total_dislikes++;
-      }
-      else if (votoAntigo !== dados.votoAtual) {
-        if (dados.votoAtual === 'like') {
-          postagemAlvo.total_likes++;
-          postagemAlvo.total_dislikes--;
-        } else {
-          postagemAlvo.total_likes--;
-          postagemAlvo.total_dislikes++;
-        }
-      }
-    } else {
-      toast.error(dados.erro || "Falha ao registrar interação.");
-    }
-  } catch(erro) {
-    console.error('Erro ao curtir post:', erro);
-  }
-}
-async function votarNaEnquete(idOpcao, idPostagem) {
-  try {
-    const resposta = await fetch(`${import.meta.env.VITE_API_URL}/api/criar/enquetes/votar/opcao`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        idUsuario: meuIdLogado.value,
-        idOpcao: idOpcao,
-        idPostagem: idPostagem
-      })
-    });
-
-    const dados = await resposta.json();
-
-    if (resposta.ok) {
-      toast.success(dados.mensagem || "Voto processado!");
-
-      const postAlvo = postagensFeedGlobal.value.find(p => p.id_postagem === idPostagem);
-
-      if (postAlvo) {
-        postAlvo.opcoes = dados.novasOpcoes;
-        postAlvo.totalVotosGeral = dados.totalVotosGeral;
-        postAlvo.jaVotado = dados.jaVotado;
-      }
-
-    } else {
-      toast.error(dados.erro || 'Erro com o voto');
-    }
-  } catch (erro) {
-    console.error('Erro ao votar', erro);
-  }
-};
 function irParaPerfilDoAutor(idAutor) {
   router.push(`/usuario/${idAutor}`);
 }
-async function carregarProximoLote() {
-  if (!fimDoFeed.value && !carregandoMais.value) {
-    carregandoMais.value = true;
 
-    await carregarTimelineGlobal(paginaAtual.value + 1);
-
-    carregandoMais.value = false;
-  }
-}
 onMounted(async () => {
   meuIdLogado.value = localStorage.getItem('ifchat_user_id') || '';
-  carregarSugestoesPerfis();
-  carregarTopicosSidebar();
-  await carregarTimelineGlobal(1);
-  await nextTick();
+  await carregarSugestoesPerfis();
+  await carregarTimelineGlobal();
+});
 
-  observadorSensor = new IntersectionObserver((entradas) => {
-    const alvoFicouVisivel = entradas[0].isIntersecting;
-    if (alvoFicouVisivel) {
-      carregarProximoLote();
-    }
-  }, {
-    rootMargin: '200px'
-  });
-  if (gatilhoScrollInfinito.value) {
-    observadorSensor.observe(gatilhoScrollInfinito.value);
-  }
-});
-onUnmounted(() => {
-  if (observadorSensor) observadorSensor.disconnect();
-});
 </script>
 
 <template>
@@ -387,6 +429,14 @@ onUnmounted(() => {
               <img v-if="post.naoSalvo" :src="marcadorInline" alt="Salvar" class="btn-post-img">
               <img v-else :src="marcadorPreenchido" alt="Salvo" class="img-preenchido">
             </button>
+            <template v-if="String(post.autor.id) === String(meuIdLogado)">
+              <button type="button" class="btn-post" @click="editarPostagem(post)" title="Editar postagem" style="font-size: 0.9rem;">
+                <img :src="canetaEdicao" alt="" class="btn-post-img">
+              </button>
+              <button type="button" class="btn-post" @click="deletarPostagem(post.id)" title="Excluir postagem" style="font-size: 0.9rem;">
+                <img :src="lixeira" alt="deletar post" class="btn-post-img">
+              </button>
+            </template>
           </div>
           <span class="data-do-post">
             Publicado em: {{ new Date(post.data_envio).toLocaleDateString('pt-BR') }}

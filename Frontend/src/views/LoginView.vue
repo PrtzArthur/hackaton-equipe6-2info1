@@ -22,10 +22,17 @@ const realizarLogin = async () => {
     if (!resposta.ok) throw new Error('Falha ao buscar usuários');
 
     const usuarios = await resposta.json();
-    const termo = emailOuHandle.value.replace('@', '').trim().toLowerCase();
+    const termo = emailOuHandle.value.trim().replace(/^@/, '').toLowerCase();
+    const senhaDigitada = senha.value.trim();
+
+    console.log('Usuários vindos do db.json:', usuarios);
+    console.log('Digitado:', { termo, senhaDigitada });
 
     const usuarioEncontrado = usuarios.find(
-      u => (u.email?.toLowerCase() === termo || u.username?.toLowerCase() === termo) && u.senha === senha.value
+      u =>
+        (String(u.email || '').trim().toLowerCase() === termo ||
+          String(u.username || '').trim().toLowerCase() === termo) &&
+        String(u.senha || '').trim() === senhaDigitada
     );
 
     if (usuarioEncontrado) {

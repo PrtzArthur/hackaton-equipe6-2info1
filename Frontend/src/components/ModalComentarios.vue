@@ -1,7 +1,6 @@
 <script setup>
-import { ref, watch, onMounted, onUnmounted } from 'vue';
+import { ref, watch } from 'vue';
 import { useToast } from 'vue-toastification';
-import { io } from 'socket.io-client';
 import likePreenchido from '@/icons/likePreenchido.svg';
 import likeInline from '@/icons/likeInline.svg';
 import dislikeInline from '@/icons/dislikeInline.svg';
@@ -16,145 +15,190 @@ const props = defineProps({
 const emit = defineEmits(['fechar']);
 
 const toast = useToast();
-const socket = io(import.meta.env.VITE_API_URL);
+const API_URL = import.meta.env.VITE_API_URL;
 
 const listaComentariosDoPost = ref([]);
 const textoNovoComentario = ref('');
 const filtroAtual = ref('recente');
+const carregandoComentarios = ref(false);
 const meuIdLogado = ref(localStorage.getItem('ifchat_user_id') || '');
 
 async function carregarComentariosDoBanco() {
-  if (!props.post?.id_postagem) return;
+  const idPost = props.post?.id || props.post?.id_postagem;
+  if (!idPost) return;
+
+  carregandoComentarios.value = true;
   try {
-    const resposta = await fetch(`${import.meta.env.VITE_API_URL}/api/criar/postagens/${props.post.id_postagem}/comentarios?meuId=${meuIdLogado.value}&filtro=${filtroAtual.value}`);
-    if (resposta.ok) {
-      listaComentariosDoPost.value = await resposta.json();
+    const [resComentarios, resUsuarios] = await Promise.all([
+      fetch(`${API_URL}/comentarios`),
+      fetch(`${API_URL}/usuarios`)
+    ]);
+
+    if (resComentarios.ok && resUsuarios.ok) {
+      const todosComentarios = await resComentarios.json();
+      const usuarios = await resUsuarios.json();
+
+      const comentariosDoPost = todosComentarios.filter(
+        c => String(c.postagemId) === String(idPost)
+      );
+
+      let formatados = comentariosDoPost.map(c => {
+        const autorObj = usuarios.find(u => String(u.id) === String(c.usuarioId)) || {
+          nome: 'Usuário IFC',
+          username: 'ifchat',
+          foto_profile: ''
+        };
+
+        return {
+          ...c,
+          id_comentario: c.id,
+          autor: String(c.usuarioId),
+          nome: autorObj.nome,
+          username: autorObj.username,
+          foto_profile: autorObj.foto_profile || '',
+          total_likes: c.total_likes || 0,
+          total_dislikes: c.total_dislikes || 0,
+          meu_voto: c.meu_voto || null
+        };
+      });
+
+      if (filtroAtual.value === 'relevante') {
+        formatados.sort((a, b) => (b.total_likes || 0) - (a.total_likes || 0));
+      } else {
+        formatados.sort((a, b) => new Date(b.data_comentario) - new Date(a.data_comentario));
+      }
+
+      listaComentariosDoPost.value = formatados;
     }
   } catch (erro) {
-    console.error("Erro ao buscar histórico do mural:", erro);
+    console.error('Erro ao buscar comentários:', erro);
+    toast.error('Erro ao carregar comentários.');
+  } finally {
+    carregandoComentarios.value = false;
   }
 }
+
 function mudarFiltroMural(novoFiltro) {
   filtroAtual.value = novoFiltro;
   carregarComentariosDoBanco();
 }
+
 async function enviarComentarioNoOverlay() {
-  if (!textoNovoComentario.value.trim() || !props.post?.id_postagem) {
-    console.warn("Aviso: Texto vazio ou post não identificado.");
-    toast.warning('Post não identificado ou texto vazio.')
+  const idPost = props.post?.id || props.post?.id_postagem;
+
+  if (!textoNovoComentario.value.trim() || !idPost) {
+    toast.warning('Post não identificado ou texto vazio.');
     return;
   }
-  const meuId = meuIdLogado.value || localStorage.getItem('ifchat_user_id') || '';
 
+  const meuId = meuIdLogado.value || localStorage.getItem('ifchat_user_id') || '';
   if (!meuId) {
-    toast.warning("Você precisa estar logado para comentar!");
+    toast.warning('Você precisa estar logado para comentar!');
     return;
   }
 
   try {
-    const resposta = await fetch(`${import.meta.env.VITE_API_URL}/api/criar/comentarios/novo`, {
+    const resposta = await fetch(`${API_URL}/comentarios`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        idUsuario: meuId,
-        idPostagem: props.post.id_postagem,
-        conteudo: textoNovoComentario.value.trim()
+        postagemId: String(idPost),
+        usuarioId: String(meuId),
+        conteudo_comentario: textoNovoComentario.value.trim(),
+        data_comentario: new Date().toISOString(),
+        total_likes: 0,
+        total_dislikes: 0
       })
     });
-
-    const dados = await resposta.json();
 
     if (resposta.ok) {
       textoNovoComentario.value = '';
-      toast.success("Resposta publicada com sucesso!");
-      carregarComentariosDoBanco();
+      toast.success('Resposta publicada com sucesso!');
+      await carregarComentariosDoBanco();
     } else {
-      toast.error(dados.erro || "Falha ao enviar comentário no servidor.");
+      toast.error('Falha ao enviar comentário no servidor.');
     }
   } catch (erro) {
-    console.error("Erro de conexão com a API de comentários:", erro);
-    toast.error("Erro de comunicação com o servidor.");
+    console.error('Erro de conexão com a API de comentários:', erro);
+    toast.error('Erro de comunicação com o JSON Server.');
   }
 }
-async function votarNoComentarioDoMural(idComentario, tipo) {
+
+async function votarNoComentarioDoMural(comentarioAlvo, tipo) {
   if (!meuIdLogado.value) {
-    toast.warning("Faça login para interagir!");
+    toast.warning('Faça login para interagir!');
     return;
   }
-  try {
-    const resposta = await fetch(`${import.meta.env.VITE_API_URL}/api/criar/postagens/comentarios/votar`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        idUsuario: meuIdLogado.value,
-        idComentario: idComentario.id_comentario,
-        tipoVoto: tipo
-      })
-    });
-    const dados = await resposta.json();
 
-    if (resposta.ok) {
-      idComentario.meu_voto = dados.votoAtual;
-      carregarComentariosDoBanco()
-    };
-  } catch (erro) {
-    console.error("Erro ao processar voto:", erro);
+  const votoAntigo = comentarioAlvo.meu_voto;
+  let novosLikes = comentarioAlvo.total_likes || 0;
+  let novosDislikes = comentarioAlvo.total_dislikes || 0;
+  let novoVoto = tipo;
+
+  if (votoAntigo === tipo) {
+    novoVoto = null;
+    if (tipo === 'like') novosLikes = Math.max(0, novosLikes - 1);
+    if (tipo === 'dislike') novosDislikes = Math.max(0, novosDislikes - 1);
+  } else {
+    if (votoAntigo === 'like') novosLikes = Math.max(0, novosLikes - 1);
+    if (votoAntigo === 'dislike') novosDislikes = Math.max(0, novosDislikes - 1);
+    if (tipo === 'like') novosLikes++;
+    if (tipo === 'dislike') novosDislikes++;
   }
-}
-async function deletarComentarioDoBanco(idComentario) {
-  if (!confirm("Tem certeza que deseja apagar este comentário?")) return;
 
   try {
-    const resposta = await fetch(`${import.meta.env.VITE_API_URL}/api/criar/comentarios/deletar/${idComentario}`, {
-      method: 'DELETE',
+    const resposta = await fetch(`${API_URL}/comentarios/${comentarioAlvo.id}`, {
+      method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        idUsuarioLogado: meuIdLogado.value
+        total_likes: novosLikes,
+        total_dislikes: novosDislikes
       })
     });
 
-    const dados = await resposta.json();
-
     if (resposta.ok) {
-      toast.success("Comentário removido com sucesso!");
-      carregarComentariosDoBanco();
-    } else {
-      toast.error(dados.erro || "Falha ao deletar comentário.");
+      comentarioAlvo.meu_voto = novoVoto;
+      comentarioAlvo.total_likes = novosLikes;
+      comentarioAlvo.total_dislikes = novosDislikes;
     }
   } catch (erro) {
-    console.error("Erro ao deletar comentário:", erro);
-    toast.error("Erro de comunicação com o servidor.");
+    console.error('Erro ao processar voto:', erro);
+  }
+}
+
+async function deletarComentarioDoBanco(idComentario) {
+  if (!confirm('Tem certeza que deseja apagar este comentário?')) return;
+
+  try {
+    const resposta = await fetch(`${API_URL}/comentarios/${idComentario}`, {
+      method: 'DELETE'
+    });
+
+    if (resposta.ok) {
+      toast.success('Comentário removido com sucesso!');
+      listaComentariosDoPost.value = listaComentariosDoPost.value.filter(
+        c => c.id !== idComentario
+      );
+    } else {
+      toast.error('Falha ao deletar comentário.');
+    }
+  } catch (erro) {
+    console.error('Erro ao deletar comentário:', erro);
+    toast.error('Erro de comunicação com o servidor.');
   }
 }
 
 watch(
   () => [props.isOpen, props.post],
   ([novoIsOpen, novoPost]) => {
-    if (novoIsOpen && novoPost?.id_postagem) {
+    const idPost = novoPost?.id || novoPost?.id_postagem;
+    if (novoIsOpen && idPost) {
       meuIdLogado.value = localStorage.getItem('ifchat_user_id') || '';
       carregarComentariosDoBanco();
     }
   },
   { immediate: true }
 );
-onMounted(() => {
-  if (props.isOpen) carregarComentariosDoBanco();
-  socket.on('novo_comentario_recebido', (comentarioVindoDoServidor) => {
-    if (props.isOpen && props.post?.id_postagem === comentarioVindoDoServidor.id_postagem) {
-      const jaExiste = listaComentariosDoPost.value.some(c => c.id_comentario === comentarioVindoDoServidor.id_comentario);
-      if (!jaExiste) {
-        if (filtroAtual.value === 'recente') {
-          listaComentariosDoPost.value.unshift(comentarioVindoDoServidor);
-        } else {
-          listaComentariosDoPost.value.push(comentarioVindoDoServidor);
-        }
-      }
-    }
-  });
-});
-onUnmounted(() => {
-  socket.off('novo_comentario_recebido');
-});
 </script>
 
 <template>

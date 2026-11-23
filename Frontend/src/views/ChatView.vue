@@ -1,6 +1,5 @@
 <script setup>
-import { ref, onMounted, nextTick, onUnmounted, computed, watch } from 'vue';
-import { io } from 'socket.io-client';
+import { ref, onMounted, nextTick, computed, watch } from 'vue';
 import iconeLupa from '@/icons/iconeLupa.svg';
 import imagem from '@/icons/imagem.svg';
 import voltar from '@/icons/voltar.svg';
@@ -14,16 +13,15 @@ import { useRouter } from 'vue-router';
 import ChamadaVideo from '@/components/ChamadaVideo.vue';
 
 const router = useRouter();
-
 const toast = useToast();
-
-const socket = io(import.meta.env.VITE_API_URL);
+const API_URL = import.meta.env.VITE_API_URL;
 
 const meuIdLogado = ref(localStorage.getItem('ifchat_user_id') || '');
 const buscaUsuario = ref('');
 const textoMensagem = ref('');
 const conversaAtiva = ref(null);
 const containerMensagens = ref(null);
+const carregandoChat = ref(false);
 
 const listaConversas = ref([]);
 const historicoMensagens = ref([]);
@@ -43,8 +41,6 @@ const listaDeEmojisTotais = [
 
 const mostrarTelaPesquisaUsuarios = ref(false);
 
-let timeoutDigitando = null;
-
 async function rolarChatParaBaixo() {
   await nextTick();
   if (containerMensagens.value) {
@@ -52,22 +48,64 @@ async function rolarChatParaBaixo() {
   }
 }
 
-function mostrarTelaDeUsuarios()  {
+function mostrarTelaDeUsuarios() {
   mostrarTelaPesquisaUsuarios.value = true;
 }
-function voltarTela()  {
+
+function voltarTela() {
   mostrarTelaPesquisaUsuarios.value = false;
 }
 
 async function carregarListaConversas() {
+  carregandoChat.value = true;
   try {
-    const r = await fetch(`${import.meta.env.VITE_API_URL}/api/chat/conversas?meuId=${meuIdLogado.value}`);
-    if (r.ok) {
-      const dados = await r.json();
-      listaConversas.value = dados.map(c => ({ ...c, digitando: false }));
+    const [resUsers, resMsgs] = await Promise.all([
+      fetch(`${API_URL}/usuarios`),
+      fetch(`${API_URL}/mensagens`)
+    ]);
+
+    if (resUsers.ok && resMsgs.ok) {
+      const usuarios = await resUsers.json();
+      const todasMensagens = await resMsgs.json();
+
+      const idAlvoRota = router.currentRoute.value.query.usuarioId || router.currentRoute.value.params.id;
+
+      listaConversas.value = usuarios
+        .filter(u => String(u.id) !== String(meuIdLogado.value))
+        .map(u => {
+          const msgsComEsseUser = todasMensagens.filter(
+            m =>
+              (String(m.remetenteId) === String(meuIdLogado.value) && String(m.destinatarioId) === String(u.id)) ||
+              (String(m.remetenteId) === String(u.id) && String(m.destinatarioId) === String(meuIdLogado.value))
+          );
+
+          const ultima = msgsComEsseUser[msgsComEsseUser.length - 1];
+
+          return {
+            ...u,
+            id_usuario: u.id,
+            digitando: false,
+            temHistorico: msgsComEsseUser.length > 0 || String(u.id) === String(idAlvoRota),
+            ultima_mensagem: ultima ? ultima.conteudo_mensagem : 'Nova conversa'
+          };
+        })
+        .filter(chat => chat.temHistorico);
+
+      if (idAlvoRota) {
+        const chatEncontrado = listaConversas.value.find(c => String(c.id_usuario) === String(idAlvoRota));
+        if (chatEncontrado) {
+          selecionarConversa(chatEncontrado);
+        }
+      }
     }
-  } catch (e) { console.error("Erro ao listar chats", e); }
+  } catch (e) {
+    console.error('Erro ao listar chats:', e);
+    toast.error('Erro ao carregar conversas. Verifique o JSON Server.');
+  } finally {
+    carregandoChat.value = false;
+  }
 }
+
 const conversasFiltradas = computed(() => {
   if (!buscaUsuario.value.trim()) {
     return listaConversas.value;
@@ -77,46 +115,91 @@ const conversasFiltradas = computed(() => {
   return listaConversas.value.filter(chat => {
     const nomeBate = chat.nome?.toLowerCase().includes(termo);
     const userBate = chat.username?.toLowerCase().includes(termo);
-
     return nomeBate || userBate;
   });
 });
+
 async function selecionarConversa(usuario) {
   conversaAtiva.value = usuario;
   mostrarPainelEmojis.value = false;
+  carregandoChat.value = true;
+
   try {
-    const r = await fetch(`${import.meta.env.VITE_API_URL}/api/chat/historico?meuId=${meuIdLogado.value}&amigoId=${usuario.id_usuario}`);
+    const r = await fetch(`${API_URL}/mensagens`);
     if (r.ok) {
-      const dadosMensagens = await r.json();
-      historicoMensagens.value = dadosMensagens.map(msg => ({
-        id_mensagem: msg.id_mensagem,
-        id_remetente: msg.id_remetente,
-        id_destinatario: msg.id_destinatario,
-        texto: msg.texto || msg.conteudo_mensagem,
-        data: msg.data || msg.data_mensagem
+      const todasMensagens = await r.json();
+
+      const filtradas = todasMensagens.filter(
+        msg =>
+          (String(msg.remetenteId) === String(meuIdLogado.value) && String(msg.destinatarioId) === String(usuario.id_usuario)) ||
+          (String(msg.remetenteId) === String(usuario.id_usuario) && String(msg.destinatarioId) === String(meuIdLogado.value))
+      );
+
+      historicoMensagens.value = filtradas.map(msg => ({
+        id: msg.id,
+        id_mensagem: msg.id,
+        id_remetente: String(msg.remetenteId),
+        id_destinatario: String(msg.destinatarioId),
+        texto: msg.conteudo_mensagem,
+        data: msg.data_mensagem
       }));
+
       rolarChatParaBaixo();
     }
-  } catch (e) { console.error("Erro ao carregar histórico", e); }
+  } catch (e) {
+    console.error('Erro ao carregar histórico:', e);
+    toast.error('Erro ao carregar histórico de mensagens.');
+  } finally {
+    carregandoChat.value = false;
+  }
 }
 
-function enviarMensagem() {
+async function enviarMensagem() {
   if (!textoMensagem.value.trim() || !conversaAtiva.value) return;
 
   const mensagemLimpa = textoMensagem.value.trim();
-  socket.emit('enviar_mensagem_privada', {
-    id_remetente: meuIdLogado.value,
-    id_destinatario: conversaAtiva.value.id_usuario,
-    texto: mensagemLimpa,
-    conteudo_mensagem: mensagemLimpa
-  });
 
-  textoMensagem.value = '';
-  mostrarPainelEmojis.value = false;
+  try {
+    const resposta = await fetch(`${API_URL}/mensagens`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        remetenteId: String(meuIdLogado.value),
+        destinatarioId: String(conversaAtiva.value.id_usuario),
+        conteudo_mensagem: mensagemLimpa,
+        lido: false,
+        data_mensagem: new Date().toISOString()
+      })
+    });
+
+    if (resposta.ok) {
+      const criada = await resposta.json();
+      historicoMensagens.value.push({
+        id: criada.id,
+        id_mensagem: criada.id,
+        id_remetente: String(criada.remetenteId),
+        id_destinatario: String(criada.destinatarioId),
+        texto: criada.conteudo_mensagem,
+        data: criada.data_mensagem
+      });
+
+      textoMensagem.value = '';
+      mostrarPainelEmojis.value = false;
+      rolarChatParaBaixo();
+      carregarListaConversas();
+    } else {
+      toast.error('Falha ao enviar mensagem.');
+    }
+  } catch (erro) {
+    console.error('Erro ao enviar mensagem:', erro);
+    toast.error('Erro de conexão com o JSON Server.');
+  }
 }
-function adicionarEmojiNoTexto(emoji) {
-  textoMensagem.value += emoji;
+
+function adicionarEmojiNoTexto(emojiItem) {
+  textoMensagem.value += emojiItem;
 }
+
 function abrirSeletorDeArquivos() {
   if (inputGaleriaReferencia.value) {
     inputGaleriaReferencia.value.click();
@@ -126,88 +209,114 @@ async function processarEnvioDeImagemDoChat(evento) {
   const arquivo = evento.target.files[0];
   if (!arquivo || !conversaAtiva.value) return;
 
-  const formDataEnviada = new FormData();
-  formDataEnviada.append('imagemChat', arquivo);
-
-  try {
-    const resposta = await fetch(`${import.meta.env.VITE_API_URL}/api/chat/upload-imagem`, {
-      method: 'POST',
-      body: formDataEnviada
-    });
-
-    if (resposta.ok) {
-      const dadosRetorno = await resposta.json();
-      const urlMidiaFisica = dadosRetorno.urlImagem;
-      socket.emit('enviar_mensagem_privada', {
-        id_remetente: meuIdLogado.value,
-        id_destinatario: conversaAtiva.value.id_usuario,
-        texto: urlMidiaFisica,
-        conteudo_mensagem: urlMidiaFisica
+  const leitor = new FileReader();
+  leitor.onload = async () => {
+    try {
+      const resposta = await fetch(`${API_URL}/mensagens`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          remetenteId: String(meuIdLogado.value),
+          destinatarioId: String(conversaAtiva.value.id_usuario),
+          conteudo_mensagem: leitor.result,
+          lido: false,
+          data_mensagem: new Date().toISOString()
+        })
       });
-      evento.target.value = '';
+
+      if (resposta.ok) {
+        const criada = await resposta.json();
+        historicoMensagens.value.push({
+          id: criada.id,
+          id_mensagem: criada.id,
+          id_remetente: String(criada.remetenteId),
+          id_destinatario: String(criada.destinatarioId),
+          texto: criada.conteudo_mensagem,
+          data: criada.data_mensagem
+        });
+        evento.target.value = '';
+        rolarChatParaBaixo();
+      }
+    } catch (erro) {
+      console.error('Erro ao enviar imagem:', erro);
     }
-  } catch (erro) {
-    console.error("Erro ao fazer upload da imagem no chat:", erro);
-  }
+  };
+  leitor.readAsDataURL(arquivo);
 }
 async function tratarDuploCliqueNaMensagem(msg) {
-  if (msg.id_remetente !== meuIdLogado.value) return;
+  if (String(msg.id_remetente) !== String(meuIdLogado.value)) return;
   if (msg.texto === 'Mensagem apagada') return;
 
-  if (!confirm("Deseja apagar esta mensagem para todos?")) return;
-
   try {
-    const resposta = await fetch(`${import.meta.env.VITE_API_URL}/api/chat/mensagem/apagar/${msg.id_mensagem}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ meuId: meuIdLogado.value })
-    });
-
-    if (resposta.ok) {
-      msg.texto = 'Mensagem apagada';
-      socket.emit('apagar_mensagem_realtime', {
-        id_mensagem: msg.id_mensagem,
-        id_remetente: meuIdLogado.value,
-        id_destinatario: conversaAtiva.value.id_usuario
-      });
+    const resBusca = await fetch(`${API_URL}/mensagens/${msg.id_mensagem}`);
+    if (!resBusca.ok) {
+      toast.error('Mensagem não encontrada.');
+      return;
     }
-  } catch (erro) { console.error("Erro ao tentar apagar mensagem:", erro); }
+    const msgAtual = await resBusca.json();
+
+    const acao = prompt(
+      'Digite o novo texto para EDITAR a mensagem, ou deixe APAGAR para excluir definitivamente:',
+      msgAtual.conteudo_mensagem
+    );
+
+    if (acao === null) return;
+
+    if (acao.trim().toUpperCase() === 'APAGAR') {
+      if (!confirm('Tem certeza que deseja excluir esta mensagem permanentemente?')) return;
+
+      const resDel = await fetch(`${API_URL}/mensagens/${msg.id_mensagem}`, {
+        method: 'DELETE'
+      });
+
+      if (resDel.ok) {
+        historicoMensagens.value = historicoMensagens.value.filter(m => m.id_mensagem !== msg.id_mensagem);
+        toast.success('Mensagem excluída com sucesso!');
+        carregarListaConversas();
+      }
+    } else if (acao.trim()) {
+      const resEdit = await fetch(`${API_URL}/mensagens/${msg.id_mensagem}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ conteudo_mensagem: acao.trim() })
+      });
+
+      if (resEdit.ok) {
+        msg.texto = acao.trim();
+        toast.success('Mensagem atualizada!');
+        carregarListaConversas();
+      }
+    }
+  } catch (erro) {
+    console.error('Erro ao editar/apagar mensagem:', erro);
+    toast.error('Erro de comunicação com o servidor.');
+  }
 }
 
 function avisarQueEstouDigitando() {
-  if (!conversaAtiva.value || !meuIdLogado.value) return;
-
-  socket.emit('aluno_digitando', {
-    id_remetente: meuIdLogado.value,
-    id_destinatario: conversaAtiva.value.id_usuario
-  });
-
-  clearTimeout(timeoutDigitando);
-
-  timeoutDigitando = setTimeout(() => {
-    socket.emit('aluno_parou_digitando', {
-      id_remetente: meuIdLogado.value,
-      id_destinatario: conversaAtiva.value.id_usuario
-    });
-  }, 1500);
+  // mantido vazio para compatibilidade com o @input do template sem socket.io
 }
+
 const usuarioFiltrado = ref('');
 const mostrarDropdownOrdenacao = ref(false);
 const filtroOrdenacaoSelecionado = ref('Mais recente');
+
 const listaDeTodosOsUsuariosDoBanco = ref([]);
 
 function alternarDropdownOrdenacao() {
   mostrarDropdownOrdenacao.value = !mostrarDropdownOrdenacao.value;
 }
+
 const usuariosFiltradosEOrdenados = computed(() => {
   let resultado = [...listaDeTodosOsUsuariosDoBanco.value];
+
   if (usuarioFiltrado.value.trim()) {
     const termo = usuarioFiltrado.value.toLowerCase().trim();
-    resultado = resultado.filter(u =>
-      u.nome?.toLowerCase().includes(termo) ||
-      u.username?.toLowerCase().includes(termo)
+    resultado = resultado.filter(
+      u => u.nome?.toLowerCase().includes(termo) || u.username?.toLowerCase().includes(termo)
     );
   }
+
   if (filtroOrdenacaoSelecionado.value === 'Mais seguido') {
     return resultado.sort((a, b) => (b.total_seguidores || 0) - (a.total_seguidores || 0));
   } else if (filtroOrdenacaoSelecionado.value === 'Com mais postagens') {
@@ -216,52 +325,40 @@ const usuariosFiltradosEOrdenados = computed(() => {
     return resultado.sort((a, b) => new Date(b.data_criacao) - new Date(a.data_criacao));
   }
 });
+
 async function carregarTodosOsUsuariosParaExplorar() {
   const idLogado = localStorage.getItem('ifchat_user_id') || '';
-  if (!idLogado) return;
 
   try {
-    const resposta = await fetch(`${import.meta.env.VITE_API_URL}/api/usuario/explorar/usuarios?meuId=${idLogado}`);
-
+    const resposta = await fetch(`${API_URL}/usuarios`);
     if (resposta.ok) {
-      listaDeTodosOsUsuariosDoBanco.value = await resposta.json();
+      const todos = await resposta.json();
+      listaDeTodosOsUsuariosDoBanco.value = todos
+        .filter(u => String(u.id) !== String(idLogado))
+        .map(u => ({ ...u, id_usuario: u.id, jaSeguindo: false }));
     }
   } catch (erro) {
-    console.error("Falha na requisição de exploração de alunos:", erro);
+    console.error('Falha na requisição de exploração de alunos:', erro);
   }
 }
+
 watch(mostrarTelaPesquisaUsuarios, (ficouVisivel) => {
   if (ficouVisivel) {
     carregarTodosOsUsuariosParaExplorar();
   }
 });
+
 function reordenarUsuarios() {
   mostrarDropdownOrdenacao.value = false;
 }
+
 function irParaPerfilDoAutor(idUsuario) {
   router.push(`/usuario/${idUsuario}`);
 }
-async function alternarSeguirUsuarioNaLista(userAlvo) {
-  try {
-    const r = await fetch(`${import.meta.env.VITE_API_URL}/api/usuario/seguir`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        idSeguidor: meuIdLogado.value,
-        idSeguido: userAlvo.id_usuario,
-        idCriador: userAlvo.id_usuario
-      })
-    });
 
-    if (r.ok) {
-      const dados = await r.json();
-      userAlvo.jaSeguindo = (dados.status === 'seguiu');
-      userAlvo.total_seguidores = dados.contadorSeguidoresDoPerfil;
-      toast.success(dados.status === 'seguiu' ? `Seguindo ${userAlvo.nome}!` : `Parou de seguir.`);
-    }
-  } catch (e) {
-    console.error("Erro ao seguir usuário na listagem:", e);
-  }
+function alternarSeguirUsuarioNaLista(userAlvo) {
+  userAlvo.jaSeguindo = !userAlvo.jaSeguindo;
+  toast.success(userAlvo.jaSeguindo ? `Seguindo ${userAlvo.nome}!` : 'Parou de seguir.');
 }
 
 const chamadaAtiva = ref(false);
@@ -271,24 +368,35 @@ async function iniciarLigacaoDeVideoEEnviarConvite() {
   if (!meuIdLogado.value || !conversaAtiva.value) return;
 
   chamadaAtiva.value = true;
-  const textoDoConvite = "chamada de vídeo iniciada. Clique para entrar!";
-  const idMensagemUnico = String(Date.now() + Math.round(Math.random() * 1000000));
-
-  idMensagemChamadaAtual.value = idMensagemUnico;
-
-  const objetoMensagemConvite = {
-    id_mensagem: idMensagemUnico,
-    id_remetente: meuIdLogado.value,
-    id_destinatario: conversaAtiva.value.id_usuario,
-    texto: textoDoConvite,
-    conteudo_mensagem: textoDoConvite,
-    data: new Date()
-  };
+  const textoDoConvite = 'chamada de vídeo iniciada. Clique para entrar!';
 
   try {
-    socket.emit('enviar_mensagem_privada', objetoMensagemConvite);
-    toast.success("Iniciando conferência. Aguardando o colega...");
-    rolarChatParaBaixo();
+    const res = await fetch(`${API_URL}/mensagens`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        remetenteId: String(meuIdLogado.value),
+        destinatarioId: String(conversaAtiva.value.id_usuario),
+        conteudo_mensagem: textoDoConvite,
+        lido: false,
+        data_mensagem: new Date().toISOString()
+      })
+    });
+
+    if (res.ok) {
+      const criada = await res.json();
+      idMensagemChamadaAtual.value = criada.id;
+      historicoMensagens.value.push({
+        id: criada.id,
+        id_mensagem: criada.id,
+        id_remetente: String(criada.remetenteId),
+        id_destinatario: String(criada.destinatarioId),
+        texto: criada.conteudo_mensagem,
+        data: criada.data_mensagem
+      });
+      toast.success('Iniciando conferência...');
+      rolarChatParaBaixo();
+    }
   } catch (error) {
     console.error(error);
   }
@@ -300,102 +408,27 @@ async function finalizarChamadaEstiloWhatsapp() {
     return;
   }
 
-  const textoEncerrado = "chamada de vídeo encerrada";
-
+  const textoEncerrado = 'chamada de vídeo encerrada';
   const msgAlvo = historicoMensagens.value.find(m => m.id_mensagem === idMensagemChamadaAtual.value);
   if (msgAlvo) msgAlvo.texto = textoEncerrado;
 
-  socket.emit('encerrar_chamada_video_realtime', {
-    id_mensagem: idMensagemChamadaAtual.value,
-    id_destinatario: conversaAtiva.value.id_usuario
-  });
-
   try {
-    await fetch(`${import.meta.env.VITE_API_URL}/api/chat/mensagem/atualizar-chamada`, {
-      method: 'PUT',
+    await fetch(`${API_URL}/mensagens/${idMensagemChamadaAtual.value}`, {
+      method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id_mensagem: idMensagemChamadaAtual.value, novoTexto: textoEncerrado })
+      body: JSON.stringify({ conteudo_mensagem: textoEncerrado })
     });
-  } catch (e) { console.error(e); }
+  } catch (e) {
+    console.error(e);
+  }
 
   chamadaAtiva.value = false;
   idMensagemChamadaAtual.value = null;
 }
 
 onMounted(() => {
+  meuIdLogado.value = localStorage.getItem('ifchat_user_id') || '';
   carregarListaConversas();
-  socket.on('connect', () => {
-    if (meuIdLogado.value) {
-      socket.emit('entrar_no_chat', meuIdLogado.value);
-    }
-  });
-
-  if (meuIdLogado.value && socket.connected) {
-    socket.emit('entrar_no_chat', meuIdLogado.value);
-  }
-
-  socket.on('receber_mensagem_privada', (novaMsg) => {
-    const textoMensagemTratado = novaMsg.texto || novaMsg.conteudo_mensagem || '';
-
-    if (
-      (novaMsg.id_remetente === meuIdLogado.value && novaMsg.id_destinatario === conversaAtiva.value?.id_usuario) ||
-      (novaMsg.id_remetente === conversaAtiva.value?.id_usuario && novaMsg.id_destinatario === meuIdLogado.value)
-    ) {
-      historicoMensagens.value.push({
-        id_mensagem: novaMsg.id_mensagem,
-        id_remetente: novaMsg.id_remetente,
-        id_destinatario: novaMsg.id_destinatario,
-        texto: textoMensagemTratado,
-        data: novaMsg.data
-      });
-      rolarChatParaBaixo();
-    }
-    carregarListaConversas();
-  });
-
-  socket.on('mensagem_foi_apagada', (dados) => {
-    const msgAlvo = historicoMensagens.value.find(m => m.id_mensagem === dados.id_mensagem);
-    if (msgAlvo) { msgAlvo.texto = 'Mensagem apagada'; }
-  });
-
-  socket.on('aluno_esta_digitando', (dados) => {
-    const index = listaConversas.value.findIndex(c => c.id_usuario === dados.id_remetente);
-    if (index !== -1) { listaConversas.value[index] = { ...listaConversas.value[index], digitando: true }; }
-  });
-  socket.on('aluno_parou_de_digitando', (dados) => {
-    const index = listaConversas.value.findIndex(c => c.id_usuario === dados.id_remetente);
-    if (index !== -1) { listaConversas.value[index] = { ...listaConversas.value[index], digitando: false }; }
-  });
-
-  socket.on('usuario_status_mudou', (dadosRecebidos) => {
-    if (listaDeTodosOsUsuariosDoBanco.value) {
-      const usuarioAlvoNaBusca = listaDeTodosOsUsuariosDoBanco.value.find(u => u.id_usuario === dadosRecebidos.id_usuario);
-      if (usuarioAlvoNaBusca) {
-        usuarioAlvoNaBusca.status_online = dadosRecebidos.status_online;
-      }
-    }
-
-    const chatAtivoNaSidebar = listaConversas.value.find(c => c.id_usuario === dadosRecebidos.id_usuario);
-    if (chatAtivoNaSidebar) {
-      chatAtivoNaSidebar.status_online = dadosRecebidos.status_online;
-    }
-  });
-  socket.on('chamada_foi_encerrada_notificar', (dados) => {
-    const msgAlvo = historicoMensagens.value.find(m => m.id_mensagem === dados.id_mensagem);
-    if (msgAlvo) {
-      msgAlvo.texto = "chamada de vídeo encerrada";
-    }
-    chamadaAtiva.value = false;
-  });
-});
-
-onUnmounted(() => {
-  socket.off('connect');
-  socket.off('receber_mensagem_privada');
-  socket.off('mensagem_foi_apagada');
-  socket.off('aluno_esta_digitando');
-  socket.off('aluno_parou_de_digitando');
-  socket.off('usuario_status_mudou');
 });
 </script>
 

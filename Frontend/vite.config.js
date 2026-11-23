@@ -14,8 +14,8 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
-  define: {
-    'import.meta.env.VITE_API_URL': JSON.stringify('https://hackaton-equipe6-2info1.onrender.com')
-  }
+  //define: {
+  // 'import.meta.env.VITE_API_URL': JSON.stringify('https://hackaton-equipe6-2info1.onrender.com')
+  //}
 })
 
