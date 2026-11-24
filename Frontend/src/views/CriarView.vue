@@ -1,4 +1,4 @@
-<script setup>
+  <script setup>
 import { ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useToast } from 'vue-toastification';
@@ -150,52 +150,98 @@ const enviarComunidade = async () => {
   }
 };
 
-const enviarPost = async () => {
-  const idUsuarioReal = localStorage.getItem('ifchat_user_id') || route.params.id;
+const API_URL = import.meta.env.VITE_API_URL;
+const enviandoPost = ref(false);
+const TAMANHO_MAX_IMAGEM = 500 * 1024; // 500 KB, para não pesar o db.json
 
+function lerImagemComoTexto(arquivo) {
+  return new Promise((resolve, reject) => {
+    const leitor = new FileReader();
+    leitor.onload = () => resolve(leitor.result);
+    leitor.onerror = () => reject(new Error('Falha ao ler a imagem'));
+    leitor.readAsDataURL(arquivo);
+  });
+}
+
+const enviarPost = async () => {
+  if (enviandoPost.value) return;
+
+  const idUsuarioReal = localStorage.getItem('ifchat_user_id') || route.params.id;
   if (!idUsuarioReal || idUsuarioReal === 'undefined') {
     toast.error("Usuário não identificado. Faça login novamente.");
     return;
   }
-  const opcoesValidas = opcoesEnquete.value
+
+  const conteudo = descricaoDaPostagem.value.trim();
+  if (!conteudo) {
+    toast.warning("A descrição da postagem não pode ficar vazia.");
+    return;
+  }
+
+  const textosOpcoes = opcoesEnquete.value
     .map(o => o.texto.trim())
     .filter(texto => texto !== '');
+  if (textosOpcoes.length === 1) {
+    toast.warning("Para criar uma enquete, preencha pelo menos 2 opções.");
+    return;
+  }
+  const ehEnquete = textosOpcoes.length >= 2;
 
-  const tipoPostagem = opcoesValidas.length >= 2 ? 'postagemComEnquete' : 'postagemComum';
-
+  enviandoPost.value = true;
   try {
-    const formDataCompleto = new FormData();
-
-    formDataCompleto.append('descricao', descricaoDaPostagem.value.trim());
-    formDataCompleto.append('tipo', tipoPostagem);
-
-    formDataCompleto.append('opcoes', JSON.stringify(opcoesValidas));
-    formDataCompleto.append('tags', JSON.stringify(tagsDaPostagem.value));
-
+    let imagem = '';
     if (arquivoImagemPost.value && arquivoImagemPost.value.length > 0) {
-      formDataCompleto.append('imagem_post', arquivoImagemPost.value[0]);
+      const arquivo = arquivoImagemPost.value[0];
+      if (arquivo.size > TAMANHO_MAX_IMAGEM) {
+        toast.warning("A imagem deve ter no máximo 500 KB.");
+        return;
+      }
+      imagem = await lerImagemComoTexto(arquivo);
     }
-    const resposta = await fetch(`${import.meta.env.VITE_API_URL}/api/criar/postagens/${idUsuarioReal}`, {
+
+    const novaPostagem = {
+      usuarioId: String(idUsuarioReal),
+      tipo: ehEnquete ? 'postagemComEnquete' : 'postagemComum',
+      conteudo,
+      imagem,
+      tags: tagsDaPostagem.value,
+      opcoes: ehEnquete
+        ? textosOpcoes.map((texto, i) => ({
+            id_opcao: `op${i + 1}`,
+            texto_opcao: texto,
+            porcentagem: 0
+          }))
+        : [],
+      totalVotosGeral: 0,
+      total_likes: 0,
+      total_dislikes: 0,
+      data_envio: new Date().toISOString()
+    };
+
+    const resposta = await fetch(`${API_URL}/postagens`, {
       method: 'POST',
-      body: formDataCompleto
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(novaPostagem)
     });
 
-    const dados = await resposta.json();
-
     if (resposta.ok) {
-      toast.success('Postagem completa criada com sucesso!');
+      toast.success('Postagem criada com sucesso!');
       descricaoDaPostagem.value = '';
       tagsDaPostagem.value = [];
       arquivoImagemPost.value = null;
-
+      opcoesEnquete.value = [
+        { id: 1, texto: '' },
+        { id: 2, texto: '' }
+      ];
       router.push('/home');
     } else {
-      toast.error(dados.erro || "Erro ao fazer postagem.");
+      toast.error("Erro ao fazer postagem.");
     }
-
-  } catch(erro) {
+  } catch (erro) {
     console.error('Não foi possível fazer a postagem.', erro);
     toast.error("Falha ao se conectar com o servidor.");
+  } finally {
+    enviandoPost.value = false;
   }
 };
 </script>
@@ -258,7 +304,9 @@ const enviarPost = async () => {
           </div>
         </div>
         <div class="botaoPostar">
-          <button type="submit" class="deFatoOBotaoPostar">Postar</button>
+            <button type="submit" class="deFatoOBotaoPostar" :disabled="enviandoPost">
+              {{ enviandoPost ? 'Postando...' : 'Postar' }}
+            </button>
         </div>
       </form>
     </section>

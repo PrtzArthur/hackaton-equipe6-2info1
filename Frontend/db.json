@@ -81,6 +81,43 @@
       "total_likes": 7,
       "total_dislikes": 1,
       "data_envio": "2026-11-12T18:30:00.000Z"
+    },
+    {
+      "usuarioId": "1",
+      "tipo": "postagemComum",
+      "conteudo": "Teste postagem 1",
+      "imagem": "",
+      "tags": [],
+      "opcoes": [],
+      "totalVotosGeral": 0,
+      "total_likes": 0,
+      "total_dislikes": 0,
+      "data_envio": "2026-11-24T00:31:34.903Z",
+      "id": "DHR66Oxc_tk"
+    },
+    {
+      "usuarioId": "1",
+      "tipo": "postagemComEnquete",
+      "conteudo": "Teste postagem 3",
+      "imagem": "",
+      "tags": [],
+      "opcoes": [
+        {
+          "id_opcao": "op1",
+          "texto_opcao": "1",
+          "porcentagem": 0
+        },
+        {
+          "id_opcao": "op2",
+          "texto_opcao": "2",
+          "porcentagem": 0
+        }
+      ],
+      "totalVotosGeral": 0,
+      "total_likes": 0,
+      "total_dislikes": 0,
+      "data_envio": "2026-11-24T00:31:43.770Z",
+      "id": "L14g-G14Nr4"
     }
   ],
   "comunidades": [
