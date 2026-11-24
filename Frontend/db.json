@@ -160,10 +160,18 @@
     {
       "remetenteId": "1",
       "destinatarioId": "2",
-      "conteudo_mensagem": "Bah meu",
+      "conteudo_mensagem": "nova mensagem de teste",
       "lido": false,
       "data_mensagem": "2026-11-22T23:37:40.870Z",
       "id": "AESpAYaJ7LA"
+    },
+    {
+      "remetenteId": "1",
+      "destinatarioId": "2",
+      "conteudo_mensagem": "bah meu",
+      "lido": false,
+      "data_mensagem": "2026-11-24T11:17:29.392Z",
+      "id": "NRf30ufTVgs"
     }
   ],
   "comentarios": [
